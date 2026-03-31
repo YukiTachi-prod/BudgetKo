@@ -1,0 +1,211 @@
+# Miscellaneous
+*.class
+*.log
+*.pyc
+*.swp
+.bak
+.drone.yml
+.ds_store
+*.pid
+*.seed
+*.pid.lock
+*.swo
+*.swp
+
+# Flutter/Dart/Pub related
+**/doc/api/
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+.packages
+.pub-cache/
+.pub/
+/build/
+/ios/.symlinks/
+/ios/Pods/
+/ios/Podfile.lock
+/android/.gradle/
+/android/.idea/
+/android/app/.generated/
+/android/app/google-services.json
+/android/captures/
+/android/build/
+/android/key.properties
+/android/local.properties
+/android/gradle/
+/android/gradlew
+/android/gradlew.bat
+/android/*.iml
+/android/*.iws
+/android/*.ipr
+/ios/Flutter/App.framework/
+/ios/Flutter/Flutter.framework/
+/ios/Flutter/Flutter.podspec
+/ios/Flutter/Generated.xcconfig
+/ios/Flutter/ephemeral/
+/ios/Flutter/app.flx
+/ios/Flutter/app.zip
+/ios/Flutter/flutter_assets/
+/ios/Flutter/flutter_export_environment.sh
+/ios/ServiceDefinitions.json
+/ios/Runner/GeneratedPluginRegistrant.*
+/linux/flutter/ephemeral/
+/linux/flutter/ephemeral/
+/macos/Flutter/ephemeral/
+/macos/Flutter/Flutter.framework/
+/macos/Flutter/Flutter.podspec
+/macos/Flutter/GeneratedPluginRegistrant.swift
+/windows/flutter/ephemeral/
+/windows/flutter/ephemeral/
+
+# Visual Studio Code related
+.vscode/
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+*.code-workspace
+
+# IntelliJ related
+*.iml
+*.ipr
+*.iws
+.idea/
+!.idea/runConfigurations/
+
+# Android Studio related
+*.lock
+*.lock.*
+android/local.properties
+android/app/googleServices.json
+
+# VS Code
+.vscode/
+
+# Coverage files
+coverage/
+lcov.info
+
+# Miscellaneous
+.navigation/
+.idea/
+.metadata
+*.orig
+*.old
+*.tmp
+*.temp
+
+# Symbol caching
+.symbol-cache/
+
+# Firebase
+google-services.json
+GoogleService-Info.plist
+
+# Environment variables
+.env
+.env.local
+.env.production
+.env.development
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+*.swp
+
+# Flutter/Dart
+*.dart_tool/
+*.packages
+.pub
+pubspec.lock  # Uncomment if using library-only project
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Dependency directories
+node_modules/
+jspm_packages/
+
+# Optional: Remove if you want to track these
+# .flutter-plugins
+# .flutter-plugins-dependencies
+
+# Web related (if building for web)
+/build/web/
+/.dart_tool/build/
+
+# Mac
+.DS_Store
+.AppleDouble
+.LSOverride
+Icon
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+
+# Linux
+*~
+.directory
+*.swp
+*.swo
+*~
+
+# Your project specific - ignore the import_example folder if it's not part of the app
+import_example/
+
+# Build outputs
+*.o
+*.ko
+*.obj
+*.elf
+*.out
+*.app
+*.i*86
+*.x86_64
+*.hex
+*.exe
+*.out
+*.app
+*.dll
+*.so
+*.dylib
+
+# Coverage reports
+*.gcno
+*.gcda
+*.gcov
+
+# Python
+*.pyc
+__pycache__/
+
+# Node
+node_modules/
+npm-debug.log
+yarn-error.log
+
+# Temporary files
+*.tmp
+*.temp
+*.cache
+*.bak
+*.swp
+*.swo
+*~
