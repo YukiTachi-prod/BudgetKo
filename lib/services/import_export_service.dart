@@ -68,8 +68,11 @@ class ImportExportService {
             startDate = DateTime.tryParse(dateStr) ?? DateTime.now();
           }
           metadataEndIndex = i;
-        } else if (line.startsWith('Due date:') || line.startsWith('End date:')) {
-          final label = line.startsWith('Due date:') ? 'Due date:' : 'End date:';
+        } else if (line.startsWith('Due date:') ||
+            line.startsWith('End date:')) {
+          final label = line.startsWith('Due date:')
+              ? 'Due date:'
+              : 'End date:';
           final dateStr = line.replaceFirst(label, '').trim();
           try {
             endDate = _dateFormat.parse(dateStr);
@@ -78,14 +81,17 @@ class ImportExportService {
           }
           metadataEndIndex = i;
         } else if (line.startsWith('Locked:')) {
-          isLocked = line.replaceFirst('Locked:', '').trim().toLowerCase() == 'true';
+          isLocked =
+              line.replaceFirst('Locked:', '').trim().toLowerCase() == 'true';
           metadataEndIndex = i;
         } else if (line.startsWith('Routine:')) {
-          isRoutine = line.replaceFirst('Routine:', '').trim().toLowerCase() == 'true';
+          isRoutine =
+              line.replaceFirst('Routine:', '').trim().toLowerCase() == 'true';
           metadataEndIndex = i;
         } else if (line.startsWith('Repeat:')) {
           repeatInterval = line.replaceFirst('Repeat:', '').trim();
-          if (repeatInterval == 'null' || repeatInterval.isEmpty) repeatInterval = null;
+          if (repeatInterval == 'null' || repeatInterval.isEmpty)
+            repeatInterval = null;
           metadataEndIndex = i;
         } else if (line.startsWith('##')) {
           metadataEndIndex = i - 1;

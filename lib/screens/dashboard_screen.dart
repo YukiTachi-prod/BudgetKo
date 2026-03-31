@@ -187,7 +187,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
     SettingsProvider settingsProvider,
   ) {
     final timeFormat = settingsProvider.isTime24h ? 'HH:mm' : 'hh:mm a';
-    final startFormatted = DateFormat('MMM d, $timeFormat').format(task.startDate);
+    final startFormatted = DateFormat(
+      'MMM d, $timeFormat',
+    ).format(task.startDate);
     final endFormatted = DateFormat('MMM d, $timeFormat').format(task.endDate);
 
     Color? cardColor;
@@ -196,7 +198,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
     } else {
       final now = DateTime.now();
       final difference = task.endDate.difference(now).inDays;
-      final isToday = task.endDate.year == now.year &&
+      final isToday =
+          task.endDate.year == now.year &&
           task.endDate.month == now.month &&
           task.endDate.day == now.day;
 
@@ -239,7 +242,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 ),
           title: Row(
             children: [
-              if (task.isLocked) 
+              if (task.isLocked)
                 const Padding(
                   padding: EdgeInsets.only(right: 4),
                   child: Icon(Icons.lock, size: 16, color: Colors.grey),
@@ -265,7 +268,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
               ),
               Text(
                 '$startFormatted - $endFormatted',
-                style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold),
+                style: const TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
               Text(
                 '${task.status} | ${task.category}',

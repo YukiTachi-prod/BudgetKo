@@ -187,8 +187,12 @@ class _RoutinesScreenState extends State<RoutinesScreen> {
     SettingsProvider settingsProvider,
   ) {
     final timeFormat = settingsProvider.isTime24h ? 'HH:mm' : 'hh:mm a';
-    final startFormatted = DateFormat('MMM d, $timeFormat').format(routine.startDate);
-    final endFormatted = DateFormat('MMM d, $timeFormat').format(routine.endDate);
+    final startFormatted = DateFormat(
+      'MMM d, $timeFormat',
+    ).format(routine.startDate);
+    final endFormatted = DateFormat(
+      'MMM d, $timeFormat',
+    ).format(routine.endDate);
 
     Color? cardColor;
     if (routine.isFinished) {
@@ -231,11 +235,12 @@ class _RoutinesScreenState extends State<RoutinesScreen> {
                 )
               : Checkbox(
                   value: routine.isFinished,
-                  onChanged: (val) => taskProvider.toggleTaskFinished(routine.id),
+                  onChanged: (val) =>
+                      taskProvider.toggleTaskFinished(routine.id),
                 ),
           title: Row(
             children: [
-              if (routine.isLocked) 
+              if (routine.isLocked)
                 const Padding(
                   padding: EdgeInsets.only(right: 4),
                   child: Icon(Icons.lock, size: 16, color: Colors.grey),
@@ -249,16 +254,24 @@ class _RoutinesScreenState extends State<RoutinesScreen> {
                   ),
                 ),
               ),
-              if (routine.repeatInterval != null && routine.repeatInterval != 'None')
+              if (routine.repeatInterval != null &&
+                  routine.repeatInterval != 'None')
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 6,
+                    vertical: 2,
+                  ),
                   decoration: BoxDecoration(
                     color: Colors.blue.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(4),
                   ),
                   child: Text(
                     routine.repeatInterval!,
-                    style: const TextStyle(fontSize: 10, color: Colors.blue, fontWeight: FontWeight.bold),
+                    style: const TextStyle(
+                      fontSize: 10,
+                      color: Colors.blue,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
                 ),
             ],
@@ -273,7 +286,10 @@ class _RoutinesScreenState extends State<RoutinesScreen> {
               ),
               Text(
                 '$startFormatted - $endFormatted',
-                style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold),
+                style: const TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
               Text(
                 '${routine.status} | ${routine.category}',

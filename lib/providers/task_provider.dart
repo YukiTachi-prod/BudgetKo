@@ -111,9 +111,7 @@ class TaskProvider with ChangeNotifier {
 
   void addTask(Task task) {
     if (!isTitleUnique(task.title)) {
-      throw ArgumentError(
-        'Task with this title already exists.',
-      ); 
+      throw ArgumentError('Task with this title already exists.');
     }
     // Ensure status consistency
     if (task.status == 'Finished' && !task.isFinished) {
@@ -146,9 +144,7 @@ class TaskProvider with ChangeNotifier {
 
   void updateTask(Task task) {
     if (!isTitleUnique(task.title, excludeTaskId: task.id)) {
-      throw ArgumentError(
-        'Task with this title already exists.',
-      );
+      throw ArgumentError('Task with this title already exists.');
     }
     // Ensure status consistency
     if (task.status == 'Finished' && !task.isFinished) {

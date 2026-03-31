@@ -66,11 +66,7 @@ class _MainScreenState extends State<MainScreen> {
       body: PageView(
         controller: _pageController,
         onPageChanged: _onPageChanged,
-        children: const [
-          DashboardScreen(),
-          RoutinesScreen(),
-          SettingsScreen(),
-        ],
+        children: const [DashboardScreen(), RoutinesScreen(), SettingsScreen()],
       ),
       bottomNavigationBar: BottomNavigationBar(
         type: BottomNavigationBarType.fixed,
@@ -79,10 +75,7 @@ class _MainScreenState extends State<MainScreen> {
             icon: Icon(Icons.dashboard),
             label: 'Dashboard',
           ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.repeat),
-            label: 'Routines',
-          ),
+          BottomNavigationBarItem(icon: Icon(Icons.repeat), label: 'Routines'),
           BottomNavigationBarItem(
             icon: Icon(Icons.settings),
             label: 'Settings',

@@ -58,11 +58,11 @@ class Task {
       id: json['id'],
       title: json['title'],
       description: json['description'],
-      startDate: json['startDate'] != null 
-          ? DateTime.parse(json['startDate']) 
+      startDate: json['startDate'] != null
+          ? DateTime.parse(json['startDate'])
           : (oldDate ?? DateTime.now()),
-      endDate: json['endDate'] != null 
-          ? DateTime.parse(json['endDate']) 
+      endDate: json['endDate'] != null
+          ? DateTime.parse(json['endDate'])
           : (oldDate ?? DateTime.now()),
       status: json['status'] ?? 'Not Started',
       category: json['category'],
