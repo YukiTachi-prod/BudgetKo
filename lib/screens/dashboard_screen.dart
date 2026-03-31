@@ -5,10 +5,65 @@ import '../providers/task_provider.dart';
 import '../providers/settings_provider.dart';
 import '../models/task.dart';
 import 'task_edit_screen.dart';
-import 'settings_screen.dart';
 
-class DashboardScreen extends StatelessWidget {
+class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
+
+  @override
+  State<DashboardScreen> createState() => _DashboardScreenState();
+}
+
+class _DashboardScreenState extends State<DashboardScreen> {
+  bool _isMultiSelectionMode = false;
+  final Set<String> _selectedTaskIds = {};
+
+  void _toggleMultiSelectionMode() {
+    setState(() {
+      _isMultiSelectionMode = !_isMultiSelectionMode;
+      if (!_isMultiSelectionMode) {
+        _selectedTaskIds.clear(); // Clear selection when exiting mode
+      }
+    });
+  }
+
+  void _toggleTaskSelection(String taskId) {
+    setState(() {
+      if (_selectedTaskIds.contains(taskId)) {
+        _selectedTaskIds.remove(taskId);
+      } else {
+        _selectedTaskIds.add(taskId);
+      }
+    });
+  }
+
+  void _deleteSelectedTasks(TaskProvider taskProvider) {
+    if (_selectedTaskIds.isNotEmpty) {
+      showDialog(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('Delete Selected Tasks'),
+          content: Text(
+            'Are you sure you want to delete ${_selectedTaskIds.length} tasks?',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Cancel'),
+            ),
+            TextButton(
+              onPressed: () {
+                taskProvider.deleteTasks(_selectedTaskIds.toList());
+                _selectedTaskIds.clear(); // Clear selection after deletion
+                _isMultiSelectionMode = false; // Exit multi-selection mode
+                Navigator.pop(context);
+              },
+              child: const Text('Delete', style: TextStyle(color: Colors.red)),
+            ),
+          ],
+        ),
+      );
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -16,47 +71,49 @@ class DashboardScreen extends StatelessWidget {
     final settingsProvider = Provider.of<SettingsProvider>(context);
     final tasks = taskProvider.tasks;
 
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('TASKo'),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.add),
-            onPressed: () => Navigator.push(
-              context,
-              MaterialPageRoute(builder: (context) => const TaskEditScreen()),
-            ),
-          ),
-          IconButton(
-            icon: const Icon(Icons.settings),
-            onPressed: () => Navigator.push(
-              context,
-              MaterialPageRoute(builder: (context) => const SettingsScreen()),
-            ),
-          ),
-        ],
+    return Column(
+      children: [
+        _isMultiSelectionMode
+            ? _buildMultiSelectionAppBar(context, taskProvider)
+            : _buildFilterBar(context, taskProvider, settingsProvider),
+        Expanded(
+          child: tasks.isEmpty
+              ? const Center(child: Text('No tasks found'))
+              : ListView.builder(
+                  itemCount: tasks.length,
+                  itemBuilder: (context, index) {
+                    final task = tasks[index];
+                    return _buildTaskTile(
+                      context,
+                      task,
+                      taskProvider,
+                      settingsProvider,
+                    );
+                  },
+                ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildMultiSelectionAppBar(
+    BuildContext context,
+    TaskProvider taskProvider,
+  ) {
+    return AppBar(
+      leading: IconButton(
+        icon: const Icon(Icons.close),
+        onPressed: _toggleMultiSelectionMode,
       ),
-      body: Column(
-        children: [
-          _buildFilterBar(context, taskProvider, settingsProvider),
-          Expanded(
-            child: tasks.isEmpty
-                ? const Center(child: Text('No tasks found'))
-                : ListView.builder(
-                    itemCount: tasks.length,
-                    itemBuilder: (context, index) {
-                      final task = tasks[index];
-                      return _buildTaskTile(
-                        context,
-                        task,
-                        taskProvider,
-                        settingsProvider,
-                      );
-                    },
-                  ),
-          ),
-        ],
-      ),
+      title: Text('${_selectedTaskIds.length} selected'),
+      actions: [
+        IconButton(
+          icon: const Icon(Icons.delete_sweep),
+          onPressed: _selectedTaskIds.isNotEmpty
+              ? () => _deleteSelectedTasks(taskProvider)
+              : null,
+        ),
+      ],
     );
   }
 
@@ -69,7 +126,6 @@ class DashboardScreen extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
       child: Column(
         children: [
-          // Date Filter Row (Now single centered button)
           Center(
             child: TextButton.icon(
               icon: const Icon(Icons.calendar_today),
@@ -92,7 +148,6 @@ class DashboardScreen extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 8),
-          // Status Filter Row
           DropdownButtonFormField<String>(
             initialValue: taskProvider.filterStatus ?? 'All',
             decoration: const InputDecoration(
@@ -107,7 +162,6 @@ class DashboardScreen extends StatelessWidget {
                 taskProvider.setFilterStatus(val == 'All' ? null : val),
           ),
           const SizedBox(height: 12),
-          // Category Filter Row
           DropdownButtonFormField<String>(
             initialValue: taskProvider.filterCategory ?? 'All',
             decoration: const InputDecoration(
@@ -133,71 +187,99 @@ class DashboardScreen extends StatelessWidget {
     SettingsProvider settingsProvider,
   ) {
     final timeFormat = settingsProvider.isTime24h ? 'HH:mm' : 'hh:mm a';
-    final formattedDate = DateFormat(
-      'MMM d, yyyy $timeFormat',
-    ).format(task.date);
+    final startFormatted = DateFormat('MMM d, $timeFormat').format(task.startDate);
+    final endFormatted = DateFormat('MMM d, $timeFormat').format(task.endDate);
 
-    // Determine card background color based on deadline or status
     Color? cardColor;
     if (task.isFinished) {
-      cardColor = const Color(
-        0xFF2E7D32,
-      ).withValues(alpha: 0.15); // Dim green for finished tasks
+      cardColor = const Color(0xFF2E7D32).withValues(alpha: 0.15);
     } else {
       final now = DateTime.now();
-      final difference = task.date.difference(now).inDays;
-      final isToday =
-          task.date.year == now.year &&
-          task.date.month == now.month &&
-          task.date.day == now.day;
+      final difference = task.endDate.difference(now).inDays;
+      final isToday = task.endDate.year == now.year &&
+          task.endDate.month == now.month &&
+          task.endDate.day == now.day;
 
       if (isToday || difference < 1) {
-        cardColor = const Color(
-          0xFFB71C1C,
-        ).withValues(alpha: 0.15); // Dim red (Darker maroon-ish)
+        cardColor = const Color(0xFFB71C1C).withValues(alpha: 0.15);
       } else if (difference <= 3) {
-        cardColor = const Color(
-          0xFFFBC02D,
-        ).withValues(alpha: 0.2); // Dim yellow (Golden yellow-ish)
+        cardColor = const Color(0xFFFBC02D).withValues(alpha: 0.2);
       }
     }
 
     return Card(
       margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
       color: cardColor,
-      child: ListTile(
-        leading: Checkbox(
-          value: task.isFinished,
-          onChanged: (val) => taskProvider.toggleTaskFinished(task.id),
-        ),
-        title: Text(
-          task.title,
-          style: TextStyle(
-            fontWeight: FontWeight.bold,
-            color: task.isFinished ? Colors.grey : null,
+      child: GestureDetector(
+        onLongPress: () {
+          _toggleMultiSelectionMode();
+          _toggleTaskSelection(task.id);
+        },
+        onTap: () {
+          if (_isMultiSelectionMode) {
+            _toggleTaskSelection(task.id);
+          } else {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => TaskEditScreen(task: task),
+              ),
+            );
+          }
+        },
+        child: ListTile(
+          leading: _isMultiSelectionMode
+              ? Checkbox(
+                  value: _selectedTaskIds.contains(task.id),
+                  onChanged: (val) => _toggleTaskSelection(task.id),
+                )
+              : Checkbox(
+                  value: task.isFinished,
+                  onChanged: (val) => taskProvider.toggleTaskFinished(task.id),
+                ),
+          title: Row(
+            children: [
+              if (task.isLocked) 
+                const Padding(
+                  padding: EdgeInsets.only(right: 4),
+                  child: Icon(Icons.lock, size: 16, color: Colors.grey),
+                ),
+              Expanded(
+                child: Text(
+                  task.title,
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    color: task.isFinished ? Colors.grey : null,
+                  ),
+                ),
+              ),
+            ],
           ),
-        ),
-        subtitle: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              task.description,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-            ),
-            Text(
-              '$formattedDate | ${task.status} | ${task.category}',
-              style: const TextStyle(fontSize: 12, color: Colors.grey),
-            ),
-          ],
-        ),
-        trailing: IconButton(
-          icon: const Icon(Icons.delete, color: Colors.redAccent),
-          onPressed: () => _confirmDelete(context, task.id, taskProvider),
-        ),
-        onTap: () => Navigator.push(
-          context,
-          MaterialPageRoute(builder: (context) => TaskEditScreen(task: task)),
+          subtitle: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                task.description,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+              Text(
+                '$startFormatted - $endFormatted',
+                style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold),
+              ),
+              Text(
+                '${task.status} | ${task.category}',
+                style: const TextStyle(fontSize: 11, color: Colors.grey),
+              ),
+            ],
+          ),
+          trailing: _isMultiSelectionMode
+              ? null
+              : IconButton(
+                  icon: const Icon(Icons.delete, color: Colors.redAccent),
+                  onPressed: () =>
+                      _confirmDelete(context, task.id, taskProvider),
+                ),
         ),
       ),
     );

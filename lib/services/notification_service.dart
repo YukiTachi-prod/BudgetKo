@@ -56,7 +56,7 @@ class NotificationService {
     if (task.isFinished) return;
 
     final now = DateTime.now();
-    final deadline = task.date;
+    final deadline = task.endDate;
 
     // Only notify at specific "odd" days before deadline: 7, 5, 3, 1
     final List<int> daysBefore = [7, 5, 3, 1];

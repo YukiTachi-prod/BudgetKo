@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:path/path.dart' as p;
+import 'package:uuid/uuid.dart';
 import '../models/task.dart';
 import '../providers/task_provider.dart';
 import '../providers/settings_provider.dart';
@@ -19,14 +20,20 @@ class TaskEditScreen extends StatefulWidget {
 }
 
 class _TaskEditScreenState extends State<TaskEditScreen> {
-  final _formKey = GlobalKey<FormState>();
+  final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
   late TextEditingController _titleController;
   late TextEditingController _descController;
-  late DateTime _selectedDate;
+  late DateTime _startDate;
+  late DateTime _endDate;
   late String _selectedStatus;
   late String _selectedCategory;
   String? _pdfPath;
   bool _isPdfCopied = false;
+  bool _isLocked = false;
+  bool _isRoutine = false;
+  String _repeatInterval = 'Daily';
+
+  static const Uuid _uuid = Uuid();
 
   @override
   void initState() {
@@ -37,7 +44,8 @@ class _TaskEditScreenState extends State<TaskEditScreen> {
     _descController = TextEditingController(
       text: widget.task?.description ?? '',
     );
-    _selectedDate = widget.task?.date ?? DateTime.now();
+    _startDate = widget.task?.startDate ?? DateTime.now();
+    _endDate = widget.task?.endDate ?? DateTime.now().add(const Duration(hours: 1));
     _selectedStatus =
         widget.task?.status ??
         (settings.statuses.isNotEmpty
@@ -50,6 +58,9 @@ class _TaskEditScreenState extends State<TaskEditScreen> {
             : 'General');
     _pdfPath = widget.task?.pdfPath;
     _isPdfCopied = widget.task?.isPdfCopied ?? false;
+    _isLocked = widget.task?.isLocked ?? false;
+    _isRoutine = widget.task?.isRoutine ?? false;
+    _repeatInterval = widget.task?.repeatInterval ?? 'Daily';
   }
 
   @override
@@ -59,20 +70,68 @@ class _TaskEditScreenState extends State<TaskEditScreen> {
     super.dispose();
   }
 
+  Future<void> _selectDateTime(bool isStart) async {
+    final settings = Provider.of<SettingsProvider>(context, listen: false);
+    final initialDate = isStart ? _startDate : _endDate;
+    
+    final date = await showDatePicker(
+      context: context,
+      initialDate: initialDate,
+      firstDate: DateTime(2000),
+      lastDate: DateTime(2100),
+    );
+    
+    if (date != null && mounted) {
+      final time = await showTimePicker(
+        context: context,
+        initialTime: TimeOfDay.fromDateTime(initialDate),
+        initialEntryMode: settings.useDialTimePicker
+            ? TimePickerEntryMode.dial
+            : TimePickerEntryMode.input,
+        builder: (BuildContext context, Widget? child) {
+          return MediaQuery(
+            data: MediaQuery.of(context).copyWith(alwaysUse24HourFormat: settings.isTime24h),
+            child: child!,
+          );
+        },
+      );
+      
+      if (time != null) {
+        setState(() {
+          final newDateTime = DateTime(
+            date.year,
+            date.month,
+            date.day,
+            time.hour,
+            time.minute,
+          );
+          if (isStart) {
+            _startDate = newDateTime;
+            if (_endDate.isBefore(_startDate)) {
+              _endDate = _startDate.add(const Duration(hours: 1));
+            }
+          } else {
+            _endDate = newDateTime;
+          }
+        });
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
-    final taskProvider = Provider.of<TaskProvider>(context, listen: false);
     final settings = Provider.of<SettingsProvider>(context);
+    final isEditingLocked = _isLocked && widget.task != null;
 
     return Scaffold(
       appBar: AppBar(
         title: Text(widget.task == null ? 'Add Task' : 'Edit Task'),
         actions: [
-          if (widget.task != null)
+          if (widget.task != null && !isEditingLocked)
             IconButton(
               icon: const Icon(Icons.delete, color: Colors.red),
               onPressed: () {
-                taskProvider.deleteTask(widget.task!.id);
+                Provider.of<TaskProvider>(context, listen: false).deleteTask(widget.task!.id);
                 Navigator.pop(context);
               },
             ),
@@ -86,8 +145,23 @@ class _TaskEditScreenState extends State<TaskEditScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              if (isEditingLocked)
+                const Card(
+                  color: Colors.amber,
+                  child: Padding(
+                    padding: EdgeInsets.all(8.0),
+                    child: Row(
+                      children: [
+                        Icon(Icons.lock, size: 16),
+                        SizedBox(width: 8),
+                        Expanded(child: Text('This task is locked. Only status can be changed.', style: TextStyle(fontSize: 12))),
+                      ],
+                    ),
+                  ),
+                ),
               TextFormField(
                 controller: _titleController,
+                enabled: !isEditingLocked,
                 decoration: const InputDecoration(
                   labelText: 'Task Title',
                   border: OutlineInputBorder(),
@@ -98,6 +172,7 @@ class _TaskEditScreenState extends State<TaskEditScreen> {
               const SizedBox(height: 16),
               TextFormField(
                 controller: _descController,
+                enabled: !isEditingLocked,
                 decoration: const InputDecoration(
                   labelText: 'Description',
                   border: OutlineInputBorder(),
@@ -105,49 +180,40 @@ class _TaskEditScreenState extends State<TaskEditScreen> {
                 maxLines: 3,
               ),
               const SizedBox(height: 16),
-              ListTile(
-                title: const Text('Date & Time'),
-                subtitle: Text(
-                  DateFormat(
-                    settings.isTime24h
-                        ? 'MMM d, yyyy HH:mm'
-                        : 'MMM d, yyyy hh:mm a',
-                  ).format(_selectedDate),
-                ),
-                trailing: const Icon(Icons.calendar_month),
-                onTap: () async {
-                  final date = await showDatePicker(
-                    context: context,
-                    initialDate: _selectedDate,
-                    firstDate: DateTime(2000),
-                    lastDate: DateTime(2100),
-                  );
-                  if (date != null && context.mounted) {
-                    final time = await showTimePicker(
-                      context: context,
-                      initialTime: TimeOfDay.fromDateTime(_selectedDate),
-                    );
-                    if (time != null) {
-                      setState(() {
-                        _selectedDate = DateTime(
-                          date.year,
-                          date.month,
-                          date.day,
-                          time.hour,
-                          time.minute,
-                        );
-                      });
-                    }
-                  }
-                },
+              Row(
+                children: [
+                  Expanded(
+                    child: ListTile(
+                      contentPadding: EdgeInsets.zero,
+                      title: const Text('Starts', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                      subtitle: Text(
+                        DateFormat(settings.isTime24h ? 'MMM d, HH:mm' : 'MMM d, hh:mm a').format(_startDate),
+                        style: const TextStyle(fontSize: 14),
+                      ),
+                      onTap: isEditingLocked ? null : () => _selectDateTime(true),
+                    ),
+                  ),
+                  const Icon(Icons.arrow_forward, size: 16, color: Colors.grey),
+                  Expanded(
+                    child: ListTile(
+                      contentPadding: const EdgeInsets.only(left: 16),
+                      title: const Text('Ends', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                      subtitle: Text(
+                        DateFormat(settings.isTime24h ? 'MMM d, HH:mm' : 'MMM d, hh:mm a').format(_endDate),
+                        style: const TextStyle(fontSize: 14),
+                      ),
+                      onTap: isEditingLocked ? null : () => _selectDateTime(false),
+                    ),
+                  ),
+                ],
               ),
               const Divider(),
               DropdownButtonFormField<String>(
                 initialValue: settings.statuses.contains(_selectedStatus)
                     ? _selectedStatus
                     : (settings.statuses.isNotEmpty
-                        ? settings.statuses.first
-                        : null),
+                          ? settings.statuses.first
+                          : null),
                 items: settings.statuses
                     .map((p) => DropdownMenuItem(value: p, child: Text(p)))
                     .toList(),
@@ -167,12 +233,12 @@ class _TaskEditScreenState extends State<TaskEditScreen> {
                 initialValue: settings.categories.contains(_selectedCategory)
                     ? _selectedCategory
                     : (settings.categories.isNotEmpty
-                        ? settings.categories.first
-                        : null),
+                          ? settings.categories.first
+                          : null),
                 items: settings.categories
                     .map((c) => DropdownMenuItem(value: c, child: Text(c)))
                     .toList(),
-                onChanged: settings.categories.isEmpty
+                onChanged: isEditingLocked || settings.categories.isEmpty
                     ? null
                     : (val) => setState(() => _selectedCategory = val!),
                 decoration: InputDecoration(
@@ -182,7 +248,32 @@ class _TaskEditScreenState extends State<TaskEditScreen> {
                       ? 'Please add a category in Settings'
                       : null,
                 ),
-              ),              const Divider(),
+              ),
+              const Divider(),
+              SwitchListTile(
+                contentPadding: EdgeInsets.zero,
+                title: const Text('Lock Task'),
+                subtitle: const Text('Prevents further editing of details'),
+                value: _isLocked,
+                onChanged: (val) => setState(() => _isLocked = val),
+              ),
+              SwitchListTile(
+                contentPadding: EdgeInsets.zero,
+                title: const Text('Set as Routine'),
+                subtitle: const Text('Appears in the Routines tab'),
+                value: _isRoutine,
+                onChanged: isEditingLocked ? null : (val) => setState(() => _isRoutine = val),
+              ),
+              if (_isRoutine)
+                DropdownButtonFormField<String>(
+                  initialValue: _repeatInterval,
+                  decoration: const InputDecoration(labelText: 'Repeat Interval', border: OutlineInputBorder()),
+                  items: ['Daily', 'Weekly', 'Monthly']
+                      .map((i) => DropdownMenuItem(value: i, child: Text(i)))
+                      .toList(),
+                  onChanged: isEditingLocked ? null : (val) => setState(() => _repeatInterval = val!),
+                ),
+              const Divider(),
               const Text(
                 'Attachment',
                 style: TextStyle(fontWeight: FontWeight.bold),
@@ -195,7 +286,7 @@ class _TaskEditScreenState extends State<TaskEditScreen> {
                   subtitle: Text(
                     _isPdfCopied ? 'Stored in App' : 'Linked from Device',
                   ),
-                  trailing: IconButton(
+                  trailing: isEditingLocked ? null : IconButton(
                     icon: const Icon(Icons.close),
                     onPressed: () => setState(() {
                       _pdfPath = null;
@@ -222,7 +313,7 @@ class _TaskEditScreenState extends State<TaskEditScreen> {
                     }
                   },
                 ),
-              ] else
+              ] else if (!isEditingLocked)
                 ElevatedButton.icon(
                   onPressed: _pickPdf,
                   icon: const Icon(Icons.attach_file),
@@ -254,7 +345,6 @@ class _TaskEditScreenState extends State<TaskEditScreen> {
       final originalPath = result.files.single.path!;
 
       if (settings.hidePdfReminder) {
-        // Use default: Copy (safest)
         _applyPdfChoice(originalPath, true);
       } else {
         _showPdfReminder(originalPath);
@@ -299,7 +389,7 @@ class _TaskEditScreenState extends State<TaskEditScreen> {
                         onChanged: (val) =>
                             setStateDialog(() => dontShowAgain = val!),
                       ),
-                      const Text('Don\'t remind me again'),
+                      const Text("Don't remind me again"),
                     ],
                   ),
                 ],
@@ -369,23 +459,34 @@ class _TaskEditScreenState extends State<TaskEditScreen> {
   void _saveTask() {
     if (_formKey.currentState!.validate()) {
       final taskProvider = Provider.of<TaskProvider>(context, listen: false);
-      final task = Task(
-        id: widget.task?.id ?? DateTime.now().millisecondsSinceEpoch.toString(),
-        title: _titleController.text,
-        description: _descController.text,
-        date: _selectedDate,
-        status: _selectedStatus,
-        category: _selectedCategory,
-        pdfPath: _pdfPath,
-        isPdfCopied: _isPdfCopied,
-      );
+      try {
+        final task = Task(
+          id: widget.task?.id ?? _uuid.v4(),
+          title: _titleController.text,
+          description: _descController.text,
+          startDate: _startDate,
+          endDate: _endDate,
+          status: _selectedStatus,
+          category: _selectedCategory,
+          pdfPath: _pdfPath,
+          isPdfCopied: _isPdfCopied,
+          isFinished: widget.task?.isFinished ?? false,
+          isLocked: _isLocked,
+          isRoutine: _isRoutine,
+          repeatInterval: _isRoutine ? _repeatInterval : null,
+        );
 
-      if (widget.task == null) {
-        taskProvider.addTask(task);
-      } else {
-        taskProvider.updateTask(task);
+        if (widget.task == null) {
+          taskProvider.addTask(task);
+        } else {
+          taskProvider.updateTask(task);
+        }
+        Navigator.pop(context);
+      } on ArgumentError catch (e) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(e.message)));
       }
-      Navigator.pop(context);
     }
   }
 }

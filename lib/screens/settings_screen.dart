@@ -1,13 +1,13 @@
-import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:file_picker/file_picker.dart';
-import 'package:path_provider/path_provider.dart';
-import 'package:share_plus/share_plus.dart';
 import '../providers/settings_provider.dart';
 import '../providers/task_provider.dart';
 import '../services/import_export_service.dart';
 import 'analytics_screen.dart';
+import 'dart:io';
+import 'package:file_picker/file_picker.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:share_plus/share_plus.dart';
 
 class SettingsScreen extends StatelessWidget {
   const SettingsScreen({super.key});
@@ -17,105 +17,109 @@ class SettingsScreen extends StatelessWidget {
     final settings = Provider.of<SettingsProvider>(context);
     final taskProvider = Provider.of<TaskProvider>(context);
 
-    return Scaffold(
-      appBar: AppBar(title: const Text('Settings')),
-      body: ListView(
-        children: [
-          _buildSectionHeader('Appearance'),
-          SwitchListTile(
-            title: const Text('Dark Mode'),
-            subtitle: const Text('Light: Creamy White, Dark: Dark Grey'),
-            value: settings.isDarkMode,
-            onChanged: (val) => settings.toggleDarkMode(val),
+    // This screen now provides only its content, without a Scaffold or AppBar.
+    return ListView(
+      children: [
+        _buildSectionHeader('Appearance'),
+        SwitchListTile(
+          title: const Text('Dark Mode'),
+          subtitle: const Text('Light: Creamy White, Dark: Dark Grey'),
+          value: settings.isDarkMode,
+          onChanged: (val) => settings.toggleDarkMode(val),
+        ),
+        SwitchListTile(
+          title: const Text('24-Hour Format'),
+          value: settings.isTime24h,
+          onChanged: (val) => settings.toggleTime24h(val),
+        ),
+        SwitchListTile(
+          title: const Text('Use Dial for Time Picker'),
+          subtitle: const Text('Default: Numeric/Keyboard input'),
+          value: settings.useDialTimePicker,
+          onChanged: (val) => settings.toggleUseDialTimePicker(val),
+        ),
+        const Divider(),
+        _buildSectionHeader('Analytics'),
+        ListTile(
+          leading: const Icon(Icons.analytics_outlined),
+          title: const Text('View Analytics'),
+          subtitle: const Text('Task status and category statistics'),
+          trailing: const Icon(Icons.chevron_right),
+          onTap: () => Navigator.push(
+            context,
+            MaterialPageRoute(builder: (context) => const AnalyticsScreen()),
           ),
-          SwitchListTile(
-            title: const Text('24-Hour Format'),
-            value: settings.isTime24h,
-            onChanged: (val) => settings.toggleTime24h(val),
-          ),
-          const Divider(),
-          _buildSectionHeader('Analytics'),
-          ListTile(
-            leading: const Icon(Icons.analytics_outlined),
-            title: const Text('View Analytics'),
-            subtitle: const Text('Task status and category statistics'),
-            trailing: const Icon(Icons.chevron_right),
-            onTap: () => Navigator.push(
-              context,
-              MaterialPageRoute(builder: (context) => const AnalyticsScreen()),
+        ),
+        const Divider(),
+        _buildSectionHeader('Data Management'),
+        ListTile(
+          leading: const Icon(Icons.download),
+          title: const Text('Import Tasks'),
+          subtitle: const Text('Import from ZIP file'),
+          onTap: () => _handleImport(context, taskProvider, settings),
+        ),
+        ListTile(
+          leading: const Icon(Icons.upload),
+          title: const Text('Export Tasks'),
+          subtitle: const Text('Export to ZIP file'),
+          onTap: () => _handleExport(context, taskProvider),
+        ),
+        ListTile(
+          leading: const Icon(Icons.share),
+          title: const Text('Share Tasks'),
+          subtitle: const Text('Send tasks via Messenger or other apps'),
+          onTap: () => _handleShare(context, taskProvider),
+        ),
+        const Divider(),
+        _buildSectionHeader('Categories'),
+        ...settings.categories.map(
+          (c) => ListTile(
+            title: Text(c),
+            trailing: IconButton(
+              icon: const Icon(Icons.delete, color: Colors.red),
+              onPressed: () => settings.removeCategory(c),
             ),
           ),
-          const Divider(),
-          _buildSectionHeader('Data Management'),
-          ListTile(
-            leading: const Icon(Icons.download),
-            title: const Text('Import Tasks'),
-            subtitle: const Text('Import from ZIP file'),
-            onTap: () => _handleImport(context, taskProvider, settings),
-          ),
-          ListTile(
-            leading: const Icon(Icons.upload),
-            title: const Text('Export Tasks'),
-            subtitle: const Text('Export to ZIP file'),
-            onTap: () => _handleExport(context, taskProvider),
-          ),
-          ListTile(
-            leading: const Icon(Icons.share),
-            title: const Text('Share Tasks'),
-            subtitle: const Text('Send tasks via Messenger or other apps'),
-            onTap: () => _handleShare(context, taskProvider),
-          ),
-          const Divider(),
-          _buildSectionHeader('Categories'),
-          ...settings.categories.map(
-            (c) => ListTile(
-              title: Text(c),
-              trailing: IconButton(
-                icon: const Icon(Icons.delete, color: Colors.red),
-                onPressed: () => settings.removeCategory(c),
+        ),
+        ListTile(
+          leading: const Icon(Icons.add),
+          title: const Text('Add Category'),
+          onTap: () =>
+              _showAddDialog(context, 'Category', settings.addCategory),
+        ),
+        const Divider(),
+        _buildSectionHeader('Statuses'),
+        ...settings.statuses.map(
+          (p) => ListTile(
+            title: Text(p),
+            trailing: IconButton(
+              icon: const Icon(Icons.delete, color: Colors.red),
+              onPressed: () => _showDeleteConfirmation(
+                context,
+                'Status',
+                p,
+                () => settings.removeStatus(p),
               ),
             ),
           ),
-          ListTile(
-            leading: const Icon(Icons.add),
-            title: const Text('Add Category'),
-            onTap: () =>
-                _showAddDialog(context, 'Category', settings.addCategory),
+        ),
+        ListTile(
+          leading: const Icon(Icons.add),
+          title: const Text('Add Status'),
+          onTap: () => _showAddDialog(context, 'Status', settings.addStatus),
+        ),
+        const Divider(),
+        _buildSectionHeader('Danger Zone'),
+        ListTile(
+          leading: const Icon(Icons.delete_forever, color: Colors.red),
+          title: const Text(
+            'Delete All Data',
+            style: TextStyle(color: Colors.red),
           ),
-          const Divider(),
-          _buildSectionHeader('Statuses'),
-          ...settings.statuses.map(
-            (p) => ListTile(
-              title: Text(p),
-              trailing: IconButton(
-                icon: const Icon(Icons.delete, color: Colors.red),
-                onPressed: () => _showDeleteConfirmation(
-                  context,
-                  'Status',
-                  p,
-                  () => settings.removeStatus(p),
-                ),
-              ),
-            ),
-          ),
-          ListTile(
-            leading: const Icon(Icons.add),
-            title: const Text('Add Status'),
-            onTap: () => _showAddDialog(context, 'Status', settings.addStatus),
-          ),
-          const Divider(),
-          _buildSectionHeader('Danger Zone'),
-          ListTile(
-            leading: const Icon(Icons.delete_forever, color: Colors.red),
-            title: const Text(
-              'Delete All Data',
-              style: TextStyle(color: Colors.red),
-            ),
-            onTap: () => _showDeleteAllDialog(context, settings, taskProvider),
-          ),
-          const SizedBox(height: 32),
-        ],
-      ),
+          onTap: () => _showDeleteAllDialog(context, settings, taskProvider),
+        ),
+        const SizedBox(height: 32),
+      ],
     );
   }
 

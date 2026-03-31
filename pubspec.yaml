@@ -43,6 +43,7 @@ dependencies:
   path: ^1.9.1
   share_plus: ^10.1.4
   syncfusion_flutter_pdfviewer: ^28.1.33
+  uuid: ^4.4.0
 
 dev_dependencies:
   flutter_test:

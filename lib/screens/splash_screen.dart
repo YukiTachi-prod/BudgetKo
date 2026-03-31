@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'dashboard_screen.dart';
+import 'main_screen.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -18,7 +18,7 @@ class _SplashScreenState extends State<SplashScreen>
     super.initState();
     _controller = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 1500),
+      duration: const Duration(milliseconds: 1000),
     );
     _fadeAnimation = Tween<double>(
       begin: 1.0,
@@ -29,15 +29,14 @@ class _SplashScreenState extends State<SplashScreen>
   }
 
   Future<void> _startSplashScreen() async {
-    // Show splash for 1 second
-    await Future.delayed(const Duration(seconds: 1));
+    // Immediate start or very short delay
     if (mounted) {
       await _controller.forward();
       if (mounted) {
         Navigator.of(context).pushReplacement(
           PageRouteBuilder(
             pageBuilder: (context, animation, secondaryAnimation) =>
-                const DashboardScreen(),
+                const MainScreen(),
             transitionsBuilder:
                 (context, animation, secondaryAnimation, child) {
                   return FadeTransition(opacity: animation, child: child);
@@ -57,7 +56,7 @@ class _SplashScreenState extends State<SplashScreen>
 
   @override
   Widget build(BuildContext context) {
-    const bgColor = Color(0xFFFFFDD0); // Creamy White
+    const bgColor = Colors.white; // Pure White
 
     return Scaffold(
       backgroundColor: bgColor,

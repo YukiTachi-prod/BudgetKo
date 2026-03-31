@@ -18,14 +18,37 @@ class TaskProvider with ChangeNotifier {
   }
 
   List<Task> get tasks {
-    List<Task> filtered = _tasks;
+    List<Task> filtered = _tasks.where((t) => !t.isRoutine).toList();
     if (_filterDate != null) {
       filtered = filtered
           .where(
             (t) =>
-                t.date.year == _filterDate!.year &&
-                t.date.month == _filterDate!.month &&
-                t.date.day == _filterDate!.day,
+                t.endDate.year == _filterDate!.year &&
+                t.endDate.month == _filterDate!.month &&
+                t.endDate.day == _filterDate!.day,
+          )
+          .toList();
+    }
+    if (_filterStatus != null && _filterStatus != 'All') {
+      filtered = filtered.where((t) => t.status == _filterStatus).toList();
+    }
+    if (_filterCategory != null && _filterCategory != 'All') {
+      filtered = filtered.where((t) => t.category == _filterCategory).toList();
+    }
+    return filtered;
+  }
+
+  List<Task> get routines {
+    List<Task> filtered = _tasks.where((t) => t.isRoutine).toList();
+    // Maybe apply same filters to routines? Usually routines are less about dates.
+    // The user said "exactly like dashboard", so let's apply filters.
+    if (_filterDate != null) {
+      filtered = filtered
+          .where(
+            (t) =>
+                t.endDate.year == _filterDate!.year &&
+                t.endDate.month == _filterDate!.month &&
+                t.endDate.day == _filterDate!.day,
           )
           .toList();
     }
@@ -59,7 +82,39 @@ class TaskProvider with ChangeNotifier {
     await prefs.setString(_keyTasks, encoded);
   }
 
+  bool isTitleUnique(String title, {String? excludeTaskId}) {
+    return _tasks.every(
+      (task) =>
+          task.title.toLowerCase() != title.toLowerCase() ||
+          task.id == excludeTaskId,
+    );
+  }
+
+  void deleteTasks(List<String> ids) {
+    for (final id in ids) {
+      final taskToDelete = _tasks.firstWhere(
+        (task) => task.id == id,
+        orElse: () => throw Exception('Task not found for deletion'),
+      );
+      _notificationService.cancelTaskNotifications(taskToDelete.id);
+      if (taskToDelete.pdfPath != null && taskToDelete.isPdfCopied) {
+        final file = File(taskToDelete.pdfPath!);
+        if (file.existsSync()) {
+          file.deleteSync();
+        }
+      }
+    }
+    _tasks.removeWhere((task) => ids.contains(task.id));
+    _saveTasks();
+    notifyListeners();
+  }
+
   void addTask(Task task) {
+    if (!isTitleUnique(task.title)) {
+      throw ArgumentError(
+        'Task with this title already exists.',
+      ); 
+    }
     // Ensure status consistency
     if (task.status == 'Finished' && !task.isFinished) {
       task = task.copyWith(isFinished: true);
@@ -90,6 +145,11 @@ class TaskProvider with ChangeNotifier {
   }
 
   void updateTask(Task task) {
+    if (!isTitleUnique(task.title, excludeTaskId: task.id)) {
+      throw ArgumentError(
+        'Task with this title already exists.',
+      );
+    }
     // Ensure status consistency
     if (task.status == 'Finished' && !task.isFinished) {
       task = task.copyWith(isFinished: true);

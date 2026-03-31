@@ -6,147 +6,63 @@
 
 ### Core Features
 
-- **Task Management**: Create, edit, and delete tasks with ease. Each task can have a title, description, due date, category, and status level.
-- **Dynamic Filtering**: Organize your view by filtering tasks based on their current status or category.
-- **Local Notifications**: Never miss a deadline with integrated daily reminders for upcoming tasks, powered by `flutter_local_notifications`.
-- **Data Persistence**: Your tasks and settings are saved locally using `SharedPreferences`, ensuring your data is available even after closing the app.
-- **Import/Export**: Manage your data externally with import and export capabilities, allowing for backups or sharing task lists.
-- **PDF Viewer**: Built-in support for viewing PDF documents, likely used for task attachments or detailed reports.
-- **Dark Mode Support**: A fully integrated dark theme for comfortable use in low-light environments.
+- **Dual-Date Task Management**: Create tasks with specific **Start** and **End** date/times for precise scheduling.
+- **Routines (Repeating Tasks)**: Dedicated support for recurring activities (Daily, Weekly, Monthly) with a specialized viewing tab.
+- **Task Locking**: Secure your tasks by locking them; once saved and locked, only the status can be updated, preventing accidental modifications to titles or dates.
+- **Bulk Operations**: Multi-selection mode on the dashboard allows for quick deletion of multiple tasks at once.
+- **Unique Title Enforcement**: Prevents organization clutter by ensuring no two tasks share the same title.
+- **Dynamic Filtering**: Organize your view by filtering tasks based on their current status, category, or specific dates.
+- **Local Notifications**: Integrated reminders for upcoming task deadlines, now synced with the new End Date structure.
+- **Flexible Time Picking**: Users can choose between a circular dial or a numeric/keyboard input (default) for time selection.
+- **Import/Export**: Robust Markdown-based import/export system via ZIP files, supporting all new task fields (Start/End dates, locking, routine status).
+- **Dark Mode Support**: A fully integrated dark theme, including a theme-aware bottom navigation bar.
 
 ### Technical Architecture
 
 The app follows a modern Flutter architecture using the **Provider** package for state management, ensuring a clean separation between business logic and the user interface.
 
 - **Models**: Defines the data structures (e.g., `Task`) used throughout the application.
-- **Providers**: `TaskProvider` and `SettingsProvider` act as the central state containers, handling data manipulation and notifying the UI of changes.
-- **Services**: `NotificationService` handles system-level interaction for reminders, and `ImportExportService` manages data portability.
-- **Screens**: A variety of screens including a Dashboard, Settings, Task Editing, and a specialized PDF Viewer.
+- **Providers**: `TaskProvider` and `SettingsProvider` act as the central state containers.
+- **Services**: `NotificationService` handles reminders, and `ImportExportService` manages data portability.
+- **Screens**: Includes Dashboard, Routines, Settings, Task Editing, Analytics, and PDF Viewer.
 
 ### Recent Updates
 
-- **Crash Prevention**: Fixed a critical bug where the `TaskEditScreen` would fail to load if all categories or statuses were deleted in Settings. The app now handles empty lists gracefully with fallback defaults.
-- **Visual Consistency**: Standardized the `SplashScreen` to always display a creamy white background, ensuring a consistent brand experience regardless of the user's theme (Dark/Light mode).
-- **Safe Deletions**: Added confirmation dialogs for deleting Categories and Statuses in the `SettingsScreen` to prevent accidental data loss.
-- **Status Refactor**: Replaced the 'Priority' system with a more flexible 'Status' system (Not Started, Ongoing, Finished, Dropped).
-- **Analytics Dashboard**: Added a new Analytics screen (accessible via Settings) that provides tables and text statistics for task status distribution and category-based workloads.
-- **Visual Task Indicators**: Implemented color-coded task tiles based on deadlines:
-    - **Dim Red**: Tasks due today or overdue.
-    - **Dim Yellow**: Tasks due within 3 days.
-    - **Dim Green**: Finished tasks (striking out is removed, replaced by green background and grey text).
-- **Notification Logic**: Refined the reminder system to fire at specific intervals (7, 5, 3, and 1 day before the deadline) plus the due date itself, ensuring better battery life and less notification fatigue.
+- **Navigation Overhaul**: Implemented a **Bottom Navigation Bar** (tabular UI) for seamless switching between Dashboard, Routines, and Settings.
+- **Visual Refresh**: Updated the default light mode background to pure white with high-contrast text. The `SplashScreen` has also been updated to a pure white background with a snappier 1-second duration.
+- **Status & Locking Logic**: Integrated a "Lock" feature in the `TaskEditScreen`. When enabled, core task details are disabled in the UI to preserve data integrity.
+- **Bulk Delete**: Added a long-press gesture on task tiles to enter **Multi-selection Mode**, enabling the "Delete All Selected" functionality.
+- **Time Picker Optimization**: Fixed a bug where the time picker ignored the 24-hour format setting. It now correctly displays AM/PM when 24-hour format is disabled.
+- **Architecture Maintenance**:
+    - Migration: Updated the `Task` model and all related services to handle the transition from a single `date` field to separate `startDate` and `endDate` fields.
+    - Code Quality: Resolved all `flutter analyze` issues, including removing unused imports and replacing deprecated `.withOpacity()` calls with `.withValues()`.
+    - Dependencies: Added the `uuid` package for robust unique ID generation.
 
 ### Coding Standards
 
-- **Variable Naming**: Following standard Dart/Flutter conventions, this project uses **camelCase** for variables, method names, and class members (e.g., `isFinished`, `taskProvider`, `_loadTasks`).
-- **Class Naming**: Classes use **PascalCase** (e.g., `TaskEditScreen`).
+- **Variable Naming**: Standard Dart **camelCase**.
+- **Class Naming**: **PascalCase**.
+- **Theming**: Use `Theme.of(context)` values rather than hardcoded colors where possible to maintain Dark/Light mode compatibility.
 
 ---
 
-## Project Structure (Tree Output)
+## Project Structure (Key Files)
 
 ```text
-.
-├── android
-│   ├── app
-│   │   ├── src
-│   │   └── build.gradle.kts
-│   ├── gradle
-│   │   └── wrapper
-│   ├── build.gradle.kts
-│   ├── gradle.properties
-│   ├── gradlew
-│   ├── gradlew.bat
-│   ├── local.properties
-│   ├── settings.gradle.kts
-│   └── tasker_android.iml
-├── import_example
-│   ├── Machine Problem 1
-│   │   ├── image 1.png
-│   │   ├── image 2.png
-│   │   └── image.png
-│   ├── 会話練習
-│   │   ├── Calendar of Classes
-│   │   ├── Calendar of Classes 31de2f06af5480049a58c166ee985c91_all.csv
-│   │   └── Calendar of Classes 31de2f06af5480049a58c166ee985c91.csv
-│   ├── Activity 2 Data Analysis Report 31de2f06af548041b40ce0a3dfbd1493.md
-│   ├── Activity 3 Data Analysis Presentation 31de2f06af5480869f35ca858d679171.md
-│   ├── Assignment 1 Good vs Bad Design 31de2f06af54805282edc48290eb8388.md
-│   ├── CS 3211 Blog Post 1 31be2f06af548036bd44e706806359d9.md
-│   ├── CS 3211 Blog Post 2 31be2f06af5480d390a9e08fa095278f.md
-│   ├── CS 3211 Blog Post 3 31be2f06af5480abb5c7ef7df8d23441.md
-│   ├── CS 3211 Blog Post 4 31be2f06af5480ec9185cbfeae228dad.md
-│   ├── CS 3211 Blog Post 5 31be2f06af5480dcb46ddf3c3ac4f8a5.md
-│   ├── CS 3211 Blog Post 6 31be2f06af5480dea4aceea232208008.md
-│   ├── CS 3211 Blog Post 7 31be2f06af548050b9b0f7e8fe752b3e.md
-│   ├── CS 3211 Research Tools Orientation 31be2f06af5480f6a581c6c011b6b5cd.md
-│   ├── eTRY! Manual 31de2f06af5480b0b4b8f8fa187c3321.md
-│   ├── FA1 Create your own network 31be2f06af548075a3d9f2483ddccdf5.md
-│   ├── FA1 Network from statnet 31de2f06af54808997dcf91f03b2d762.md
-│   ├── FA1 Research Network 31de2f06af5480599d5fd208e5375829.md
-│   ├── Introductory Essay Question for Social Network Ana 31be2f06af5480ccadcbefa794e78d61.md
-│   ├── Machine Problem 1 31de2f06af548013b039ca6531ad953b.md
-│   ├── Quiz 1 31be2f06af5480b99013c42f88031f06.md
-│   ├── Quiz 2 31de2f06af548093b02bf05075af8e3a.md
-│   ├── Signed Publication Plan 31de2f06af5480d5bfd9d85d68da61c2.md
-│   ├── Submission of Article Reviews 31de2f06af548047890acd81f51bb36f.md
-│   └── 会話練習 31de2f06af5480ba8785ee345e4fb870.md
-├── ios
-│   ├── Flutter
-│   │   ├── ephemeral
-│   │   └── ...
-│   ├── Runner
-│   │   ├── Assets.xcassets
-│   │   └── ...
-│   ├── RunnerTests
-│   ├── Runner.xcodeproj
-│   └── Runner.xcworkspace
-├── lib
-│   ├── assets
-│   │   ├── tasker_logo_bg_removed.png
-│   │   ├── tasker_logo.png
-│   │   ├── tasko_logo_bg_remove.png
-│   │   └── tasko.png
-│   ├── models
-│   │   └── task.dart
-│   ├── providers
-│   │   ├── settings_provider.dart
-│   │   └── task_provider.dart
-│   ├── screens
-│   │   ├── dashboard_screen.dart
-│   │   ├── pdf_view_screen.dart
-│   │   ├── settings_screen.dart
-│   │   ├── splash_screen.dart
-│   │   └── task_edit_screen.dart
-│   ├── services
-│   │   ├── import_export_service.dart
-│   │   └── notification_service.dart
-│   ├── widgets
-│   └── main.dart
-├── linux
-│   ├── flutter
-│   ├── runner
-│   └── CMakeLists.txt
-├── macos
-│   ├── Flutter
-│   ├── Runner
-│   ├── RunnerTests
-│   ├── Runner.xcodeproj
-│   └── Runner.xcworkspace
-├── test
-│   └── widget_test.dart
-├── web
-│   ├── icons
-│   ├── favicon.png
-│   ├── index.html
-│   └── manifest.json
-├── windows
-│   ├── flutter
-│   ├── runner
-│   └── CMakeLists.txt
-├── analysis_options.yaml
-├── pubspec.lock
-├── pubspec.yaml
-├── README.md
-└── tasker.iml
+lib/
+├── models/
+│   └── task.dart (Updated with Start/End dates, locking, and routine fields)
+├── providers/
+│   ├── settings_provider.dart (Includes time picker style and persistence)
+│   └── task_provider.dart (Bulk delete, title uniqueness, and routine filters)
+├── screens/
+│   ├── dashboard_screen.dart (Multi-selection UI)
+│   ├── routines_screen.dart (NEW: Tab for repeating tasks)
+│   ├── main_screen.dart (Bottom navigation container)
+│   ├── task_edit_screen.dart (Locking, routines, and dual-date inputs)
+│   └── splash_screen.dart (Standardized white background)
+├── services/
+│   ├── import_export_service.dart (Markdown parser for new task fields)
+│   └── notification_service.dart (Deadline-based reminder logic)
+└── main.dart (Global theme and provider initialization)
 ```

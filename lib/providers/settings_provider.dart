@@ -7,10 +7,12 @@ class SettingsProvider with ChangeNotifier {
   static const String _keyCategories = 'categories';
   static const String _keyStatuses = 'statuses';
   static const String _keyHidePdfReminder = 'hide_pdf_reminder';
+  static const String _keyUseDialTimePicker = 'use_dial_time_picker';
 
   bool _isDarkMode = false;
   bool _isTime24h = false;
   bool _hidePdfReminder = false;
+  bool _useDialTimePicker = false; // Default to numeric input
   List<String> _categories = ['Work', 'Personal', 'Shopping', 'Health'];
   List<String> _statuses = ['Not Started', 'Ongoing', 'Finished', 'Dropped'];
 
@@ -21,6 +23,7 @@ class SettingsProvider with ChangeNotifier {
   bool get isDarkMode => _isDarkMode;
   bool get isTime24h => _isTime24h;
   bool get hidePdfReminder => _hidePdfReminder;
+  bool get useDialTimePicker => _useDialTimePicker;
   List<String> get categories => _categories;
   List<String> get statuses => _statuses;
 
@@ -29,6 +32,7 @@ class SettingsProvider with ChangeNotifier {
     _isDarkMode = prefs.getBool(_keyDarkMode) ?? false;
     _isTime24h = prefs.getBool(_keyTime24h) ?? false;
     _hidePdfReminder = prefs.getBool(_keyHidePdfReminder) ?? false;
+    _useDialTimePicker = prefs.getBool(_keyUseDialTimePicker) ?? false;
     _categories =
         prefs.getStringList(_keyCategories) ??
         ['Work', 'Personal', 'Shopping', 'Health'];
@@ -56,6 +60,13 @@ class SettingsProvider with ChangeNotifier {
     _hidePdfReminder = value;
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool(_keyHidePdfReminder, value);
+    notifyListeners();
+  }
+
+  Future<void> toggleUseDialTimePicker(bool value) async {
+    _useDialTimePicker = value;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_keyUseDialTimePicker, value);
     notifyListeners();
   }
 
@@ -97,6 +108,7 @@ class SettingsProvider with ChangeNotifier {
     _isDarkMode = false;
     _isTime24h = false;
     _hidePdfReminder = false;
+    _useDialTimePicker = false;
     _categories = ['Work', 'Personal', 'Shopping', 'Health'];
     _statuses = ['Not Started', 'Ongoing', 'Finished', 'Dropped'];
     notifyListeners();

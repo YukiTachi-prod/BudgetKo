@@ -5,7 +5,7 @@ import 'package:intl/intl.dart';
 import '../models/task.dart';
 
 class ImportExportService {
-  static final DateFormat _dateFormat = DateFormat('MM/dd/yyyy');
+  static final DateFormat _dateFormat = DateFormat('MM/dd/yyyy HH:mm');
 
   Future<List<Task>> importFromZip(Uint8List zipData) async {
     final archive = ZipDecoder().decodeBytes(zipData);
@@ -30,7 +30,11 @@ class ImportExportService {
       String category = 'Uncategorized';
       String statusStr = 'Not Started';
       bool isFinished = false;
-      DateTime dueDate = DateTime.now();
+      DateTime startDate = DateTime.now();
+      DateTime endDate = DateTime.now();
+      bool isLocked = false;
+      bool isRoutine = false;
+      String? repeatInterval;
       String description = '';
 
       // Try to find Title from # header
@@ -56,17 +60,34 @@ class ImportExportService {
               statusStr.toLowerCase().contains('finished') ||
               statusStr.toLowerCase().contains('done');
           metadataEndIndex = i;
-        } else if (line.startsWith('Due date:')) {
-          final dateStr = line.replaceFirst('Due date:', '').trim();
+        } else if (line.startsWith('Start date:')) {
+          final dateStr = line.replaceFirst('Start date:', '').trim();
           try {
-            dueDate = _dateFormat.parse(dateStr);
+            startDate = _dateFormat.parse(dateStr);
           } catch (e) {
-            // Fallback parsing if format differs
-            dueDate = DateTime.tryParse(dateStr) ?? DateTime.now();
+            startDate = DateTime.tryParse(dateStr) ?? DateTime.now();
           }
           metadataEndIndex = i;
+        } else if (line.startsWith('Due date:') || line.startsWith('End date:')) {
+          final label = line.startsWith('Due date:') ? 'Due date:' : 'End date:';
+          final dateStr = line.replaceFirst(label, '').trim();
+          try {
+            endDate = _dateFormat.parse(dateStr);
+          } catch (e) {
+            endDate = DateTime.tryParse(dateStr) ?? DateTime.now();
+          }
+          metadataEndIndex = i;
+        } else if (line.startsWith('Locked:')) {
+          isLocked = line.replaceFirst('Locked:', '').trim().toLowerCase() == 'true';
+          metadataEndIndex = i;
+        } else if (line.startsWith('Routine:')) {
+          isRoutine = line.replaceFirst('Routine:', '').trim().toLowerCase() == 'true';
+          metadataEndIndex = i;
+        } else if (line.startsWith('Repeat:')) {
+          repeatInterval = line.replaceFirst('Repeat:', '').trim();
+          if (repeatInterval == 'null' || repeatInterval.isEmpty) repeatInterval = null;
+          metadataEndIndex = i;
         } else if (line.startsWith('##')) {
-          // Description often starts after ## or blank lines
           metadataEndIndex = i - 1;
           break;
         }
@@ -80,10 +101,14 @@ class ImportExportService {
             fileName.hashCode.toString(),
         title: title,
         description: description,
-        date: dueDate,
+        startDate: startDate,
+        endDate: endDate,
         status: statusStr,
         category: category,
         isFinished: isFinished,
+        isLocked: isLocked,
+        isRoutine: isRoutine,
+        repeatInterval: repeatInterval,
       );
     } catch (e) {
       return null;
@@ -105,14 +130,19 @@ class ImportExportService {
   }
 
   String _generateMarkdown(Task task) {
-    final dueDateStr = _dateFormat.format(task.date);
+    final startDateStr = _dateFormat.format(task.startDate);
+    final endDateStr = _dateFormat.format(task.endDate);
 
     return '''# ${task.title}
 
 Course: ${task.category}
 Status: ${task.status}
 Assignee: User
-Due date: $dueDateStr
+Start date: $startDateStr
+End date: $endDateStr
+Locked: ${task.isLocked}
+Routine: ${task.isRoutine}
+Repeat: ${task.repeatInterval}
 
 ## Description
 
