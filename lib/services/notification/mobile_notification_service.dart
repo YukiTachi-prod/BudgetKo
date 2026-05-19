@@ -26,8 +26,9 @@ class NotificationService {
     late final InitializationSettings initSettings;
 
     if (Platform.isLinux) {
-      const linuxSettings =
-          LinuxInitializationSettings(defaultActionName: 'Open');
+      const linuxSettings = LinuxInitializationSettings(
+        defaultActionName: 'Open',
+      );
       initSettings = const InitializationSettings(linux: linuxSettings);
     } else if (Platform.isMacOS || Platform.isIOS) {
       const darwinSettings = DarwinInitializationSettings();
@@ -37,8 +38,9 @@ class NotificationService {
       );
     } else {
       // Android
-      const androidSettings =
-          AndroidInitializationSettings('@mipmap/ic_launcher');
+      const androidSettings = AndroidInitializationSettings(
+        '@mipmap/ic_launcher',
+      );
       initSettings = const InitializationSettings(android: androidSettings);
     }
 

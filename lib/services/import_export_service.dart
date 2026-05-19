@@ -90,8 +90,9 @@ class ImportExportService {
           metadataEndIndex = i;
         } else if (line.startsWith('Repeat:')) {
           repeatInterval = line.replaceFirst('Repeat:', '').trim();
-          if (repeatInterval == 'null' || repeatInterval.isEmpty)
+          if (repeatInterval == 'null' || repeatInterval.isEmpty) {
             repeatInterval = null;
+          }
           metadataEndIndex = i;
         } else if (line.startsWith('##')) {
           metadataEndIndex = i - 1;

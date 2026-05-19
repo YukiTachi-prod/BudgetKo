@@ -13,76 +13,202 @@ class MainScreen extends StatefulWidget {
 
 class _MainScreenState extends State<MainScreen> {
   int _selectedIndex = 0;
-  late PageController _pageController;
 
-  final List<String> _tabTitles = ['Dashboard', 'Routines', 'Settings'];
+  static const _labels = ['Tasks', 'Routines', 'Settings'];
+  static const _icons = [
+    Icons.check_box_outline_blank_rounded,
+    Icons.loop_rounded,
+    Icons.settings_outlined,
+  ];
+  static const _selectedIcons = [
+    Icons.check_box_rounded,
+    Icons.loop_rounded,
+    Icons.settings_rounded,
+  ];
 
-  @override
-  void initState() {
-    super.initState();
-    _pageController = PageController(initialPage: _selectedIndex);
-  }
+  // IndexedStack preserves scroll/state on tab switch
+  static const _screens = [
+    DashboardScreen(),
+    RoutinesScreen(),
+    SettingsScreen(),
+  ];
 
-  @override
-  void dispose() {
-    _pageController.dispose();
-    super.dispose();
-  }
+  void _onTab(int index) => setState(() => _selectedIndex = index);
 
-  void _onItemTapped(int index) {
-    setState(() {
-      _selectedIndex = index;
-    });
-    _pageController.animateToPage(
-      index,
-      duration: const Duration(milliseconds: 300),
-      curve: Curves.easeInOut,
+  bool get _showNewButton => _selectedIndex < 2;
+
+  void _openNewTask() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => const TaskEditScreen()),
     );
-  }
-
-  void _onPageChanged(int index) {
-    setState(() {
-      _selectedIndex = index;
-    });
   }
 
   @override
   Widget build(BuildContext context) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        return constraints.maxWidth >= 720
+            ? _buildDesktop(context)
+            : _buildMobile(context);
+      },
+    );
+  }
+
+  // ── Desktop layout ─────────────────────────────────────────────
+  Widget _buildDesktop(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return Scaffold(
+      backgroundColor: theme.scaffoldBackgroundColor,
+      body: Row(
+        children: [
+          // Sidebar
+          NavigationRail(
+            selectedIndex: _selectedIndex,
+            onDestinationSelected: _onTab,
+            labelType: NavigationRailLabelType.selected,
+            leading: const Padding(
+              padding: EdgeInsets.only(bottom: 8),
+              child: Column(
+                children: [
+                  SizedBox(height: 16),
+                  Icon(Icons.task_alt_rounded, size: 26, color: Colors.white),
+                  SizedBox(height: 4),
+                  Text(
+                    'TASKo',
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700,
+                      color: Colors.white,
+                      letterSpacing: 0.8,
+                    ),
+                  ),
+                  SizedBox(height: 16),
+                ],
+              ),
+            ),
+            destinations: [
+              for (int i = 0; i < _labels.length; i++)
+                NavigationRailDestination(
+                  icon: Icon(_icons[i]),
+                  selectedIcon: Icon(_selectedIcons[i]),
+                  label: Text(_labels[i]),
+                ),
+            ],
+          ),
+
+          Container(
+            width: 1,
+            decoration: BoxDecoration(
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.12),
+                  blurRadius: 8,
+                  offset: const Offset(2, 0),
+                ),
+              ],
+            ),
+          ),
+
+          // Main content
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                _DesktopHeader(
+                  title: _labels[_selectedIndex],
+                  showNewButton: _showNewButton,
+                  onNewTask: _openNewTask,
+                ),
+                Expanded(
+                  child: IndexedStack(
+                    index: _selectedIndex,
+                    children: _screens,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ── Mobile layout ──────────────────────────────────────────────
+  Widget _buildMobile(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text('TASKo - ${_tabTitles[_selectedIndex]}'),
+        title: Row(
+          children: [
+            Icon(
+              Icons.task_alt_rounded,
+              size: 20,
+              color: Theme.of(context).colorScheme.primary,
+            ),
+            const SizedBox(width: 8),
+            Text(_labels[_selectedIndex]),
+          ],
+        ),
         actions: [
-          // Show add button on Dashboard and Routines
-          if (_selectedIndex == 0 || _selectedIndex == 1)
+          if (_showNewButton)
             IconButton(
-              icon: const Icon(Icons.add),
-              onPressed: () => Navigator.push(
-                context,
-                MaterialPageRoute(builder: (context) => const TaskEditScreen()),
-              ),
+              icon: const Icon(Icons.add_rounded),
+              onPressed: _openNewTask,
+              tooltip: 'New task',
             ),
         ],
       ),
-      body: PageView(
-        controller: _pageController,
-        onPageChanged: _onPageChanged,
-        children: const [DashboardScreen(), RoutinesScreen(), SettingsScreen()],
-      ),
+      body: IndexedStack(index: _selectedIndex, children: _screens),
       bottomNavigationBar: BottomNavigationBar(
-        type: BottomNavigationBarType.fixed,
-        items: const <BottomNavigationBarItem>[
-          BottomNavigationBarItem(
-            icon: Icon(Icons.dashboard),
-            label: 'Dashboard',
-          ),
-          BottomNavigationBarItem(icon: Icon(Icons.repeat), label: 'Routines'),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.settings),
-            label: 'Settings',
-          ),
-        ],
         currentIndex: _selectedIndex,
-        onTap: _onItemTapped,
+        onTap: _onTab,
+        items: [
+          for (int i = 0; i < _labels.length; i++)
+            BottomNavigationBarItem(
+              icon: Icon(_icons[i]),
+              activeIcon: Icon(_selectedIcons[i]),
+              label: _labels[i],
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+// ── Desktop page header ────────────────────────────────────────────
+class _DesktopHeader extends StatelessWidget {
+  final String title;
+  final bool showNewButton;
+  final VoidCallback onNewTask;
+
+  const _DesktopHeader({
+    required this.title,
+    required this.showNewButton,
+    required this.onNewTask,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+      decoration: BoxDecoration(
+        border: Border(
+          bottom: BorderSide(color: theme.dividerColor, width: 0.5),
+        ),
+      ),
+      child: Row(
+        children: [
+          Text(title, style: theme.textTheme.titleLarge),
+          const Spacer(),
+          if (showNewButton)
+            FilledButton.icon(
+              icon: const Icon(Icons.add_rounded, size: 16),
+              label: const Text('New task'),
+              onPressed: onNewTask,
+            ),
+        ],
       ),
     );
   }

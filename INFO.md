@@ -2,139 +2,176 @@
 
 ## App Description
 
-**TASKo** is a versatile and efficient task management application built with **Flutter**. It is designed to help users organize their daily activities, manage deadlines, and stay productive through a clean and intuitive interface.
+**TASKo** is a versatile and efficient task management application built with **Flutter**. It targets **Android**, **Web (Chrome)**, and **Linux desktop**. It is designed to help users organize their daily activities, manage deadlines, and stay productive through a clean and intuitive interface.
 
 ### Core Features
 
 - **Dual-Date Task Management**: Create tasks with specific **Start** and **End** date/times for precise scheduling.
 - **Routines (Repeating Tasks)**: Dedicated support for recurring activities (Daily, Weekly, Monthly) with a specialized viewing tab.
-- **Task Locking**: Secure your tasks by locking them; once saved and locked, only the status can be updated, preventing accidental modifications to titles or dates.
-- **Bulk Operations**: Multi-selection mode on the dashboard allows for quick deletion of multiple tasks at once.
+- **Task Locking**: Secure your tasks by locking them; once saved and locked, only the status can be updated, preventing accidental modifications.
+- **Bulk Operations**: Long-press to enter multi-selection mode and delete multiple tasks at once.
 - **Unique Title Enforcement**: Prevents organization clutter by ensuring no two tasks share the same title.
-- **Dynamic Filtering**: Organize your view by filtering tasks based on their current status, category, or specific dates.
-- **Local Notifications**: Integrated reminders for upcoming task deadlines, now synced with the new End Date structure.
+- **Dynamic Filtering**: Filter tasks by status (chip row), category (popup), or date.
+- **Local Notifications**: Integrated reminders for upcoming task deadlines (Android/iOS). Linux uses libnotify via `flutter_local_notifications` v18 (fire-and-forget only — scheduled reminders not supported on Linux).
 - **Flexible Time Picking**: Users can choose between a circular dial or a numeric/keyboard input (default) for time selection.
-- **Import/Export**: Robust Markdown-based import/export system via ZIP files, supporting all new task fields (Start/End dates, locking, routine status).
-- **Dark Mode Support**: A fully integrated dark theme, including a theme-aware bottom navigation bar.
+- **Import/Export**: Markdown-based import/export system via ZIP files.
+- **Dark/Light Mode**: Fully integrated theme switcher. Light mode uses a soft lavender background with a deep purple sidebar; dark mode uses dark violet tones.
 
 ### Technical Architecture
 
-The app follows a modern Flutter architecture using the **Provider** package for state management, ensuring a clean separation between business logic and the user interface.
+The app follows a modern Flutter architecture using the **Provider** package for state management.
 
-- **Models**: Defines the data structures (e.g., `Task`) used throughout the application.
-- **Providers**: `TaskProvider` and `SettingsProvider` act as the central state containers.
-- **Services**: `NotificationService` handles reminders, and `ImportExportService` manages data portability.
-- **Screens**: Includes Dashboard, Routines, Settings, Task Editing, Analytics, and PDF Viewer.
-
-### Recent Updates
-
-- **Navigation Overhaul**: Implemented a **Bottom Navigation Bar** (tabular UI) for seamless switching between Dashboard, Routines, and Settings.
-- **Visual Refresh**: Updated the default light mode background to pure white with high-contrast text. The `SplashScreen` has also been updated to a pure white background with a snappier 1-second duration.
-- **Status & Locking Logic**: Integrated a "Lock" feature in the `TaskEditScreen`. When enabled, core task details are disabled in the UI to preserve data integrity.
-- **Bulk Delete**: Added a long-press gesture on task tiles to enter **Multi-selection Mode**, enabling the "Delete All Selected" functionality.
-- **Time Picker Optimization**: Fixed a bug where the time picker ignored the 24-hour format setting. It now correctly displays AM/PM when 24-hour format is disabled.
-- **Architecture Maintenance**:
-    - Migration: Updated the `Task` model and all related services to handle the transition from a single `date` field to separate `startDate` and `endDate` fields.
-    - Code Quality: Resolved all `flutter analyze` issues, including removing unused imports and replacing deprecated `.withOpacity()` calls with `.withValues()`.
-    - Dependencies: Added the `uuid` package for robust unique ID generation.
-
-### Coding Standards
-
-- **Variable Naming**: Standard Dart **camelCase**.
-- **Class Naming**: **PascalCase**.
-- **Theming**: Use `Theme.of(context)` values rather than hardcoded colors where possible to maintain Dark/Light mode compatibility.
+- **Models**: `Task` — all task fields including Start/End dates, locking, routine status.
+- **Providers**: `TaskProvider` (task CRUD, filtering, bulk ops) and `SettingsProvider` (categories, statuses, UI prefs).
+- **Theme**: `AppTheme` — single source of truth for all ThemeData, colors, and semantic color helpers.
+- **Services**: Conditional-export notification and file services for platform compatibility.
+- **Screens**: Dashboard, Routines, Settings, Task Edit, Analytics, PDF Viewer, Splash.
+- **Widgets**: Modular — `TaskTile`, `TaskListView`, `FilterBar`, `StatusPill`, `CategoryTag`, `PlatformPdfViewer`.
 
 ---
 
-## Project Structure (Key Files)
+## Design System
+
+### Theme (`lib/theme/app_theme.dart`)
+
+All theme configuration lives in `AppTheme`. Call `AppTheme.light()` and `AppTheme.dark()` from `main.dart`.
+
+| Token | Light | Dark |
+|-------|-------|------|
+| Background | `#EEF2FF` (soft lavender) | `#0D0B1A` (dark violet) |
+| Surface / Cards | `#FFFFFF` | `#16132B` |
+| Primary accent | `#7C3AED` (violet) | `#8B5CF6` |
+| Sidebar (NavRail) | `#6D28D9` (deep purple) | `#1A1733` |
+| Text | `#1E1B4B` (dark navy) | `#E2E8F0` |
+| Subtext | `#6B7280` | `#94A3B8` |
+| Border | `#E5E7EB` | `#2E2A4A` |
+
+### Status Colors (`AppTheme.statusColor(status)`)
+
+| Status | Color |
+|--------|-------|
+| Not Started | `#6B7280` gray |
+| Ongoing | `#7C3AED` violet |
+| Finished | `#10B981` emerald |
+| Dropped | `#EF4444` red |
+
+### Category Colors (`AppTheme.categoryColor(category)`)
+
+Hash-stable 8-color palette (violet, indigo, blue, cyan, emerald, amber, red, pink). No dependency on the category list order.
+
+### Urgency Accent (task tile left bar)
+
+| State | Color |
+|-------|-------|
+| Overdue / due today | `#EF4444` red |
+| Due in ≤ 3 days | `#F59E0B` amber |
+| Finished | `#10B981` green |
+| Normal | Transparent |
+
+---
+
+## Project Structure
 
 ```text
 lib/
 ├── models/
-│   └── task.dart (Updated with Start/End dates, locking, and routine fields)
+│   └── task.dart
 ├── providers/
-│   ├── settings_provider.dart (Includes time picker style and persistence)
-│   └── task_provider.dart (Bulk delete, title uniqueness, and routine filters)
+│   ├── settings_provider.dart
+│   └── task_provider.dart
 ├── screens/
-│   ├── dashboard_screen.dart (Multi-selection UI)
-│   ├── routines_screen.dart (Tab for repeating tasks)
-│   ├── main_screen.dart (Bottom navigation container)
-│   ├── task_edit_screen.dart (Locking, routines, and dual-date inputs)
-│   └── splash_screen.dart (Standardized white background)
+│   ├── analytics_screen.dart
+│   ├── dashboard_screen.dart       ← StatelessWidget, delegates to TaskListView
+│   ├── main_screen.dart            ← Responsive: NavigationRail (≥720px) / BottomNav
+│   ├── pdf_view_screen.dart
+│   ├── routines_screen.dart        ← StatelessWidget, delegates to TaskListView
+│   ├── settings_screen.dart
+│   ├── splash_screen.dart
+│   └── task_edit_screen.dart       ← Notion-style property rows, constrained width
 ├── services/
-│   ├── import_export_service.dart (Markdown parser for new task fields)
-│   └── notification_service.dart (Deadline-based reminder logic)
-└── main.dart (Global theme and provider initialization)
+│   ├── notification_service.dart   ← OLD FILE — to be deleted (see TODO #11)
+│   ├── notification/
+│   │   ├── notification_service.dart          (conditional export selector)
+│   │   ├── mobile_notification_service.dart   (Android + Linux + macOS init paths)
+│   │   └── web_notification_service.dart      (no-op stub)
+│   └── platform/
+│       ├── platform_file_service.dart         (conditional export selector)
+│       ├── mobile_file_service.dart           (dart:io + share_plus)
+│       └── web_file_service.dart              (dart:html download)
+├── theme/
+│   └── app_theme.dart              ← Centralized ThemeData (purple/violet palette)
+└── widgets/
+    ├── category_tag.dart           ← Colored category badge
+    ├── filter_bar.dart             ← Status chips + date/category filter pills
+    ├── platform_pdf_viewer.dart    (conditional export selector)
+    ├── platform_pdf_viewer_mobile.dart  (Syncfusion on mobile, url_launcher on desktop)
+    ├── platform_pdf_viewer_web.dart     (placeholder)
+    ├── status_pill.dart            ← Colored status badge
+    ├── task_list_view.dart         ← Stateful: multi-select + FilterBar + TaskTile list
+    └── task_tile.dart              ← Floating card: shadow, urgency bar, StatusPill, CategoryTag
 ```
 
 ---
 
-## In-Progress Refactor: Android + Web (Chrome) Support
+## Platform Support
 
-A refactor is underway to support both **Android** and **Web (Chrome)** targets. The strategy
-uses Dart's **conditional export** pattern so platform-specific code is never compiled on the
-wrong target. Three core problems are being solved:
+| Platform | Build | Notifications | PDF Viewer | File I/O | Share |
+|----------|-------|---------------|------------|----------|-------|
+| Android | ✅ | ✅ Scheduled | ✅ Syncfusion | ✅ | ✅ |
+| Web | ✅ | ✅ no-op | ✅ placeholder | ✅ dart:html | ✅ download |
+| Linux | ✅ | ✅ libnotify (no scheduling) | ✅ system viewer (url_launcher) | ✅ dart:io | ✅ xdg-portal |
 
-1. `flutter_local_notifications` does not compile on web → abstracted behind a conditional service.
-2. `dart:io` (File/Directory) is not available on web → abstracted behind a conditional file service.
-3. `SfPdfViewer.file()` requires `dart:io` → wrapped in a conditional widget.
-
----
-
-### COMPLETED
-
-All new files listed below were **created from scratch** and are ready. No existing files have
-been modified yet — the app still builds as before until the wiring step (see TODO below).
-
-#### `lib/services/notification/`
-
-| File | Purpose |
-|------|---------|
-| `notification_service.dart` | Conditional export selector (`dart.library.html` → web, else mobile) |
-| `mobile_notification_service.dart` | Full Android implementation (existing logic, cleaned up) |
-| `web_notification_service.dart` | No-op stub — all methods are empty `async {}` |
-
-#### `lib/services/platform/`
-
-| File | Purpose |
-|------|---------|
-| `platform_file_service.dart` | Conditional export selector |
-| `mobile_file_service.dart` | `dart:io` file ops: copy PDF, delete PDF, save/share ZIP via `share_plus` |
-| `web_file_service.dart` | Browser download via `dart:html`; `supportsPdfAttachment` returns `false` |
-
-#### `lib/widgets/`
-
-| File | Purpose |
-|------|---------|
-| `platform_pdf_viewer.dart` | Conditional export selector |
-| `platform_pdf_viewer_mobile.dart` | `SfPdfViewer.file(File(path))` |
-| `platform_pdf_viewer_web.dart` | "PDF viewing not available in browser" placeholder |
+**Linux system requirement**: `libnotify` must be installed (default on GNOME/KDE distros).
 
 ---
 
-### TODO (not started — existing files are unchanged)
+## Multi-Platform Strategy
 
-Complete the following in order. Each item lists the file to edit and exactly what to change.
+The app uses Dart's **conditional export** pattern to keep platform-specific code out of the wrong build target.
 
-#### 1. `lib/main.dart`
-- Change import from `../services/notification_service.dart`
-  to `services/notification/notification_service.dart`.
+```
+services/notification/notification_service.dart
+  ├── if (dart.library.html) → web_notification_service.dart   (no-op)
+  └── else                  → mobile_notification_service.dart  (Android/iOS/Linux/macOS)
 
-#### 2. `lib/providers/task_provider.dart`
+services/platform/platform_file_service.dart
+  ├── if (dart.library.html) → web_file_service.dart            (dart:html)
+  └── else                  → mobile_file_service.dart          (dart:io)
+
+widgets/platform_pdf_viewer.dart
+  ├── if (dart.library.html) → platform_pdf_viewer_web.dart     (placeholder)
+  └── else                  → platform_pdf_viewer_mobile.dart   (Syncfusion on mobile,
+                                                                  url_launcher on desktop)
+```
+
+**Key decisions:**
+- Conditional exports (not `kIsWeb`) prevent wrong-platform code from compiling.
+- `dart.library.io` is available on ALL native platforms (mobile + desktop), so Linux and Android cannot be separated at compile time via library conditions. Desktop vs mobile is handled at **runtime** inside the native files using `Platform.isAndroid` / `Platform.isLinux`.
+- `syncfusion_flutter_pdfviewer` compiles on Linux (uses platform channels) but has no Linux implementation. The `platform_pdf_viewer_mobile.dart` guards against calling it with a `Platform.isAndroid || Platform.isIOS` check.
+- `flutter_local_notifications` v18 supports Linux natively via libnotify. Scheduled notifications (`zonedSchedule`) are skipped on Linux — only the initialization path differs.
+
+---
+
+## Remaining TODO — PlatformFileService Wiring
+
+Steps 1 and 6–10 from the original plan are **complete**. The following items remain.
+Complete them in order.
+
+### 2. `lib/providers/task_provider.dart`
 - Remove `import 'dart:io';`.
 - Add `import '../services/platform/platform_file_service.dart';`.
-- Change import of `NotificationService` to point to `services/notification/notification_service.dart`.
+- Change `NotificationService` import to `services/notification/notification_service.dart`.
 - Add field: `final PlatformFileService _fileService = PlatformFileService();`
 - In `deleteTasks()`, `deleteTask()`, and `clearAllTasks()`: replace every
   `File(path).existsSync()` / `file.deleteSync()` block with
   `_fileService.deletePdfFile(task.pdfPath!)`.
 
-#### 3. `lib/screens/pdf_view_screen.dart`
+### 3. `lib/screens/pdf_view_screen.dart`
 - Remove `import 'dart:io';` and `import 'package:syncfusion_flutter_pdfviewer/pdfviewer.dart';`.
 - Add `import '../widgets/platform_pdf_viewer.dart';`.
 - Replace `SfPdfViewer.file(File(path))` with `PlatformPdfViewer(path: path)`.
 
-#### 4. `lib/screens/task_edit_screen.dart`
+### 4. `lib/screens/task_edit_screen.dart`
 - Remove `import 'dart:io';`, `import 'package:path_provider/path_provider.dart';`,
   `import 'package:path/path.dart' as p;`.
 - Add `import 'package:flutter/foundation.dart';` and
@@ -144,90 +181,30 @@ Complete the following in order. Each item lists the file to edit and exactly wh
   a SnackBar saying "PDF attachment not supported on web" and return early.
 - In `_applyPdfChoice()`: replace the `dart:io` copy logic with
   `await _fileService.copyPdfToAppStorage(originalPath)`.
-- In the PDF tile `onTap`: replace `File(_pdfPath!).existsSync()` with
-  `_fileService.pdfFileExists(_pdfPath!)`.
+- In `_PdfRow.onTap`: replace `File(path).existsSync()` with
+  `_fileService.pdfFileExists(path)`.
 
-#### 5. `lib/screens/settings_screen.dart`
+### 5. `lib/screens/settings_screen.dart`
 - Remove `import 'dart:io';`, `import 'package:path_provider/path_provider.dart';`,
   `import 'package:share_plus/share_plus.dart';`.
 - Add `import '../services/platform/platform_file_service.dart';`.
 - In `_handleImport()`: add `withData: true` to `FilePicker.pickFiles`; read bytes via
-  `result.files.single.bytes` instead of `File(path).readAsBytes()` — this works on
-  both mobile and web without `dart:io`.
+  `result.files.single.bytes` instead of `File(path).readAsBytes()`.
 - In `_handleExport()`: replace `dart:io` write logic with
   `await _fileService.saveExportZip(bytes, 'tasks_export.zip')`.
 - In `_handleShare()`: replace `dart:io` + `Share.shareXFiles` with
   `await _fileService.shareZip(bytes, 'tasks_share.zip')`.
 
-#### 6. `lib/widgets/task_tile.dart` — CREATE
-Extract the `_buildTaskTile` / `_buildRoutineTile` methods that are duplicated across
-`dashboard_screen.dart` and `routines_screen.dart` into a single reusable `TaskTile` widget.
-
-Signature:
-```dart
-class TaskTile extends StatelessWidget {
-  final Task task;
-  final bool isMultiSelectionMode;
-  final bool isSelected;
-  final bool showRepeatBadge;         // true for routines, false for tasks
-  final VoidCallback onTap;
-  final VoidCallback onLongPress;
-  final VoidCallback onToggleFinished;
-  final VoidCallback onDelete;
-  ...
-}
-```
-
-#### 7. `lib/widgets/filter_bar.dart` — CREATE
-Extract the identical `_buildFilterBar` method from both screens into a standalone widget.
-It reads `TaskProvider` and `SettingsProvider` via `Provider.of` internally.
-
-#### 8. `lib/widgets/task_list_view.dart` — CREATE
-Create a stateful widget that owns the multi-selection state and composes `FilterBar` +
-`ListView` of `TaskTile`s. This replaces the bodies of both list screens.
-
-Signature:
-```dart
-class TaskListView extends StatefulWidget {
-  final List<Task> tasks;
-  final String emptyMessage;
-  final bool showRepeatBadge;
-  ...
-}
-```
-
-#### 9. `lib/screens/dashboard_screen.dart` — SIMPLIFY
-Replace entire body with:
-```dart
-class DashboardScreen extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    final tasks = Provider.of<TaskProvider>(context).tasks;
-    return TaskListView(tasks: tasks, emptyMessage: 'No tasks found');
-  }
-}
-```
-
-#### 10. `lib/screens/routines_screen.dart` — SIMPLIFY
-Same pattern as DashboardScreen but uses `taskProvider.routines` and
-`showRepeatBadge: true`.
-
-#### 11. Delete `lib/services/notification_service.dart`
-The old top-level notification service file is replaced by
-`lib/services/notification/notification_service.dart`. Delete the old file once
-steps 1 and 2 above are complete.
+### 11. Delete `lib/services/notification_service.dart`
+The old top-level file is fully replaced by `lib/services/notification/notification_service.dart`.
+Delete it after steps 2–5 are complete and the build is verified clean.
 
 ---
 
-### Key Design Decisions for the Next Agent
+## Coding Standards
 
-- **Conditional exports** (not `kIsWeb` runtime checks) are used for services and widgets
-  that use `dart:io` or `dart:html`. This ensures the wrong platform's code is never
-  compiled at all, which is required because `flutter_local_notifications` and `dart:io`
-  do not compile on web targets.
-- **`withData: true`** in `FilePicker.pickFiles` makes file bytes available on all
-  platforms without needing `dart:io` to read the file after picking.
-- **PDF attachment is disabled on web** (`PlatformFileService.supportsPdfAttachment`
-  returns `false` on web). The `task_edit_screen` should check this flag before showing
-  the attach button.
-- The `ImportExportService` is pure Dart (no `dart:io`) and requires no changes.
+- **Variable Naming**: Standard Dart `camelCase`.
+- **Class Naming**: `PascalCase`.
+- **Theming**: Always use `AppTheme` static methods and `Theme.of(context)` values. Never hardcode colors in widgets except for semantic constants defined in `AppTheme`.
+- **Platform guards**: Use `Platform.isX` runtime checks (from `dart:io`) inside native files. Never use `kIsWeb` for compile-time separation — use conditional exports instead.
+- **Widget size**: Use `ConstrainedBox(maxWidth: 600)` for form/detail screens so they don't stretch to full width on desktop.

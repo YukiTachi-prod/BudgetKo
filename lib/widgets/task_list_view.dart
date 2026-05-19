@@ -10,7 +10,7 @@ class TaskListView extends StatefulWidget {
   final List<Task> tasks;
   final String emptyMessage;
   final bool showRepeatBadge;
-  final String itemName; // e.g., "task" or "routine"
+  final String itemName;
 
   const TaskListView({
     super.key,
@@ -31,9 +31,7 @@ class _TaskListViewState extends State<TaskListView> {
   void _toggleMultiSelectionMode() {
     setState(() {
       _isMultiSelectionMode = !_isMultiSelectionMode;
-      if (!_isMultiSelectionMode) {
-        _selectedTaskIds.clear();
-      }
+      if (!_isMultiSelectionMode) _selectedTaskIds.clear();
     });
   }
 
@@ -47,54 +45,59 @@ class _TaskListViewState extends State<TaskListView> {
     });
   }
 
-  void _deleteSelectedTasks(TaskProvider taskProvider) {
-    if (_selectedTaskIds.isNotEmpty) {
-      showDialog(
-        context: context,
-        builder: (context) => AlertDialog(
-          title: Text('Delete Selected ${widget.itemName}s'),
-          content: Text(
-            'Are you sure you want to delete ${_selectedTaskIds.length} ${widget.itemName}s?',
+  void _deleteSelected(TaskProvider provider) {
+    if (_selectedTaskIds.isEmpty) return;
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text('Delete ${_selectedTaskIds.length} ${widget.itemName}s?'),
+        content: const Text('This cannot be undone.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancel'),
           ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('Cancel'),
+          TextButton(
+            onPressed: () {
+              provider.deleteTasks(_selectedTaskIds.toList());
+              setState(() {
+                _selectedTaskIds.clear();
+                _isMultiSelectionMode = false;
+              });
+              Navigator.pop(ctx);
+            },
+            child: const Text(
+              'Delete',
+              style: TextStyle(color: Color(0xFFFF5252)),
             ),
-            TextButton(
-              onPressed: () {
-                taskProvider.deleteTasks(_selectedTaskIds.toList());
-                setState(() {
-                  _selectedTaskIds.clear();
-                  _isMultiSelectionMode = false;
-                });
-                Navigator.pop(context);
-              },
-              child: const Text('Delete', style: TextStyle(color: Colors.red)),
-            ),
-          ],
-        ),
-      );
-    }
+          ),
+        ],
+      ),
+    );
   }
 
   void _confirmDelete(BuildContext context, String id, TaskProvider provider) {
+    final name =
+        widget.itemName[0].toUpperCase() + widget.itemName.substring(1);
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: Text('Delete ${widget.itemName[0].toUpperCase()}${widget.itemName.substring(1)}'),
-        content: Text('Are you sure you want to delete this ${widget.itemName}?'),
+      builder: (ctx) => AlertDialog(
+        title: Text('Delete $name?'),
+        content: const Text('This cannot be undone.'),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context),
+            onPressed: () => Navigator.pop(ctx),
             child: const Text('Cancel'),
           ),
           TextButton(
             onPressed: () {
               provider.deleteTask(id);
-              Navigator.pop(context);
+              Navigator.pop(ctx);
             },
-            child: const Text('Delete', style: TextStyle(color: Colors.red)),
+            child: const Text(
+              'Delete',
+              style: TextStyle(color: Color(0xFFFF5252)),
+            ),
           ),
         ],
       ),
@@ -103,31 +106,78 @@ class _TaskListViewState extends State<TaskListView> {
 
   @override
   Widget build(BuildContext context) {
-    final taskProvider = Provider.of<TaskProvider>(context);
+    final provider = Provider.of<TaskProvider>(context);
+    final theme = Theme.of(context);
 
     return Column(
       children: [
+        // ── Selection bar / filter bar ───────────────────────────
         if (_isMultiSelectionMode)
-          AppBar(
-            leading: IconButton(
-              icon: const Icon(Icons.close),
-              onPressed: _toggleMultiSelectionMode,
-            ),
-            title: Text('${_selectedTaskIds.length} selected'),
-            actions: [
-              IconButton(
-                icon: const Icon(Icons.delete_sweep),
-                onPressed: _selectedTaskIds.isNotEmpty
-                    ? () => _deleteSelectedTasks(taskProvider)
-                    : null,
+          Container(
+            height: 48,
+            padding: const EdgeInsets.symmetric(horizontal: 4),
+            decoration: BoxDecoration(
+              color: theme.colorScheme.primary.withValues(alpha: 0.08),
+              border: Border(
+                bottom: BorderSide(color: theme.dividerColor, width: 0.5),
               ),
-            ],
+            ),
+            child: Row(
+              children: [
+                IconButton(
+                  icon: const Icon(Icons.close_rounded, size: 18),
+                  onPressed: _toggleMultiSelectionMode,
+                  visualDensity: VisualDensity.compact,
+                ),
+                Text(
+                  '${_selectedTaskIds.length} selected',
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w500,
+                    color: theme.colorScheme.onSurface,
+                  ),
+                ),
+                const Spacer(),
+                IconButton(
+                  icon: const Icon(Icons.delete_sweep_rounded, size: 20),
+                  onPressed: _selectedTaskIds.isNotEmpty
+                      ? () => _deleteSelected(provider)
+                      : null,
+                  color: _selectedTaskIds.isNotEmpty
+                      ? const Color(0xFFFF5252)
+                      : theme.colorScheme.secondary,
+                  visualDensity: VisualDensity.compact,
+                ),
+              ],
+            ),
           )
         else
           const FilterBar(),
+
+        // ── Task list ────────────────────────────────────────────
         Expanded(
           child: widget.tasks.isEmpty
-              ? Center(child: Text(widget.emptyMessage))
+              ? Center(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        Icons.inbox_rounded,
+                        size: 40,
+                        color: theme.colorScheme.secondary.withValues(
+                          alpha: 0.4,
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      Text(
+                        widget.emptyMessage,
+                        style: theme.textTheme.bodyMedium?.copyWith(
+                          color: theme.colorScheme.secondary,
+                        ),
+                      ),
+                    ],
+                  ),
+                )
               : ListView.builder(
                   itemCount: widget.tasks.length,
                   itemBuilder: (context, index) {
@@ -144,21 +194,19 @@ class _TaskListViewState extends State<TaskListView> {
                           Navigator.push(
                             context,
                             MaterialPageRoute(
-                              builder: (context) => TaskEditScreen(task: task),
+                              builder: (_) => TaskEditScreen(task: task),
                             ),
                           );
                         }
                       },
                       onLongPress: () {
-                        if (!_isMultiSelectionMode) {
-                          _toggleMultiSelectionMode();
-                        }
+                        if (!_isMultiSelectionMode) _toggleMultiSelectionMode();
                         _toggleTaskSelection(task.id);
                       },
                       onToggleFinished: () =>
-                          taskProvider.toggleTaskFinished(task.id),
+                          provider.toggleTaskFinished(task.id),
                       onDelete: () =>
-                          _confirmDelete(context, task.id, taskProvider),
+                          _confirmDelete(context, task.id, provider),
                     );
                   },
                 ),
