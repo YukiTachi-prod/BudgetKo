@@ -21,10 +21,8 @@ class NotificationService {
         InitializationSettings(android: initializationSettingsAndroid);
 
     await _notificationsPlugin.initialize(
-      initializationSettings,
-      onDidReceiveNotificationResponse: (details) {
-        // Handle notification tap
-      },
+      settings: initializationSettings,
+      onDidReceiveNotificationResponse: (details) {},
     );
 
     // Request permissions for Android 13+
@@ -69,11 +67,11 @@ class NotificationService {
         final int uniqueId = task.id.hashCode + days;
 
         await _notificationsPlugin.zonedSchedule(
-          uniqueId,
-          'Task Reminder: ${task.title}',
-          'Your task is due in $days days!',
-          tz.TZDateTime.from(scheduledDate, tz.local),
-          const NotificationDetails(
+          id: uniqueId,
+          title: 'Task Reminder: ${task.title}',
+          body: 'Your task is due in $days days!',
+          scheduledDate: tz.TZDateTime.from(scheduledDate, tz.local),
+          notificationDetails: const NotificationDetails(
             android: AndroidNotificationDetails(
               'task_reminders',
               'Task Reminders',
@@ -83,8 +81,6 @@ class NotificationService {
             ),
           ),
           androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
-          uiLocalNotificationDateInterpretation:
-              UILocalNotificationDateInterpretation.absoluteTime,
         );
       }
     }
@@ -92,11 +88,11 @@ class NotificationService {
     // Always schedule a notification for the deadline day itself if it's in the future
     if (deadline.isAfter(now)) {
       await _notificationsPlugin.zonedSchedule(
-        task.id.hashCode, // Offset 0 for the due date
-        'Task Due Today: ${task.title}',
-        'Your task is due today!',
-        tz.TZDateTime.from(deadline, tz.local),
-        const NotificationDetails(
+        id: task.id.hashCode,
+        title: 'Task Due Today: ${task.title}',
+        body: 'Your task is due today!',
+        scheduledDate: tz.TZDateTime.from(deadline, tz.local),
+        notificationDetails: const NotificationDetails(
           android: AndroidNotificationDetails(
             'task_reminders',
             'Task Reminders',
@@ -106,8 +102,6 @@ class NotificationService {
           ),
         ),
         androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
-        uiLocalNotificationDateInterpretation:
-            UILocalNotificationDateInterpretation.absoluteTime,
       );
     }
   }
@@ -116,7 +110,7 @@ class NotificationService {
     // Cancel IDs for 7, 5, 3, 1, and 0 (due date)
     final List<int> idsToCancel = [7, 5, 3, 1, 0];
     for (int offset in idsToCancel) {
-      await _notificationsPlugin.cancel(taskId.hashCode + offset);
+      await _notificationsPlugin.cancel(id: taskId.hashCode + offset);
     }
   }
 }

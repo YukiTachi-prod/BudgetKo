@@ -45,7 +45,7 @@ class NotificationService {
     }
 
     await _plugin.initialize(
-      initSettings,
+      settings: initSettings,
       onDidReceiveNotificationResponse: (_) {},
     );
 
@@ -86,28 +86,24 @@ class NotificationService {
       final scheduled = deadline.subtract(Duration(days: days));
       if (scheduled.isAfter(now)) {
         await _plugin.zonedSchedule(
-          task.id.hashCode + days,
-          'Task Reminder: ${task.title}',
-          'Your task is due in $days days!',
-          tz.TZDateTime.from(scheduled, tz.local),
-          details,
+          id: task.id.hashCode + days,
+          title: 'Task Reminder: ${task.title}',
+          body: 'Your task is due in $days days!',
+          scheduledDate: tz.TZDateTime.from(scheduled, tz.local),
+          notificationDetails: details,
           androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
-          uiLocalNotificationDateInterpretation:
-              UILocalNotificationDateInterpretation.absoluteTime,
         );
       }
     }
 
     if (deadline.isAfter(now)) {
       await _plugin.zonedSchedule(
-        task.id.hashCode,
-        'Task Due Today: ${task.title}',
-        'Your task is due today!',
-        tz.TZDateTime.from(deadline, tz.local),
-        details,
+        id: task.id.hashCode,
+        title: 'Task Due Today: ${task.title}',
+        body: 'Your task is due today!',
+        scheduledDate: tz.TZDateTime.from(deadline, tz.local),
+        notificationDetails: details,
         androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
-        uiLocalNotificationDateInterpretation:
-            UILocalNotificationDateInterpretation.absoluteTime,
       );
     }
   }
@@ -115,7 +111,7 @@ class NotificationService {
   Future<void> cancelTaskNotifications(String taskId) async {
     if (!_supportsScheduling) return;
     for (final offset in [..._reminderDaysBefore, 0]) {
-      await _plugin.cancel(taskId.hashCode + offset);
+      await _plugin.cancel(id: taskId.hashCode + offset);
     }
   }
 }

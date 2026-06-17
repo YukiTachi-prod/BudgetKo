@@ -3,7 +3,7 @@ import 'package:provider/provider.dart';
 import 'providers/task_provider.dart';
 import 'providers/settings_provider.dart';
 import 'services/notification/notification_service.dart';
-import 'screens/splash_screen.dart';
+import 'screens/main_screen.dart';
 import 'theme/app_theme.dart';
 
 void main() async {
@@ -32,7 +32,7 @@ class TaskerApp extends StatelessWidget {
       themeMode: settings.isDarkMode ? ThemeMode.dark : ThemeMode.light,
       theme: AppTheme.light(),
       darkTheme: AppTheme.dark(),
-      home: const SplashScreen(),
+      home: const MainScreen(),
     );
   }
 }

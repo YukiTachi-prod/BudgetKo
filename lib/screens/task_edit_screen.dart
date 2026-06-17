@@ -149,7 +149,7 @@ class _TaskEditScreenState extends State<TaskEditScreen> {
 
   Future<void> _pickPdf() async {
     final settings = Provider.of<SettingsProvider>(context, listen: false);
-    final result = await FilePicker.platform.pickFiles(
+    final result = await FilePicker.pickFiles(
       type: FileType.custom,
       allowedExtensions: ['pdf'],
     );

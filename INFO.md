@@ -25,7 +25,7 @@ The app follows a modern Flutter architecture using the **Provider** package for
 - **Providers**: `TaskProvider` (task CRUD, filtering, bulk ops) and `SettingsProvider` (categories, statuses, UI prefs).
 - **Theme**: `AppTheme` — single source of truth for all ThemeData, colors, and semantic color helpers.
 - **Services**: Conditional-export notification and file services for platform compatibility.
-- **Screens**: Dashboard, Routines, Settings, Task Edit, Analytics, PDF Viewer, Splash.
+- **Screens**: Dashboard, Routines, Settings, Task Edit, Analytics, PDF Viewer.
 - **Widgets**: Modular — `TaskTile`, `TaskListView`, `FilterBar`, `StatusPill`, `CategoryTag`, `PlatformPdfViewer`.
 
 ---
@@ -86,7 +86,6 @@ lib/
 │   ├── pdf_view_screen.dart
 │   ├── routines_screen.dart        ← StatelessWidget, delegates to TaskListView
 │   ├── settings_screen.dart
-│   ├── splash_screen.dart
 │   └── task_edit_screen.dart       ← Notion-style property rows, constrained width
 ├── services/
 │   ├── notification_service.dart   ← OLD FILE — to be deleted (see TODO #11)

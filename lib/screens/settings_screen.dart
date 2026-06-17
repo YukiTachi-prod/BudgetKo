@@ -271,7 +271,7 @@ class SettingsScreen extends StatelessWidget {
     TaskProvider taskProvider,
     SettingsProvider settingsProvider,
   ) async {
-    final result = await FilePicker.platform.pickFiles(
+    final result = await FilePicker.pickFiles(
       type: FileType.custom,
       allowedExtensions: ['zip'],
     );

@@ -16,12 +16,12 @@ class _MainScreenState extends State<MainScreen> {
 
   static const _labels = ['Tasks', 'Routines', 'Settings'];
   static const _icons = [
-    Icons.check_box_outline_blank_rounded,
+    Icons.description_outlined,
     Icons.loop_rounded,
     Icons.settings_outlined,
   ];
   static const _selectedIcons = [
-    Icons.check_box_rounded,
+    Icons.description_rounded,
     Icons.loop_rounded,
     Icons.settings_rounded,
   ];
@@ -67,7 +67,7 @@ class _MainScreenState extends State<MainScreen> {
           NavigationRail(
             selectedIndex: _selectedIndex,
             onDestinationSelected: _onTab,
-            labelType: NavigationRailLabelType.selected,
+            labelType: NavigationRailLabelType.all,
             leading: const Padding(
               padding: EdgeInsets.only(bottom: 8),
               child: Column(

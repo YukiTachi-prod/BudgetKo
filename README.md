@@ -26,7 +26,6 @@ Built with a modern Flutter architecture, TASKo leverages the **Provider** packa
 We are continuously improving TASKo to enhance your experience:
 
 - **Enhanced Stability**: Critical bug fixes address `TaskEditScreen` loading failures with empty categories/statuses, now gracefully handling defaults.
-- **Consistent UI**: The `SplashScreen` now always displays a creamy white background for a unified brand experience.
 - **Safe Deletions**: Confirmation dialogs added for deleting Categories and Statuses in `SettingsScreen` to prevent accidental data loss.
 - **Flexible Status System**: Replaced the 'Priority' system with a more versatile 'Status' system (Not Started, Ongoing, Finished, Dropped).
 - **Analytics Dashboard**: A new Analytics screen (accessible via Settings) provides valuable insights into task distribution by status and category.
