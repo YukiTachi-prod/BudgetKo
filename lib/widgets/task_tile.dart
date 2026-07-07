@@ -29,6 +29,7 @@ class TaskTile extends StatelessWidget {
   });
 
   Color _urgencyAccent() {
+    if (!task.hasDates) return Colors.transparent;
     if (task.isFinished) return const Color(0xFF10B981);
     final now = DateTime.now();
     final diff = task.endDate.difference(now).inDays;
@@ -174,24 +175,25 @@ class TaskTile extends StatelessWidget {
                                     children: [
                                       StatusPill(status: task.status),
                                       CategoryTag(category: task.category),
-                                      Row(
-                                        mainAxisSize: MainAxisSize.min,
-                                        children: [
-                                          Icon(
-                                            Icons.schedule_rounded,
-                                            size: 11,
-                                            color: subtext,
-                                          ),
-                                          const SizedBox(width: 3),
-                                          Text(
-                                            endLabel,
-                                            style: TextStyle(
-                                              fontSize: 11,
+                                      if (task.hasDates)
+                                        Row(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            Icon(
+                                              Icons.schedule_rounded,
+                                              size: 11,
                                               color: subtext,
                                             ),
-                                          ),
-                                        ],
-                                      ),
+                                            const SizedBox(width: 3),
+                                            Text(
+                                              endLabel,
+                                              style: TextStyle(
+                                                fontSize: 11,
+                                                color: subtext,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
                                       if (task.description.isNotEmpty)
                                         Text(
                                           '· ${task.description}',
@@ -249,7 +251,9 @@ class _RepeatBadge extends StatelessWidget {
         borderRadius: BorderRadius.circular(6),
       ),
       child: Text(
-        interval,
+        interval.startsWith('Hourly:')
+            ? 'Every ${interval.substring(7)}h'
+            : interval,
         style: TextStyle(
           fontSize: 10,
           color: accent,

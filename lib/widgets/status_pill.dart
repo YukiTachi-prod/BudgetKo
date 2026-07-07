@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
-import '../theme/app_theme.dart';
+import 'package:provider/provider.dart';
+import '../providers/settings_provider.dart';
 
 class StatusPill extends StatelessWidget {
   final String status;
@@ -8,7 +9,10 @@ class StatusPill extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final color = AppTheme.statusColor(status);
+    final settings = Provider.of<SettingsProvider>(context);
+    final colorValue = settings.statusColors[status] ?? Colors.grey.toARGB32();
+    final color = Color(colorValue);
+
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
       decoration: BoxDecoration(

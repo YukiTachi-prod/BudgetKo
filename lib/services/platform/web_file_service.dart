@@ -12,6 +12,11 @@ class PlatformFileService {
   Future<String> copyPdfToAppStorage(String sourcePath) async =>
       throw UnsupportedError('PDF storage is not supported on web.');
 
+  Future<String> copyFileToAppStorage(
+    String sourcePath,
+    String fileName,
+  ) async => throw UnsupportedError('File storage is not supported on web.');
+
   void deletePdfFile(String path) {}
 
   bool pdfFileExists(String path) => false;

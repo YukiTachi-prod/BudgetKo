@@ -25,6 +25,16 @@ class PlatformFileService {
     return destPath;
   }
 
+  Future<String> copyFileToAppStorage(
+    String sourcePath,
+    String fileName,
+  ) async {
+    final docsDir = await getApplicationDocumentsDirectory();
+    final destPath = p.join(docsDir.path, fileName);
+    await File(sourcePath).copy(destPath);
+    return destPath;
+  }
+
   void deletePdfFile(String path) {
     final file = File(path);
     if (file.existsSync()) file.deleteSync();
@@ -43,6 +53,8 @@ class PlatformFileService {
     final tempDir = await getTemporaryDirectory();
     final filePath = p.join(tempDir.path, filename);
     await File(filePath).writeAsBytes(bytes);
-    await Share.shareXFiles([XFile(filePath)], text: 'Sharing TASKo data');
+    await SharePlus.instance.share(
+      ShareParams(files: [XFile(filePath)], text: 'Sharing TASKo data'),
+    );
   }
 }

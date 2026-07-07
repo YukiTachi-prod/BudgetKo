@@ -2,12 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/settings_provider.dart';
 import '../providers/task_provider.dart';
+import '../utils/test_data_script.dart';
 import '../services/import_export_service.dart';
 import 'analytics_screen.dart';
-import 'dart:io';
 import 'package:file_picker/file_picker.dart';
-import 'package:path_provider/path_provider.dart';
-import 'package:share_plus/share_plus.dart';
+import '../services/platform/platform_file_service.dart';
+import '../services/notification/notification_service.dart';
 
 class SettingsScreen extends StatelessWidget {
   const SettingsScreen({super.key});
@@ -72,13 +72,21 @@ class SettingsScreen extends StatelessWidget {
         ),
         const Divider(),
         _buildSectionHeader('Categories'),
-        ...settings.categories.map(
-          (c) => ListTile(
-            title: Text(c),
-            trailing: IconButton(
-              icon: const Icon(Icons.delete, color: Colors.red),
-              onPressed: () => settings.removeCategory(c),
-            ),
+        Container(
+          constraints: const BoxConstraints(maxHeight: 56.0 * 4),
+          child: ListView(
+            shrinkWrap: true,
+            children: settings.categories
+                .map(
+                  (c) => ListTile(
+                    title: Text(c),
+                    trailing: IconButton(
+                      icon: const Icon(Icons.delete, color: Colors.red),
+                      onPressed: () => settings.removeCategory(c),
+                    ),
+                  ),
+                )
+                .toList(),
           ),
         ),
         ListTile(
@@ -89,24 +97,91 @@ class SettingsScreen extends StatelessWidget {
         ),
         const Divider(),
         _buildSectionHeader('Statuses'),
-        ...settings.statuses.map(
-          (p) => ListTile(
-            title: Text(p),
-            trailing: IconButton(
-              icon: const Icon(Icons.delete, color: Colors.red),
-              onPressed: () => _showDeleteConfirmation(
-                context,
-                'Status',
-                p,
-                () => settings.removeStatus(p),
-              ),
-            ),
+        Container(
+          constraints: const BoxConstraints(maxHeight: 56.0 * 4),
+          child: ListView(
+            shrinkWrap: true,
+            children: settings.statuses
+                .map(
+                  (p) => ListTile(
+                    leading: GestureDetector(
+                      onTap: () => _showColorPicker(context, settings, p),
+                      child: Container(
+                        width: 24,
+                        height: 24,
+                        decoration: BoxDecoration(
+                          color: Color(
+                            settings.statusColors[p] ?? Colors.grey.toARGB32(),
+                          ),
+                          shape: BoxShape.circle,
+                        ),
+                      ),
+                    ),
+                    title: Text(p),
+                    trailing: IconButton(
+                      icon: const Icon(Icons.delete, color: Colors.red),
+                      onPressed: () => _showDeleteConfirmation(
+                        context,
+                        'Status',
+                        p,
+                        () => settings.removeStatus(p),
+                      ),
+                    ),
+                  ),
+                )
+                .toList(),
           ),
         ),
         ListTile(
           leading: const Icon(Icons.add),
           title: const Text('Add Status'),
           onTap: () => _showAddDialog(context, 'Status', settings.addStatus),
+        ),
+        const Divider(),
+        _buildSectionHeader('Notifications'),
+        ListTile(
+          leading: const Icon(Icons.music_note, color: Colors.blue),
+          title: const Text('Custom Alarm Sound'),
+          subtitle: Text(
+            settings.alarmSoundPath == null
+                ? 'Default sound\n(Note: Accepts .wav only. Custom sounds are not included in data export.)'
+                : 'Custom: ${settings.alarmSoundPath!.split('/').last}\n(Note: Accepts .wav only. Custom sounds are not included in data export.)',
+          ),
+          onTap: () async {
+            final result = await FilePicker.pickFiles(
+              type: FileType.custom,
+              allowedExtensions: ['wav'],
+            );
+            if (result != null && result.files.single.path != null) {
+              final fileService = PlatformFileService();
+              final fileName = result.files.single.name;
+              final savedFilePath = await fileService.copyFileToAppStorage(
+                result.files.single.path!,
+                fileName,
+              );
+              await settings.setAlarmSoundPath(savedFilePath);
+              if (context.mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Alarm sound updated!')),
+                );
+              }
+            }
+          },
+          trailing: settings.alarmSoundPath != null
+              ? IconButton(
+                  icon: const Icon(Icons.clear, color: Colors.red),
+                  onPressed: () {
+                    settings.setAlarmSoundPath(null);
+                  },
+                )
+              : null,
+        ),
+        const Divider(),
+        _buildSectionHeader('Developer Settings'),
+        ListTile(
+          leading: const Icon(Icons.admin_panel_settings, color: Colors.blue),
+          title: const Text('Developer Options'),
+          onTap: () => _showDeveloperPasswordDialog(context),
         ),
         const Divider(),
         _buildSectionHeader('Danger Zone'),
@@ -134,6 +209,75 @@ class SettingsScreen extends StatelessWidget {
           color: Colors.blueGrey,
         ),
       ),
+    );
+  }
+
+  void _showColorPicker(
+    BuildContext context,
+    SettingsProvider settings,
+    String status,
+  ) {
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: Text('Select color for $status'),
+          content: Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: Colors.primaries.map((color) {
+              return GestureDetector(
+                onTap: () {
+                  String? duplicateStatus;
+                  for (var e in settings.statusColors.entries) {
+                    if (e.key != status && e.value == color.toARGB32()) {
+                      duplicateStatus = e.key;
+                      break;
+                    }
+                  }
+
+                  if (duplicateStatus != null) {
+                    showDialog(
+                      context: context,
+                      builder: (ctx) => AlertDialog(
+                        title: const Text('Duplicate Color'),
+                        content: Text(
+                          'This color is already used by "$duplicateStatus". Continue?',
+                        ),
+                        actions: [
+                          TextButton(
+                            onPressed: () => Navigator.pop(ctx),
+                            child: const Text('Cancel'),
+                          ),
+                          TextButton(
+                            onPressed: () {
+                              settings.setStatusColor(status, color.toARGB32());
+                              Navigator.pop(ctx);
+                              Navigator.pop(context);
+                            },
+                            child: const Text('Okay'),
+                          ),
+                        ],
+                      ),
+                    );
+                  } else {
+                    settings.setStatusColor(status, color.toARGB32());
+                    Navigator.pop(context);
+                  }
+                },
+                child: Container(
+                  width: 40,
+                  height: 40,
+                  decoration: BoxDecoration(
+                    color: color,
+                    shape: BoxShape.circle,
+                  ),
+                ),
+              );
+            }).toList(),
+          ),
+        );
+      },
     );
   }
 
@@ -274,11 +418,11 @@ class SettingsScreen extends StatelessWidget {
     final result = await FilePicker.pickFiles(
       type: FileType.custom,
       allowedExtensions: ['zip'],
+      withData: true,
     );
 
-    if (result != null && result.files.single.path != null) {
-      final file = File(result.files.single.path!);
-      final bytes = await file.readAsBytes();
+    if (result != null && result.files.single.bytes != null) {
+      final bytes = result.files.single.bytes!;
       final service = ImportExportService();
 
       try {
@@ -321,16 +465,24 @@ class SettingsScreen extends StatelessWidget {
 
     final service = ImportExportService();
     final bytes = service.exportToZip(taskProvider.tasks);
+    final fileService = PlatformFileService();
 
-    final directory = await getApplicationDocumentsDirectory();
-    final filePath = '${directory.path}/tasks_export.zip';
-    final file = File(filePath);
-    await file.writeAsBytes(bytes);
-
-    if (context.mounted) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Tasks exported to $filePath')));
+    try {
+      final filePath = await fileService.saveExportZip(
+        bytes,
+        'tasks_export.zip',
+      );
+      if (context.mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Tasks exported to $filePath')));
+      }
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Export failed: $e')));
+      }
     }
   }
 
@@ -347,24 +499,157 @@ class SettingsScreen extends StatelessWidget {
 
     final service = ImportExportService();
     final bytes = service.exportToZip(taskProvider.tasks);
+    final fileService = PlatformFileService();
 
-    final directory = await getTemporaryDirectory();
-    final filePath = '${directory.path}/tasks_share.zip';
-    final file = File(filePath);
-    await file.writeAsBytes(bytes);
-
-    if (context.mounted) {
-      final result = await Share.shareXFiles([
-        XFile(filePath),
-      ], text: 'Sharing my Tasker data');
-
-      if (result.status == ShareResultStatus.success) {
-        if (context.mounted) {
-          ScaffoldMessenger.of(
-            context,
-          ).showSnackBar(const SnackBar(content: Text('Shared successfully')));
-        }
+    try {
+      await fileService.shareZip(bytes, 'tasks_share.zip');
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Share failed: $e')));
       }
     }
+  }
+
+  void _showDeveloperPasswordDialog(BuildContext context) {
+    final TextEditingController passwordController = TextEditingController();
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Enter Password'),
+        content: TextField(
+          controller: passwordController,
+          obscureText: true,
+          decoration: const InputDecoration(hintText: 'Password'),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () {
+              if (passwordController.text == 'jaceywashere') {
+                Navigator.pop(ctx);
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => const DeveloperOptionsScreen(),
+                  ),
+                );
+              } else {
+                ScaffoldMessenger.of(ctx).showSnackBar(
+                  const SnackBar(content: Text('Incorrect Password')),
+                );
+              }
+            },
+            child: const Text('Unlock'),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class DeveloperOptionsScreen extends StatelessWidget {
+  const DeveloperOptionsScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final settings = Provider.of<SettingsProvider>(context, listen: false);
+    final taskProvider = Provider.of<TaskProvider>(context, listen: false);
+
+    return Scaffold(
+      appBar: AppBar(title: const Text('Developer Options')),
+      body: ListView(
+        children: [
+          ListTile(
+            leading: const Icon(Icons.notifications_active),
+            title: const Text('Send Immediate Notification'),
+            onTap: () async {
+              await NotificationService().showImmediateNotification(
+                'Test Notification',
+                'This is an immediate test notification triggered manually.',
+              );
+              if (context.mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Notification sent!')),
+                );
+              }
+            },
+          ),
+          ListTile(
+            leading: const Icon(Icons.timer),
+            title: const Text('Schedule Notification (15s)'),
+            subtitle: const Text(
+              'Sends a notification in 15 seconds so you can close the app to test.',
+            ),
+            onTap: () async {
+              await NotificationService().scheduleTestNotification(15);
+              if (context.mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text(
+                      'Notification scheduled in 15s. Close the app now!',
+                    ),
+                  ),
+                );
+              }
+            },
+          ),
+          ListTile(
+            leading: const Icon(Icons.alarm_on),
+            title: const Text('Send Immediate Alarm'),
+            onTap: () async {
+              await NotificationService().showImmediateNotification(
+                'Test Alarm',
+                'This is an immediate test alarm triggered manually.',
+                isAlarm: true,
+              );
+              if (context.mounted) {
+                ScaffoldMessenger.of(
+                  context,
+                ).showSnackBar(const SnackBar(content: Text('Alarm sent!')));
+              }
+            },
+          ),
+          ListTile(
+            leading: const Icon(Icons.timer_outlined),
+            title: const Text('Schedule Alarm (15s)'),
+            subtitle: const Text(
+              'Sends an alarm in 15 seconds so you can close the app to test.',
+            ),
+            onTap: () async {
+              await NotificationService().scheduleTestNotification(
+                15,
+                isAlarm: true,
+              );
+              if (context.mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Alarm scheduled in 15s. Close the app now!'),
+                  ),
+                );
+              }
+            },
+          ),
+          ListTile(
+            leading: const Icon(Icons.bug_report, color: Colors.purple),
+            title: const Text('Insert 50 Test Tasks'),
+            onTap: () {
+              insertTestTasks(
+                taskProvider,
+                settings.categories,
+                settings.statuses,
+              );
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('50 test tasks generated!')),
+              );
+            },
+          ),
+        ],
+      ),
+    );
   }
 }

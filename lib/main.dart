@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'providers/task_provider.dart';
@@ -20,6 +21,19 @@ void main() async {
   );
 }
 
+class NoScrollbarBehavior extends MaterialScrollBehavior {
+  const NoScrollbarBehavior();
+
+  @override
+  Widget buildScrollbar(
+    BuildContext context,
+    Widget child,
+    ScrollableDetails details,
+  ) {
+    return child;
+  }
+}
+
 class TaskerApp extends StatelessWidget {
   const TaskerApp({super.key});
 
@@ -29,9 +43,38 @@ class TaskerApp extends StatelessWidget {
     return MaterialApp(
       title: 'TASKo',
       debugShowCheckedModeBanner: false,
+      scrollBehavior: const NoScrollbarBehavior(),
       themeMode: settings.isDarkMode ? ThemeMode.dark : ThemeMode.light,
       theme: AppTheme.light(),
       darkTheme: AppTheme.dark(),
+      builder: (context, child) {
+        if (kIsWeb) {
+          return Container(
+            color: const Color(0xFF1E1E1E), // Dark aesthetic background
+            child: Center(
+              child: Container(
+                width: 393, // Vivo Y35 approximate logical width
+                height: 876, // Vivo Y35 approximate logical height
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(24),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.5),
+                      blurRadius: 20,
+                      spreadRadius: 5,
+                    ),
+                  ],
+                ),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(24),
+                  child: child!,
+                ),
+              ),
+            ),
+          );
+        }
+        return child!;
+      },
       home: const MainScreen(),
     );
   }

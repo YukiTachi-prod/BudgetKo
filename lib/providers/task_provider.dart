@@ -1,9 +1,9 @@
 import 'dart:convert';
-import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/task.dart';
-import '../services/notification_service.dart';
+import '../services/notification/notification_service.dart';
+import '../services/platform/platform_file_service.dart';
 
 class TaskProvider with ChangeNotifier {
   static const String _keyTasks = 'tasks';
@@ -12,36 +12,14 @@ class TaskProvider with ChangeNotifier {
   String? _filterStatus;
   String? _filterCategory;
   final NotificationService _notificationService = NotificationService();
+  final PlatformFileService _fileService = PlatformFileService();
 
   TaskProvider() {
     _loadTasks();
   }
 
   List<Task> get tasks {
-    List<Task> filtered = _tasks.where((t) => !t.isRoutine).toList();
-    if (_filterDate != null) {
-      filtered = filtered
-          .where(
-            (t) =>
-                t.endDate.year == _filterDate!.year &&
-                t.endDate.month == _filterDate!.month &&
-                t.endDate.day == _filterDate!.day,
-          )
-          .toList();
-    }
-    if (_filterStatus != null && _filterStatus != 'All') {
-      filtered = filtered.where((t) => t.status == _filterStatus).toList();
-    }
-    if (_filterCategory != null && _filterCategory != 'All') {
-      filtered = filtered.where((t) => t.category == _filterCategory).toList();
-    }
-    return filtered;
-  }
-
-  List<Task> get routines {
-    List<Task> filtered = _tasks.where((t) => t.isRoutine).toList();
-    // Maybe apply same filters to routines? Usually routines are less about dates.
-    // The user said "exactly like dashboard", so let's apply filters.
+    List<Task> filtered = _tasks.toList();
     if (_filterDate != null) {
       filtered = filtered
           .where(
@@ -98,10 +76,7 @@ class TaskProvider with ChangeNotifier {
       );
       _notificationService.cancelTaskNotifications(taskToDelete.id);
       if (taskToDelete.pdfPath != null && taskToDelete.isPdfCopied) {
-        final file = File(taskToDelete.pdfPath!);
-        if (file.existsSync()) {
-          file.deleteSync();
-        }
+        _fileService.deletePdfFile(taskToDelete.pdfPath!);
       }
     }
     _tasks.removeWhere((task) => ids.contains(task.id));
@@ -165,10 +140,7 @@ class TaskProvider with ChangeNotifier {
   void deleteTask(String id) {
     final task = _tasks.firstWhere((t) => t.id == id);
     if (task.pdfPath != null && task.isPdfCopied) {
-      final file = File(task.pdfPath!);
-      if (file.existsSync()) {
-        file.deleteSync();
-      }
+      _fileService.deletePdfFile(task.pdfPath!);
     }
     _tasks.removeWhere((t) => t.id == id);
     _saveTasks();
@@ -219,10 +191,7 @@ class TaskProvider with ChangeNotifier {
     for (final task in _tasks) {
       _notificationService.cancelTaskNotifications(task.id);
       if (task.pdfPath != null && task.isPdfCopied) {
-        final file = File(task.pdfPath!);
-        if (file.existsSync()) {
-          file.deleteSync();
-        }
+        _fileService.deletePdfFile(task.pdfPath!);
       }
     }
     _tasks.clear();

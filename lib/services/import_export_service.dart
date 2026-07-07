@@ -133,7 +133,7 @@ class ImportExportService {
       archive.addFile(ArchiveFile(fileName, fileData.length, fileData));
     }
 
-    return Uint8List.fromList(ZipEncoder().encode(archive)!);
+    return Uint8List.fromList(ZipEncoder().encode(archive));
   }
 
   String _generateMarkdown(Task task) {

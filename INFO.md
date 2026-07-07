@@ -6,16 +6,19 @@
 
 ### Core Features
 
-- **Dual-Date Task Management**: Create tasks with specific **Start** and **End** date/times for precise scheduling.
-- **Routines (Repeating Tasks)**: Dedicated support for recurring activities (Daily, Weekly, Monthly) with a specialized viewing tab.
+- **Dual-Date Task Management**: Create tasks with specific **Start** and **End** date/times for precise scheduling. You can also optionally omit dates entirely for simple to-do items.
+- **Routines (Repeating Tasks)**: Dedicated support for recurring activities (Daily, Weekly, Monthly, Hourly) with a specialized viewing tab.
 - **Task Locking**: Secure your tasks by locking them; once saved and locked, only the status can be updated, preventing accidental modifications.
 - **Bulk Operations**: Long-press to enter multi-selection mode and delete multiple tasks at once.
 - **Unique Title Enforcement**: Prevents organization clutter by ensuring no two tasks share the same title.
 - **Dynamic Filtering**: Filter tasks by status (chip row), category (popup), or date.
-- **Local Notifications**: Integrated reminders for upcoming task deadlines (Android/iOS). Linux uses libnotify via `flutter_local_notifications` v18 (fire-and-forget only — scheduled reminders not supported on Linux).
+- **Local Notifications & Alarms**: Integrated reminders for upcoming task deadlines (Android/iOS). Pick a custom `.wav` alarm sound in settings. Linux uses libnotify via `flutter_local_notifications` v18 (fire-and-forget only — scheduled reminders not supported on Linux).
 - **Flexible Time Picking**: Users can choose between a circular dial or a numeric/keyboard input (default) for time selection.
 - **Import/Export**: Markdown-based import/export system via ZIP files.
 - **Dark/Light Mode**: Fully integrated theme switcher. Light mode uses a soft lavender background with a deep purple sidebar; dark mode uses dark violet tones.
+- **Heatmap View**: Visual grid displaying tasks by day/week, accessible via a pinch/squeeze gesture or the header button, with inner-cell sorting options.
+- **Custom Status Colors**: Allows users to dynamically select specific display colors for their task statuses from the Settings menu.
+- **Developer Options**: A locked section in Settings (password: `jaceywashere`) for testing immediate and scheduled notifications/alarms and bulk-generating dummy data.
 
 ### Technical Architecture
 
@@ -46,14 +49,9 @@ All theme configuration lives in `AppTheme`. Call `AppTheme.light()` and `AppThe
 | Subtext | `#6B7280` | `#94A3B8` |
 | Border | `#E5E7EB` | `#2E2A4A` |
 
-### Status Colors (`AppTheme.statusColor(status)`)
+### Status Colors (`SettingsProvider.statusColors`)
 
-| Status | Color |
-|--------|-------|
-| Not Started | `#6B7280` gray |
-| Ongoing | `#7C3AED` violet |
-| Finished | `#10B981` emerald |
-| Dropped | `#EF4444` red |
+Status colors are now dynamic and user-configurable via the **Settings menu**. The default mapping falls back to grey if unconfigured, but dynamically overrides `AppTheme` when customized.
 
 ### Category Colors (`AppTheme.categoryColor(category)`)
 

@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:tasker/screens/dashboard_screen.dart';
-import 'package:tasker/screens/routines_screen.dart';
 import 'package:tasker/screens/settings_screen.dart';
 import 'package:tasker/screens/task_edit_screen.dart';
+import 'package:tasker/screens/heatmap_screen.dart';
 
 class MainScreen extends StatefulWidget {
   const MainScreen({super.key});
@@ -14,28 +14,19 @@ class MainScreen extends StatefulWidget {
 class _MainScreenState extends State<MainScreen> {
   int _selectedIndex = 0;
 
-  static const _labels = ['Tasks', 'Routines', 'Settings'];
-  static const _icons = [
-    Icons.description_outlined,
-    Icons.loop_rounded,
-    Icons.settings_outlined,
-  ];
+  static const _labels = ['Tasks', 'Settings'];
+  static const _icons = [Icons.description_outlined, Icons.settings_outlined];
   static const _selectedIcons = [
     Icons.description_rounded,
-    Icons.loop_rounded,
     Icons.settings_rounded,
   ];
 
   // IndexedStack preserves scroll/state on tab switch
-  static const _screens = [
-    DashboardScreen(),
-    RoutinesScreen(),
-    SettingsScreen(),
-  ];
+  static const _screens = [DashboardScreen(), SettingsScreen()];
 
   void _onTab(int index) => setState(() => _selectedIndex = index);
 
-  bool get _showNewButton => _selectedIndex < 2;
+  bool get _showNewButton => _selectedIndex < 1;
 
   void _openNewTask() {
     Navigator.push(
@@ -44,14 +35,44 @@ class _MainScreenState extends State<MainScreen> {
     );
   }
 
+  bool _isHeatmapOpen = false;
+
+  void _openHeatmap() {
+    if (_isHeatmapOpen) return;
+    _isHeatmapOpen = true;
+    Navigator.push(
+      context,
+      PageRouteBuilder(
+        opaque: false,
+        pageBuilder: (_, _, _) => const HeatmapScreen(),
+        transitionsBuilder: (context, animation, secondaryAnimation, child) {
+          return FadeTransition(opacity: animation, child: child);
+        },
+      ),
+    ).then((_) {
+      Future.delayed(const Duration(milliseconds: 500), () {
+        if (mounted) _isHeatmapOpen = false;
+      });
+    });
+  }
+
+  void _handleScaleUpdate(ScaleUpdateDetails details) {
+    if (details.scale < 0.8) {
+      _openHeatmap();
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        return constraints.maxWidth >= 720
-            ? _buildDesktop(context)
-            : _buildMobile(context);
-      },
+    return GestureDetector(
+      onScaleUpdate: _handleScaleUpdate,
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          return constraints.maxWidth >= 720
+              ? _buildDesktop(context)
+              : _buildMobile(context);
+        },
+      ),
     );
   }
 
@@ -120,6 +141,7 @@ class _MainScreenState extends State<MainScreen> {
                   title: _labels[_selectedIndex],
                   showNewButton: _showNewButton,
                   onNewTask: _openNewTask,
+                  onOpenHeatmap: _openHeatmap,
                 ),
                 Expanded(
                   child: IndexedStack(
@@ -151,6 +173,11 @@ class _MainScreenState extends State<MainScreen> {
           ],
         ),
         actions: [
+          IconButton(
+            icon: const Icon(Icons.grid_view_rounded),
+            onPressed: _openHeatmap,
+            tooltip: 'Web: Open Heatmap (Squeeze)',
+          ),
           if (_showNewButton)
             IconButton(
               icon: const Icon(Icons.add_rounded),
@@ -181,11 +208,13 @@ class _DesktopHeader extends StatelessWidget {
   final String title;
   final bool showNewButton;
   final VoidCallback onNewTask;
+  final VoidCallback onOpenHeatmap;
 
   const _DesktopHeader({
     required this.title,
     required this.showNewButton,
     required this.onNewTask,
+    required this.onOpenHeatmap,
   });
 
   @override
@@ -202,6 +231,12 @@ class _DesktopHeader extends StatelessWidget {
         children: [
           Text(title, style: theme.textTheme.titleLarge),
           const Spacer(),
+          IconButton(
+            icon: const Icon(Icons.grid_view_rounded),
+            onPressed: onOpenHeatmap,
+            tooltip: 'Web: Open Heatmap (Squeeze)',
+          ),
+          const SizedBox(width: 8),
           if (showNewButton)
             FilledButton.icon(
               icon: const Icon(Icons.add_rounded, size: 16),

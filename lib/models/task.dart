@@ -11,6 +11,8 @@ class Task {
   final bool isPdfCopied;
   final bool isLocked;
   final bool isRoutine;
+  final bool isAlarm;
+  final bool hasDates;
   final String? repeatInterval; // e.g., 'Daily', 'Weekly', 'Monthly'
 
   Task({
@@ -26,6 +28,8 @@ class Task {
     this.isPdfCopied = false,
     this.isLocked = false,
     this.isRoutine = false,
+    this.isAlarm = false,
+    this.hasDates = true,
     this.repeatInterval,
   });
 
@@ -43,6 +47,8 @@ class Task {
       'isPdfCopied': isPdfCopied,
       'isLocked': isLocked,
       'isRoutine': isRoutine,
+      'isAlarm': isAlarm,
+      'hasDates': hasDates,
       'repeatInterval': repeatInterval,
     };
   }
@@ -71,6 +77,8 @@ class Task {
       isPdfCopied: json['isPdfCopied'] ?? false,
       isLocked: json['isLocked'] ?? false,
       isRoutine: json['isRoutine'] ?? false,
+      isAlarm: json['isAlarm'] ?? false,
+      hasDates: json['hasDates'] ?? true,
       repeatInterval: json['repeatInterval'],
     );
   }
@@ -88,6 +96,8 @@ class Task {
     bool? isPdfCopied,
     bool? isLocked,
     bool? isRoutine,
+    bool? isAlarm,
+    bool? hasDates,
     String? repeatInterval,
   }) {
     return Task(
@@ -103,6 +113,8 @@ class Task {
       isPdfCopied: isPdfCopied ?? this.isPdfCopied,
       isLocked: isLocked ?? this.isLocked,
       isRoutine: isRoutine ?? this.isRoutine,
+      isAlarm: isAlarm ?? this.isAlarm,
+      hasDates: hasDates ?? this.hasDates,
       repeatInterval: repeatInterval ?? this.repeatInterval,
     );
   }

@@ -28,12 +28,17 @@ We are continuously improving TASKo to enhance your experience:
 - **Enhanced Stability**: Critical bug fixes address `TaskEditScreen` loading failures with empty categories/statuses, now gracefully handling defaults.
 - **Safe Deletions**: Confirmation dialogs added for deleting Categories and Statuses in `SettingsScreen` to prevent accidental data loss.
 - **Flexible Status System**: Replaced the 'Priority' system with a more versatile 'Status' system (Not Started, Ongoing, Finished, Dropped).
+- **Toggleable Task Dates**: Tasks can now optionally omit Start/End dates, creating simple to-do items without scheduling urgency or alarms.
+- **Improved UI/UX**: Replaced custom property chips with sleek dropdown menus for task creation, and added deletion confirmation dialogs.
 - **Analytics Dashboard**: A new Analytics screen (accessible via Settings) provides valuable insights into task distribution by status and category.
 - **Intuitive Visual Indicators**: Task tiles are now color-coded based on deadlines:
     - **Dim Red**: Tasks due today or overdue.
     - **Dim Yellow**: Tasks due within 3 days.
     - **Dim Green**: Finished tasks.
-- **Optimized Notifications**: Refined reminder system fires at strategic intervals (7, 5, 3, 1 day before, plus due date) for better user experience and battery life.
+- **Optimized Notifications & Alarms**: Refined reminder system fires at strategic intervals (7, 5, 3, 1 day before, plus due date) for better user experience and battery life. Plus, configure custom `.wav` alarm sounds in the settings for high-priority tasks!
+- **Heatmap View**: A GitHub-commit-style task visualization grid showing tasks across days and weeks, sortable by category, status, and dates. Access it via a two-finger squeeze gesture or the grid icon in the top bar!
+- **Customizable Status Colors**: Easily pick unique colors for your task statuses via the Settings screen using our built-in color picker.
+- **Developer Settings**: Locked behind a developer password (`jaceywashere`), includes advanced notification testing tools and a handy "Insert 50 Test Tasks" utility.
 
 ## Getting Started
 
