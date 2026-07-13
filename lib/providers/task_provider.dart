@@ -9,6 +9,7 @@ class TaskProvider with ChangeNotifier {
   static const String _keyTasks = 'tasks';
   List<Task> _tasks = [];
   DateTime? _filterDate;
+  DateTimeRange? _filterDateRange;
   String? _filterStatus;
   String? _filterCategory;
   final NotificationService _notificationService = NotificationService();
@@ -29,6 +30,15 @@ class TaskProvider with ChangeNotifier {
                 t.endDate.day == _filterDate!.day,
           )
           .toList();
+    } else if (_filterDateRange != null) {
+      filtered = filtered.where((t) {
+        return t.endDate.isAfter(
+              _filterDateRange!.start.subtract(const Duration(days: 1)),
+            ) &&
+            t.endDate.isBefore(
+              _filterDateRange!.end.add(const Duration(days: 1)),
+            );
+      }).toList();
     }
     if (_filterStatus != null && _filterStatus != 'All') {
       filtered = filtered.where((t) => t.status == _filterStatus).toList();
@@ -40,6 +50,7 @@ class TaskProvider with ChangeNotifier {
   }
 
   DateTime? get filterDate => _filterDate;
+  DateTimeRange? get filterDateRange => _filterDateRange;
   String? get filterStatus => _filterStatus;
   String? get filterCategory => _filterCategory;
   List<Task> get allTasks => _tasks;
@@ -170,6 +181,11 @@ class TaskProvider with ChangeNotifier {
     notifyListeners();
   }
 
+  void setFilterDateRange(DateTimeRange? range) {
+    _filterDateRange = range;
+    notifyListeners();
+  }
+
   void setFilterStatus(String? status) {
     _filterStatus = status;
     notifyListeners();
@@ -182,6 +198,7 @@ class TaskProvider with ChangeNotifier {
 
   void clearFilters() {
     _filterDate = null;
+    _filterDateRange = null;
     _filterStatus = null;
     _filterCategory = null;
     notifyListeners();

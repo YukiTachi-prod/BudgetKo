@@ -9,6 +9,7 @@ class SettingsProvider with ChangeNotifier {
   static const String _keyStatuses = 'statuses';
   static const String _keyHidePdfReminder = 'hide_pdf_reminder';
   static const String _keyUseDialTimePicker = 'use_dial_time_picker';
+  static const String _keyCurrency = 'currency';
 
   static const String _keyStatusColors = 'status_colors';
   static const String _keyAlarmSoundPath = 'alarm_sound_path';
@@ -18,6 +19,7 @@ class SettingsProvider with ChangeNotifier {
   bool _isTime24h = false;
   bool _hidePdfReminder = false;
   bool _useDialTimePicker = false; // Default to numeric input
+  String _currency = '₱';
   String? _alarmSoundPath;
   String _alarmChannelId = 'task_alarms';
   List<String> _categories = ['Work', 'Personal', 'Shopping', 'Health'];
@@ -37,6 +39,7 @@ class SettingsProvider with ChangeNotifier {
   bool get isTime24h => _isTime24h;
   bool get hidePdfReminder => _hidePdfReminder;
   bool get useDialTimePicker => _useDialTimePicker;
+  String get currency => _currency;
   List<String> get categories => _categories;
   List<String> get statuses => _statuses;
   Map<String, int> get statusColors => _statusColors;
@@ -49,6 +52,7 @@ class SettingsProvider with ChangeNotifier {
     _isTime24h = prefs.getBool(_keyTime24h) ?? false;
     _hidePdfReminder = prefs.getBool(_keyHidePdfReminder) ?? false;
     _useDialTimePicker = prefs.getBool(_keyUseDialTimePicker) ?? false;
+    _currency = prefs.getString(_keyCurrency) ?? '₱';
     _categories =
         prefs.getStringList(_keyCategories) ??
         ['Work', 'Personal', 'Shopping', 'Health'];
@@ -100,6 +104,13 @@ class SettingsProvider with ChangeNotifier {
     _useDialTimePicker = value;
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool(_keyUseDialTimePicker, value);
+    notifyListeners();
+  }
+
+  Future<void> setCurrency(String value) async {
+    _currency = value;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_keyCurrency, value);
     notifyListeners();
   }
 
@@ -167,6 +178,7 @@ class SettingsProvider with ChangeNotifier {
     _isTime24h = false;
     _hidePdfReminder = false;
     _useDialTimePicker = false;
+    _currency = '₱';
     _categories = ['Work', 'Personal', 'Shopping', 'Health'];
     _statuses = ['Not Started', 'Ongoing', 'Finished', 'Dropped'];
     _statusColors = {

@@ -10,10 +10,12 @@ class Task {
   final String? pdfPath;
   final bool isPdfCopied;
   final bool isLocked;
-  final bool isRoutine;
   final bool isAlarm;
   final bool hasDates;
   final String? repeatInterval; // e.g., 'Daily', 'Weekly', 'Monthly'
+  final DateTime? alarmTriggerDate;
+  final int? ringIntervalValue;
+  final String? ringIntervalUnit;
 
   Task({
     required this.id,
@@ -27,10 +29,12 @@ class Task {
     this.pdfPath,
     this.isPdfCopied = false,
     this.isLocked = false,
-    this.isRoutine = false,
     this.isAlarm = false,
     this.hasDates = true,
     this.repeatInterval,
+    this.alarmTriggerDate,
+    this.ringIntervalValue,
+    this.ringIntervalUnit,
   });
 
   Map<String, dynamic> toJson() {
@@ -46,10 +50,12 @@ class Task {
       'pdfPath': pdfPath,
       'isPdfCopied': isPdfCopied,
       'isLocked': isLocked,
-      'isRoutine': isRoutine,
       'isAlarm': isAlarm,
       'hasDates': hasDates,
       'repeatInterval': repeatInterval,
+      'alarmTriggerDate': alarmTriggerDate?.toIso8601String(),
+      'ringIntervalValue': ringIntervalValue,
+      'ringIntervalUnit': ringIntervalUnit,
     };
   }
 
@@ -76,10 +82,14 @@ class Task {
       pdfPath: json['pdfPath'],
       isPdfCopied: json['isPdfCopied'] ?? false,
       isLocked: json['isLocked'] ?? false,
-      isRoutine: json['isRoutine'] ?? false,
       isAlarm: json['isAlarm'] ?? false,
       hasDates: json['hasDates'] ?? true,
       repeatInterval: json['repeatInterval'],
+      alarmTriggerDate: json['alarmTriggerDate'] != null
+          ? DateTime.parse(json['alarmTriggerDate'])
+          : null,
+      ringIntervalValue: json['ringIntervalValue'],
+      ringIntervalUnit: json['ringIntervalUnit'],
     );
   }
 
@@ -95,10 +105,12 @@ class Task {
     String? pdfPath,
     bool? isPdfCopied,
     bool? isLocked,
-    bool? isRoutine,
     bool? isAlarm,
     bool? hasDates,
     String? repeatInterval,
+    DateTime? alarmTriggerDate,
+    int? ringIntervalValue,
+    String? ringIntervalUnit,
   }) {
     return Task(
       id: id ?? this.id,
@@ -112,10 +124,12 @@ class Task {
       pdfPath: pdfPath ?? this.pdfPath,
       isPdfCopied: isPdfCopied ?? this.isPdfCopied,
       isLocked: isLocked ?? this.isLocked,
-      isRoutine: isRoutine ?? this.isRoutine,
       isAlarm: isAlarm ?? this.isAlarm,
       hasDates: hasDates ?? this.hasDates,
       repeatInterval: repeatInterval ?? this.repeatInterval,
+      alarmTriggerDate: alarmTriggerDate ?? this.alarmTriggerDate,
+      ringIntervalValue: ringIntervalValue ?? this.ringIntervalValue,
+      ringIntervalUnit: ringIntervalUnit ?? this.ringIntervalUnit,
     );
   }
 }

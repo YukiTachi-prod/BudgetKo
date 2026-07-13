@@ -2,10 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
 import '../providers/task_provider.dart';
-import '../providers/settings_provider.dart';
-import '../models/task.dart';
-
-enum HeatmapSort { status, category, startDate, endDate }
 
 class HeatmapScreen extends StatefulWidget {
   const HeatmapScreen({super.key});
@@ -15,35 +11,39 @@ class HeatmapScreen extends StatefulWidget {
 }
 
 class _HeatmapScreenState extends State<HeatmapScreen> {
-  HeatmapSort _currentSort = HeatmapSort.startDate;
-
   @override
   Widget build(BuildContext context) {
     final tasks = Provider.of<TaskProvider>(context).tasks;
-    final settings = Provider.of<SettingsProvider>(context);
 
-    if (tasks.isEmpty) {
+    // Filter finished tasks
+    final finishedTasks = tasks.where((t) => t.isFinished).toList();
+
+    if (finishedTasks.isEmpty) {
       return Scaffold(
         appBar: AppBar(title: const Text('Task Heatmap')),
-        body: const Center(child: Text('No tasks available')),
+        body: const Center(child: Text('No finished tasks available')),
       );
     }
 
-    // Group tasks by date
-    final Map<DateTime, List<Task>> tasksByDate = {};
-    DateTime minDate = tasks.first.startDate;
-    DateTime maxDate = tasks.first.startDate;
+    // Group tasks by date finished (endDate)
+    final Map<DateTime, int> finishedCountByDate = {};
+    DateTime minDate = finishedTasks.first.endDate;
+    DateTime maxDate = finishedTasks.first.endDate;
 
-    for (var task in tasks) {
+    int maxCount = 0;
+
+    for (var task in finishedTasks) {
       final date = DateTime(
-        task.startDate.year,
-        task.startDate.month,
-        task.startDate.day,
+        task.endDate.year,
+        task.endDate.month,
+        task.endDate.day,
       );
       if (date.isBefore(minDate)) minDate = date;
       if (date.isAfter(maxDate)) maxDate = date;
 
-      tasksByDate.putIfAbsent(date, () => []).add(task);
+      final count = (finishedCountByDate[date] ?? 0) + 1;
+      finishedCountByDate[date] = count;
+      if (count > maxCount) maxCount = count;
     }
 
     // Normalize minDate to Monday
@@ -66,43 +66,6 @@ class _HeatmapScreenState extends State<HeatmapScreen> {
           icon: const Icon(Icons.close),
           onPressed: () => Navigator.pop(context),
         ),
-        actions: [
-          Row(
-            children: [
-              const Text('Sort tasks: ', style: TextStyle(fontSize: 13)),
-              DropdownButton<HeatmapSort>(
-                value: _currentSort,
-                underline: const SizedBox(),
-                style: TextStyle(
-                  fontSize: 13,
-                  color: Theme.of(context).colorScheme.primary,
-                ),
-                items: const [
-                  DropdownMenuItem(
-                    value: HeatmapSort.startDate,
-                    child: Text('Start Date'),
-                  ),
-                  DropdownMenuItem(
-                    value: HeatmapSort.endDate,
-                    child: Text('Date Finished'),
-                  ),
-                  DropdownMenuItem(
-                    value: HeatmapSort.status,
-                    child: Text('Status'),
-                  ),
-                  DropdownMenuItem(
-                    value: HeatmapSort.category,
-                    child: Text('Category'),
-                  ),
-                ],
-                onChanged: (val) {
-                  if (val != null) setState(() => _currentSort = val);
-                },
-              ),
-              const SizedBox(width: 16),
-            ],
-          ),
-        ],
       ),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
@@ -158,61 +121,51 @@ class _HeatmapScreenState extends State<HeatmapScreen> {
                           final currentDate = weekStart.add(
                             Duration(days: dayIndex),
                           );
-                          final dailyTasks = List<Task>.from(
-                            tasksByDate[currentDate] ?? [],
-                          );
+                          final count = finishedCountByDate[currentDate] ?? 0;
 
-                          // Sort tasks within this day based on selection
-                          dailyTasks.sort((a, b) {
-                            switch (_currentSort) {
-                              case HeatmapSort.status:
-                                return a.status.compareTo(b.status);
-                              case HeatmapSort.category:
-                                return a.category.compareTo(b.category);
-                              case HeatmapSort.startDate:
-                                return a.startDate.compareTo(b.startDate);
-                              case HeatmapSort.endDate:
-                                return a.endDate.compareTo(b.endDate);
-                            }
-                          });
+                          Color cellColor = Colors.grey.withValues(
+                            alpha: 0.2,
+                          ); // default for 0
+                          if (count > 0) {
+                            final opacity = (count / maxCount).clamp(0.2, 1.0);
+                            cellColor = Colors.cyan.withValues(alpha: opacity);
+                          }
 
                           return Expanded(
-                            child: Container(
-                              margin: const EdgeInsets.all(2),
-                              padding: const EdgeInsets.all(2),
-                              constraints: const BoxConstraints(minHeight: 40),
-                              decoration: BoxDecoration(
-                                color: Theme.of(
-                                  context,
-                                ).dividerColor.withValues(alpha: 0.1),
-                                borderRadius: BorderRadius.circular(4),
-                                border: Border.all(
-                                  color: Theme.of(
-                                    context,
-                                  ).dividerColor.withValues(alpha: 0.2),
+                            child: Tooltip(
+                              message:
+                                  '${DateFormat('MMM d, yyyy').format(currentDate)}\nFinished: $count',
+                              child: Container(
+                                margin: const EdgeInsets.all(2),
+                                constraints: const BoxConstraints(
+                                  minHeight: 40,
                                 ),
-                              ),
-                              child: Wrap(
-                                spacing: 2,
-                                runSpacing: 2,
-                                alignment: WrapAlignment.start,
-                                children: dailyTasks.map((task) {
-                                  final colorValue =
-                                      settings.statusColors[task.status] ??
-                                      Colors.grey.toARGB32();
-                                  return Tooltip(
-                                    message:
-                                        '${task.title}\nStatus: ${task.status}\nCategory: ${task.category}',
-                                    child: Container(
-                                      width: 10,
-                                      height: 10,
-                                      decoration: BoxDecoration(
-                                        color: Color(colorValue),
-                                        borderRadius: BorderRadius.circular(2),
-                                      ),
+                                decoration: BoxDecoration(
+                                  color: cellColor,
+                                  borderRadius: BorderRadius.circular(4),
+                                  border: Border.all(
+                                    color: Theme.of(
+                                      context,
+                                    ).dividerColor.withValues(alpha: 0.1),
+                                  ),
+                                ),
+                                child: Center(
+                                  child: Text(
+                                    count > 0 ? count.toString() : '',
+                                    style: const TextStyle(
+                                      color: Colors.white,
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 12,
+                                      shadows: [
+                                        Shadow(
+                                          offset: Offset(1, 1),
+                                          blurRadius: 2.0,
+                                          color: Colors.black45,
+                                        ),
+                                      ],
                                     ),
-                                  );
-                                }).toList(),
+                                  ),
+                                ),
                               ),
                             ),
                           );

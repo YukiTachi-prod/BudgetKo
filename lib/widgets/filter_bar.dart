@@ -17,17 +17,8 @@ class FilterBar extends StatelessWidget {
 
     return Container(
       decoration: BoxDecoration(
-        color: theme.colorScheme.surface,
+        color: Colors.transparent,
         border: Border(bottom: BorderSide(color: border, width: 0.5)),
-        boxShadow: theme.brightness == Brightness.light
-            ? [
-                BoxShadow(
-                  color: const Color(0xFF6D28D9).withValues(alpha: 0.05),
-                  blurRadius: 6,
-                  offset: const Offset(0, 2),
-                ),
-              ]
-            : null,
       ),
       child: SingleChildScrollView(
         scrollDirection: Axis.horizontal,
@@ -35,24 +26,67 @@ class FilterBar extends StatelessWidget {
         child: Row(
           children: [
             // Date chip
-            GestureDetector(
-              onTap: () async {
-                final date = await showDatePicker(
-                  context: context,
-                  initialDate: tasks.filterDate ?? DateTime.now(),
-                  firstDate: DateTime(2000),
-                  lastDate: DateTime(2100),
-                );
-                tasks.setFilterDate(date);
+            PopupMenuButton<String>(
+              onSelected: (val) async {
+                if (val == 'all') {
+                  tasks.setFilterDate(null);
+                  tasks.setFilterDateRange(null);
+                } else if (val == 'specific') {
+                  final date = await showDatePicker(
+                    context: context,
+                    initialDate: tasks.filterDate ?? DateTime.now(),
+                    firstDate: DateTime(2000),
+                    lastDate: DateTime(2100),
+                  );
+                  if (date != null) {
+                    tasks.setFilterDateRange(null);
+                    tasks.setFilterDate(date);
+                  }
+                } else if (val == 'range') {
+                  final range = await showDateRangePicker(
+                    context: context,
+                    firstDate: DateTime(2000),
+                    lastDate: DateTime(2100),
+                    initialDateRange: tasks.filterDateRange,
+                  );
+                  if (range != null) {
+                    tasks.setFilterDate(null);
+                    tasks.setFilterDateRange(range);
+                  }
+                }
               },
+              itemBuilder: (context) => [
+                PopupMenuItem(
+                  value: 'all',
+                  child: Text(
+                    'All dates',
+                    style: TextStyle(color: subtext, fontSize: 13),
+                  ),
+                ),
+                const PopupMenuItem(
+                  value: 'specific',
+                  child: Text('Specific date', style: TextStyle(fontSize: 13)),
+                ),
+                const PopupMenuItem(
+                  value: 'range',
+                  child: Text('Date Range', style: TextStyle(fontSize: 13)),
+                ),
+              ],
               child: _FilterPill(
                 icon: Icons.calendar_today_rounded,
-                label: tasks.filterDate == null
-                    ? 'All dates'
-                    : DateFormat('MMM d, yyyy').format(tasks.filterDate!),
-                isActive: tasks.filterDate != null,
-                onClear: tasks.filterDate != null
-                    ? () => tasks.setFilterDate(null)
+                label: tasks.filterDate != null
+                    ? DateFormat('MMM d, yyyy').format(tasks.filterDate!)
+                    : (tasks.filterDateRange != null
+                          ? '${DateFormat('MMM d').format(tasks.filterDateRange!.start)} - ${DateFormat('MMM d').format(tasks.filterDateRange!.end)}'
+                          : 'All dates'),
+                isActive:
+                    tasks.filterDate != null || tasks.filterDateRange != null,
+                onClear:
+                    (tasks.filterDate != null || tasks.filterDateRange != null)
+                    ? () {
+                        tasks.setFilterDate(null);
+                        tasks.setFilterDateRange(null);
+                      }
                     : null,
               ),
             ),
@@ -150,9 +184,7 @@ class _FilterPill extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
       decoration: BoxDecoration(
-        color: isActive
-            ? accent.withValues(alpha: 0.1)
-            : theme.colorScheme.surface,
+        color: isActive ? accent.withValues(alpha: 0.1) : Colors.transparent,
         borderRadius: BorderRadius.circular(6),
         border: Border.all(
           color: isActive ? accent.withValues(alpha: 0.4) : theme.dividerColor,

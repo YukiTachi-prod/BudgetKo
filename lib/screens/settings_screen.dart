@@ -418,11 +418,10 @@ class SettingsScreen extends StatelessWidget {
     final result = await FilePicker.pickFiles(
       type: FileType.custom,
       allowedExtensions: ['zip'],
-      withData: true,
     );
 
-    if (result != null && result.files.single.bytes != null) {
-      final bytes = result.files.single.bytes!;
+    if (result != null) {
+      final bytes = await result.xFiles.first.readAsBytes();
       final service = ImportExportService();
 
       try {

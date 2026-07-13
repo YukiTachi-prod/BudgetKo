@@ -1,4 +1,3 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
@@ -32,11 +31,12 @@ class _TaskEditScreenState extends State<TaskEditScreen> {
   String? _pdfPath;
   bool _isPdfCopied = false;
   bool _isLocked = false;
-  bool _isRoutine = false;
   bool _isAlarm = false;
   bool _hasDates = true;
-  String _repeatInterval = 'None';
-  late TextEditingController _hourlyController;
+  DateTime? _alarmTriggerDate;
+  int? _ringIntervalValue;
+  String _ringIntervalUnit = 'minutes';
+  bool _enableRingInterval = false;
 
   static const Uuid _uuid = Uuid();
   final PlatformFileService _fileService = PlatformFileService();
@@ -65,26 +65,18 @@ class _TaskEditScreenState extends State<TaskEditScreen> {
     _pdfPath = widget.task?.pdfPath;
     _isPdfCopied = widget.task?.isPdfCopied ?? false;
     _isLocked = widget.task?.isLocked ?? false;
-    _isRoutine = widget.task?.isRoutine ?? false;
     _isAlarm = widget.task?.isAlarm ?? false;
     _hasDates = widget.task?.hasDates ?? true;
-    final initialRepeat = widget.task?.repeatInterval;
-    if (initialRepeat != null && initialRepeat.startsWith('Hourly:')) {
-      _repeatInterval = 'Hourly';
-      _hourlyController = TextEditingController(
-        text: initialRepeat.substring(7),
-      );
-    } else {
-      _repeatInterval = initialRepeat ?? 'None';
-      _hourlyController = TextEditingController(text: '1');
-    }
+    _alarmTriggerDate = widget.task?.alarmTriggerDate ?? DateTime.now();
+    _ringIntervalValue = widget.task?.ringIntervalValue ?? 1;
+    _ringIntervalUnit = widget.task?.ringIntervalUnit ?? 'minutes';
+    _enableRingInterval = widget.task?.ringIntervalValue != null;
   }
 
   @override
   void dispose() {
     _titleController.dispose();
     _descController.dispose();
-    _hourlyController.dispose();
     super.dispose();
   }
 
@@ -131,6 +123,40 @@ class _TaskEditScreenState extends State<TaskEditScreen> {
     });
   }
 
+  Future<void> _selectAlarmTriggerDateTime() async {
+    final settings = Provider.of<SettingsProvider>(context, listen: false);
+    final date = await showDatePicker(
+      context: context,
+      initialDate: _alarmTriggerDate ?? DateTime.now(),
+      firstDate: DateTime(2000),
+      lastDate: DateTime(2100),
+    );
+    if (date == null || !mounted) return;
+    final time = await showTimePicker(
+      context: context,
+      initialTime: TimeOfDay.fromDateTime(_alarmTriggerDate ?? DateTime.now()),
+      initialEntryMode: settings.useDialTimePicker
+          ? TimePickerEntryMode.dial
+          : TimePickerEntryMode.input,
+      builder: (ctx, child) => MediaQuery(
+        data: MediaQuery.of(
+          ctx,
+        ).copyWith(alwaysUse24HourFormat: settings.isTime24h),
+        child: child!,
+      ),
+    );
+    if (time == null) return;
+    setState(() {
+      _alarmTriggerDate = DateTime(
+        date.year,
+        date.month,
+        date.day,
+        time.hour,
+        time.minute,
+      );
+    });
+  }
+
   void _saveTask() {
     if (!_formKey.currentState!.validate()) return;
     final taskProvider = Provider.of<TaskProvider>(context, listen: false);
@@ -148,13 +174,10 @@ class _TaskEditScreenState extends State<TaskEditScreen> {
         isPdfCopied: _isPdfCopied,
         isFinished: widget.task?.isFinished ?? false,
         isLocked: _isLocked,
-        isRoutine: _isRoutine,
         isAlarm: _isAlarm,
-        repeatInterval: _repeatInterval == 'None'
-            ? null
-            : (_repeatInterval == 'Hourly'
-                  ? 'Hourly:${_hourlyController.text}'
-                  : _repeatInterval),
+        alarmTriggerDate: _alarmTriggerDate,
+        ringIntervalValue: _enableRingInterval ? _ringIntervalValue : null,
+        ringIntervalUnit: _enableRingInterval ? _ringIntervalUnit : null,
       );
       if (widget.task == null) {
         taskProvider.addTask(task);
@@ -174,17 +197,8 @@ class _TaskEditScreenState extends State<TaskEditScreen> {
     final result = await FilePicker.pickFiles(
       type: FileType.custom,
       allowedExtensions: ['pdf'],
-      withData: kIsWeb,
     );
     if (result == null) return;
-    if (kIsWeb) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('PDF attachment not supported on web')),
-        );
-      }
-      return;
-    }
     if (result.files.single.path == null) return;
     final originalPath = result.files.single.path!;
     if (settings.hidePdfReminder) {
@@ -558,22 +572,8 @@ class _TaskEditScreenState extends State<TaskEditScreen> {
                   const SizedBox(height: 2),
 
                   _PropRow(
-                    icon: Icons.loop_rounded,
-                    label: 'Routine',
-                    child: Switch(
-                      value: _isRoutine,
-                      onChanged: isLocked
-                          ? null
-                          : (v) => setState(() => _isRoutine = v),
-                      materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                    ),
-                  ),
-
-                  const SizedBox(height: 2),
-
-                  _PropRow(
                     icon: Icons.alarm_rounded,
-                    label: 'Alarm Sound',
+                    label: 'Alarm',
                     child: Switch(
                       value: _isAlarm,
                       onChanged: isLocked
@@ -584,102 +584,109 @@ class _TaskEditScreenState extends State<TaskEditScreen> {
                   ),
 
                   const SizedBox(height: 8),
-                  _PropRow(
-                    icon: Icons.calendar_view_week_rounded,
-                    label: 'Repeats',
-                    child: Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          DropdownButtonHideUnderline(
-                            child: DropdownButton<String>(
-                              value: _repeatInterval,
-                              isExpanded: true,
-                              itemHeight: 56, // Bigger touch target
-                              iconSize: 28,
-                              onChanged: isLocked
-                                  ? null
-                                  : (v) {
-                                      if (v != null) {
-                                        setState(() => _repeatInterval = v);
-                                      }
-                                    },
-                              items:
-                                  [
-                                    'None',
-                                    'Hourly',
-                                    'Daily',
-                                    'Weekly',
-                                    'Monthly',
-                                  ].map((interval) {
-                                    return DropdownMenuItem<String>(
-                                      value: interval,
-                                      child: Text(
-                                        interval,
-                                        style: TextStyle(
-                                          fontSize: 15,
-                                          fontWeight:
-                                              _repeatInterval == interval
-                                              ? FontWeight.w600
-                                              : FontWeight.w400,
-                                          color: _repeatInterval == interval
-                                              ? theme.colorScheme.primary
-                                              : subtext,
-                                        ),
-                                      ),
-                                    );
-                                  }).toList(),
-                            ),
+
+                  if (_isAlarm) ...[
+                    _PropRow(
+                      icon: Icons.notifications_active_rounded,
+                      label: 'Alarm Trigger',
+                      child: GestureDetector(
+                        onTap: isLocked
+                            ? null
+                            : () => _selectAlarmTriggerDateTime(),
+                        child: Text(
+                          DateFormat(fmt).format(_alarmTriggerDate!),
+                          style: TextStyle(
+                            fontSize: 13,
+                            color: isLocked
+                                ? subtext
+                                : theme.colorScheme.primary,
+                            fontWeight: FontWeight.w500,
                           ),
-                          if (_repeatInterval == 'Hourly') ...[
-                            const SizedBox(height: 8),
-                            Row(
-                              children: [
-                                Text(
-                                  'Every',
-                                  style: TextStyle(
-                                    fontSize: 13,
-                                    color: subtext,
-                                  ),
-                                ),
-                                const SizedBox(width: 8),
-                                SizedBox(
-                                  width: 50,
-                                  child: TextField(
-                                    controller: _hourlyController,
-                                    keyboardType: TextInputType.number,
-                                    enabled: !isLocked,
-                                    textAlign: TextAlign.center,
-                                    decoration: InputDecoration(
-                                      isDense: true,
-                                      contentPadding:
-                                          const EdgeInsets.symmetric(
-                                            vertical: 8,
-                                            horizontal: 4,
-                                          ),
-                                      border: OutlineInputBorder(
-                                        borderRadius: BorderRadius.circular(4),
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                                const SizedBox(width: 8),
-                                Text(
-                                  'hours',
-                                  style: TextStyle(
-                                    fontSize: 13,
-                                    color: subtext,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ],
-                        ],
+                        ),
                       ),
                     ),
-                  ),
+                    const SizedBox(height: 8),
+                    _PropRow(
+                      icon: Icons.repeat_rounded,
+                      label: 'Repeat Alarm',
+                      child: Switch(
+                        value: _enableRingInterval,
+                        onChanged: isLocked
+                            ? null
+                            : (v) => setState(() => _enableRingInterval = v),
+                        materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      ),
+                    ),
+                    if (_enableRingInterval) ...[
+                      const SizedBox(height: 8),
+                      _PropRow(
+                        icon: Icons.loop_rounded,
+                        label: 'Ring every',
+                        child: Row(
+                          children: [
+                            SizedBox(
+                              width: 50,
+                              child: TextFormField(
+                                initialValue: (_ringIntervalValue ?? 1)
+                                    .toString(),
+                                keyboardType: TextInputType.number,
+                                enabled: !isLocked,
+                                textAlign: TextAlign.center,
+                                decoration: InputDecoration(
+                                  isDense: true,
+                                  contentPadding: const EdgeInsets.symmetric(
+                                    vertical: 8,
+                                    horizontal: 4,
+                                  ),
+                                  border: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(4),
+                                  ),
+                                ),
+                                onChanged: (val) =>
+                                    _ringIntervalValue = int.tryParse(val),
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            DropdownButtonHideUnderline(
+                              child: DropdownButton<String>(
+                                value: _ringIntervalUnit,
+                                isExpanded: false,
+                                itemHeight: 56,
+                                iconSize: 28,
+                                onChanged: isLocked
+                                    ? null
+                                    : (v) {
+                                        if (v != null) {
+                                          setState(() => _ringIntervalUnit = v);
+                                        }
+                                      },
+                                items:
+                                    [
+                                      'minutes',
+                                      'hours',
+                                      'days',
+                                      'weeks',
+                                      'months',
+                                    ].map((unit) {
+                                      return DropdownMenuItem<String>(
+                                        value: unit,
+                                        child: Text(
+                                          unit,
+                                          style: TextStyle(
+                                            fontSize: 13,
+                                            color: subtext,
+                                          ),
+                                        ),
+                                      );
+                                    }).toList(),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ],
 
-                  const SizedBox(height: 8),
                   Divider(color: theme.dividerColor),
                   const SizedBox(height: 8),
 

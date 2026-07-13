@@ -33,7 +33,7 @@ class ImportExportService {
       DateTime startDate = DateTime.now();
       DateTime endDate = DateTime.now();
       bool isLocked = false;
-      bool isRoutine = false;
+      bool isAlarm = false;
       String? repeatInterval;
       String description = '';
 
@@ -84,9 +84,9 @@ class ImportExportService {
           isLocked =
               line.replaceFirst('Locked:', '').trim().toLowerCase() == 'true';
           metadataEndIndex = i;
-        } else if (line.startsWith('Routine:')) {
-          isRoutine =
-              line.replaceFirst('Routine:', '').trim().toLowerCase() == 'true';
+        } else if (line.startsWith('Alarm:')) {
+          isAlarm =
+              line.replaceFirst('Alarm:', '').trim().toLowerCase() == 'true';
           metadataEndIndex = i;
         } else if (line.startsWith('Repeat:')) {
           repeatInterval = line.replaceFirst('Repeat:', '').trim();
@@ -114,7 +114,7 @@ class ImportExportService {
         category: category,
         isFinished: isFinished,
         isLocked: isLocked,
-        isRoutine: isRoutine,
+        isAlarm: isAlarm,
         repeatInterval: repeatInterval,
       );
     } catch (e) {
@@ -148,7 +148,7 @@ Assignee: User
 Start date: $startDateStr
 End date: $endDateStr
 Locked: ${task.isLocked}
-Routine: ${task.isRoutine}
+Alarm: ${task.isAlarm}
 Repeat: ${task.repeatInterval}
 
 ## Description

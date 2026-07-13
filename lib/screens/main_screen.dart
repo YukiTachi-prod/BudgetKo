@@ -103,7 +103,11 @@ class _MainScreenState extends State<MainScreen> {
                 children: [
                   const SizedBox(height: 16),
                   IconButton(
-                    icon: const Icon(Icons.account_balance_wallet_rounded, size: 26, color: Colors.white),
+                    icon: const Icon(
+                      Icons.account_balance_wallet_rounded,
+                      size: 26,
+                      color: Colors.white,
+                    ),
                     onPressed: _openBudget,
                     tooltip: 'Budget Calculator',
                   ),

@@ -18,7 +18,7 @@ class Accounts extends Table {
   RealColumn get currentBalance => real().withDefault(const Constant(0.0))();
 }
 
-@DataClassName('Category')
+@DataClassName('BudgetCategory')
 class Categories extends Table {
   IntColumn get id => integer().autoIncrement()();
   TextColumn get name => text().withLength(min: 1, max: 50)();
@@ -32,14 +32,14 @@ class Categories extends Table {
 class Transactions extends Table {
   IntColumn get id => integer().autoIncrement()();
   RealColumn get amount => real()();
-  DateTimeColumn get dateTime => dateTime()();
+  DateTimeColumn get date => dateTime()();
   TextColumn get notes => text().nullable()();
-  IntColumn get transactionType => intEnum<TransactionType>()();
-  
+  IntColumn get transactionType => integer()();
+
   // Foreign keys
-  IntColumn get fromAccountId => integer().references(Accounts, #id, onDelete: KeyAction.cascade)();
-  IntColumn get toAccountId => integer().nullable().references(Accounts, #id, onDelete: KeyAction.cascade)();
-  IntColumn get categoryId => integer().nullable().references(Categories, #id, onDelete: KeyAction.setNull)();
+  IntColumn get fromAccountId => integer()();
+  IntColumn get toAccountId => integer().nullable()();
+  IntColumn get categoryId => integer().nullable()();
 }
 
 @DriftDatabase(tables: [Accounts, Categories, Transactions])

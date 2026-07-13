@@ -59,7 +59,10 @@ class NotificationService {
           .resolvePlatformSpecificImplementation<
             AndroidFlutterLocalNotificationsPlugin
           >();
-      await androidImpl?.requestNotificationsPermission();
+      final granted = await androidImpl?.areNotificationsEnabled();
+      if (granted != true) {
+        await androidImpl?.requestNotificationsPermission();
+      }
       await androidImpl?.createNotificationChannel(
         const AndroidNotificationChannel(
           _channelId,
@@ -125,21 +128,46 @@ class NotificationService {
       }
     }
 
-    if (task.repeatInterval != null &&
-        task.repeatInterval!.startsWith('Hourly:')) {
-      final hoursStr = task.repeatInterval!.substring(7);
-      final hours = int.tryParse(hoursStr) ?? 0;
-      if (hours > 0) {
-        for (int i = 0; i < 30; i++) {
-          final scheduled = now.add(Duration(hours: hours * (i + 1)));
-          await _plugin.zonedSchedule(
-            id: task.id.hashCode + 100 + i,
-            title: 'Task Reminder: ${task.title}',
-            body: 'Time for your repeating task!',
-            scheduledDate: tz.TZDateTime.from(scheduled, tz.local),
-            notificationDetails: details,
-            androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
-          );
+    if (task.isAlarm) {
+      if (task.alarmTriggerDate != null &&
+          task.alarmTriggerDate!.isAfter(now)) {
+        await _plugin.zonedSchedule(
+          id: task.id.hashCode + 900,
+          title: 'Alarm: ${task.title}',
+          body: 'Your task is starting!',
+          scheduledDate: tz.TZDateTime.from(task.alarmTriggerDate!, tz.local),
+          notificationDetails: details,
+          androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+        );
+
+        if (task.ringIntervalValue != null && task.ringIntervalUnit != null) {
+          int value = task.ringIntervalValue!;
+          String unit = task.ringIntervalUnit!;
+          for (int i = 1; i <= 30; i++) {
+            DateTime scheduled = task.alarmTriggerDate!;
+            if (unit == 'minutes') {
+              scheduled = scheduled.add(Duration(minutes: value * i));
+            } else if (unit == 'hours') {
+              scheduled = scheduled.add(Duration(hours: value * i));
+            } else if (unit == 'days') {
+              scheduled = scheduled.add(Duration(days: value * i));
+            } else if (unit == 'weeks') {
+              scheduled = scheduled.add(Duration(days: 7 * value * i));
+            } else if (unit == 'months') {
+              scheduled = scheduled.add(Duration(days: 30 * value * i));
+            }
+
+            if (scheduled.isAfter(now)) {
+              await _plugin.zonedSchedule(
+                id: task.id.hashCode + 1000 + i,
+                title: 'Repeating Alarm: ${task.title}',
+                body: 'Time for your task!',
+                scheduledDate: tz.TZDateTime.from(scheduled, tz.local),
+                notificationDetails: details,
+                androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+              );
+            }
+          }
         }
       }
     }
@@ -161,9 +189,9 @@ class NotificationService {
     for (final offset in [..._reminderDaysBefore, 0]) {
       await _plugin.cancel(id: taskId.hashCode + offset);
     }
-    // Cancel routine occurrences
-    for (int i = 0; i < 30; i++) {
-      await _plugin.cancel(id: taskId.hashCode + 100 + i);
+    await _plugin.cancel(id: taskId.hashCode + 900);
+    for (int i = 1; i <= 30; i++) {
+      await _plugin.cancel(id: taskId.hashCode + 1000 + i);
     }
   }
 

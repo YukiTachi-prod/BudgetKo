@@ -11,20 +11,23 @@
 - **Import/Export Functionality**: Effortlessly manage your data externally for backups or sharing.
 - **Integrated PDF Viewer**: View PDF documents directly within the app (e.g., for task attachments).
 - **Dark Mode Support**: Enjoy a comfortable viewing experience in any environment with a fully integrated dark theme.
+- **Built-in Budget Calculator**: An integrated wallet and ledger system to manage your personal finances. Track your income, expenses, and inter-account transfers seamlessly alongside your tasks.
 
 ## Technical Highlights
 
 Built with a modern Flutter architecture, TASKo leverages the **Provider** package for efficient state management, ensuring a clean separation of concerns.
 
 - **Models**: Clearly defined data structures for `Task` and other entities.
-- **Providers**: `TaskProvider` and `SettingsProvider` centralize state, handling data manipulation and UI updates.
+- **Providers**: `TaskProvider`, `SettingsProvider`, and `LedgerProvider` centralize state, handling data manipulation and UI updates.
 - **Services**: Dedicated services like `NotificationService` and `ImportExportService` manage system-level interactions and data portability.
-- **Screens**: A rich set of screens including Dashboard, Settings, Task Editing, PDF Viewer, and Analytics.
+- **Screens**: A rich set of screens including Dashboard, Settings, Task Editing, PDF Viewer, Analytics, and Budget.
+- **Database**: Drift-powered SQLite database (`BudgetDatabase`) for robust ledger transactions and account tracking.
 
 ## Recent Updates
 
 We are continuously improving TASKo to enhance your experience:
 
+- **Android Focus**: Streamlined codebase prioritizing Android, removing previous web-specific support to focus on mobile perfection.
 - **Enhanced Stability**: Critical bug fixes address `TaskEditScreen` loading failures with empty categories/statuses, now gracefully handling defaults.
 - **Safe Deletions**: Confirmation dialogs added for deleting Categories and Statuses in `SettingsScreen` to prevent accidental data loss.
 - **Flexible Status System**: Replaced the 'Priority' system with a more versatile 'Status' system (Not Started, Ongoing, Finished, Dropped).
@@ -35,9 +38,10 @@ We are continuously improving TASKo to enhance your experience:
     - **Dim Red**: Tasks due today or overdue.
     - **Dim Yellow**: Tasks due within 3 days.
     - **Dim Green**: Finished tasks.
-- **Optimized Notifications & Alarms**: Refined reminder system fires at strategic intervals (7, 5, 3, 1 day before, plus due date) for better user experience and battery life. Plus, configure custom `.wav` alarm sounds in the settings for high-priority tasks!
-- **Heatmap View**: A GitHub-commit-style task visualization grid showing tasks across days and weeks, sortable by category, status, and dates. Access it via a two-finger squeeze gesture or the grid icon in the top bar!
+- **Optimized Notifications & Alarms**: Refined reminder system fires at strategic intervals. Restructured alarm triggers, removed redundant Routine options, and introduced custom repeating ring intervals (e.g., Ring every X minutes). Plus, configure custom `.wav` alarm sounds in the settings for high-priority tasks! Background/notification permissions are elegantly requested only when required.
+- **Heatmap View**: A GitHub-commit-style task visualization grid showing the intensity of tasks finished across days and weeks, where color opacity scales with productivity. Access it via a two-finger squeeze gesture or the grid icon in the top bar!
 - **Customizable Status Colors**: Easily pick unique colors for your task statuses via the Settings screen using our built-in color picker.
+- **Wallet & Ledger System**: Introduced a new Budget Screen accessible from the main navigation. Create, edit, and delete accounts and categories. Log income/expenses and transfer funds using a fully integrated Drift-based SQLite database. Swipe between a dynamic interactive Donut Chart and a rigid Line Chart to track expenses over specific Week, Month, and Year periods.
 - **Developer Settings**: Locked behind a developer password (`jaceywashere`), includes advanced notification testing tools and a handy "Insert 50 Test Tasks" utility.
 
 ## Getting Started
