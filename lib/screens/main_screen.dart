@@ -3,6 +3,7 @@ import 'package:tasker/screens/dashboard_screen.dart';
 import 'package:tasker/screens/settings_screen.dart';
 import 'package:tasker/screens/task_edit_screen.dart';
 import 'package:tasker/screens/heatmap_screen.dart';
+import 'package:tasker/screens/budget_screen.dart';
 
 class MainScreen extends StatefulWidget {
   const MainScreen({super.key});
@@ -62,6 +63,13 @@ class _MainScreenState extends State<MainScreen> {
     }
   }
 
+  void _openBudget() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => const BudgetScreen()),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
@@ -89,23 +97,17 @@ class _MainScreenState extends State<MainScreen> {
             selectedIndex: _selectedIndex,
             onDestinationSelected: _onTab,
             labelType: NavigationRailLabelType.all,
-            leading: const Padding(
-              padding: EdgeInsets.only(bottom: 8),
+            leading: Padding(
+              padding: const EdgeInsets.only(bottom: 8),
               child: Column(
                 children: [
-                  SizedBox(height: 16),
-                  Icon(Icons.task_alt_rounded, size: 26, color: Colors.white),
-                  SizedBox(height: 4),
-                  Text(
-                    'TASKo',
-                    style: TextStyle(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w700,
-                      color: Colors.white,
-                      letterSpacing: 0.8,
-                    ),
+                  const SizedBox(height: 16),
+                  IconButton(
+                    icon: const Icon(Icons.account_balance_wallet_rounded, size: 26, color: Colors.white),
+                    onPressed: _openBudget,
+                    tooltip: 'Budget Calculator',
                   ),
-                  SizedBox(height: 16),
+                  const SizedBox(height: 16),
                 ],
               ),
             ),
@@ -161,16 +163,13 @@ class _MainScreenState extends State<MainScreen> {
   Widget _buildMobile(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Row(
-          children: [
-            Icon(
-              Icons.task_alt_rounded,
-              size: 20,
-              color: Theme.of(context).colorScheme.primary,
-            ),
-            const SizedBox(width: 8),
-            Text(_labels[_selectedIndex]),
-          ],
+        leading: IconButton(
+          icon: Icon(
+            Icons.account_balance_wallet_rounded,
+            color: Theme.of(context).colorScheme.primary,
+          ),
+          onPressed: _openBudget,
+          tooltip: 'Budget Calculator',
         ),
         actions: [
           IconButton(
