@@ -3,7 +3,7 @@ import 'package:provider/provider.dart';
 import '../providers/ledger_provider.dart';
 import '../providers/settings_provider.dart';
 import '../database/budget_database.dart';
-import '../widgets/budget_analytics.dart';
+import 'budget_analytics_screen.dart';
 import '../services/export_service.dart';
 import 'transaction_entry_screen.dart';
 
@@ -189,20 +189,23 @@ class BudgetScreen extends StatelessWidget {
     final currency = settings.currency;
     final theme = Theme.of(context);
 
-    // Compute category expenses
-    final Map<int, double> categoryExpenses = {};
-    for (var tx in provider.recentTransactions) {
-      if (tx.transactionType == TransactionType.expense.index &&
-          tx.categoryId != null) {
-        categoryExpenses[tx.categoryId!] =
-            (categoryExpenses[tx.categoryId!] ?? 0) + tx.amount;
-      }
-    }
+    final totalMoney = provider.accounts.fold(0.0, (sum, acc) => sum + acc.currentBalance);
+    final totalExpenses = provider.recentTransactions
+        .where((tx) => tx.transactionType == TransactionType.expense.index)
+        .fold(0.0, (sum, tx) => sum + tx.amount);
 
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Budget Calculator'),
-        actions: [
+    return DefaultTabController(
+      length: 2,
+      child: Scaffold(
+        appBar: AppBar(
+          title: const Text('Budget Calculator'),
+          bottom: const TabBar(
+            tabs: [
+              Tab(text: 'Wallet'),
+              Tab(text: 'Analytics'),
+            ],
+          ),
+          actions: [
           DropdownButtonHideUnderline(
             child: DropdownButton<String>(
               value: currency,
@@ -232,37 +235,23 @@ class BudgetScreen extends StatelessWidget {
           ),
         ],
       ),
-      body: SingleChildScrollView(
+      body: TabBarView(
+        children: [
+          SingleChildScrollView(
         padding: const EdgeInsets.all(16.0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            // Analytics Section
-            if (provider.categories.isNotEmpty)
-              Card(
-                elevation: 4,
-                child: Padding(
-                  padding: const EdgeInsets.all(16.0),
-                  child: BudgetAnalytics(
-                    categories: provider.categories,
-                    categoryExpenses: categoryExpenses,
-                    recentTransactions: provider.recentTransactions,
-                  ),
-                ),
-              ),
-            if (provider.categories.isEmpty)
-              const Padding(
-                padding: EdgeInsets.all(16.0),
-                child: Text(
-                  'No categories available yet. Please add a transaction to start.',
-                ),
-              ),
-
-            const SizedBox(height: 24),
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text('Accounts', style: theme.textTheme.titleLarge),
+                Row(
+                  children: [
+                    Text('Accounts', style: theme.textTheme.titleLarge),
+                    const SizedBox(width: 8),
+                    Text('($currency${totalMoney.toStringAsFixed(2)})', style: theme.textTheme.titleMedium),
+                  ],
+                ),
                 IconButton(
                   icon: const Icon(Icons.add),
                   onPressed: () => _showAccountDialog(context),
@@ -390,8 +379,27 @@ class BudgetScreen extends StatelessWidget {
                 );
               },
             ),
+            const SizedBox(height: 24),
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: theme.colorScheme.errorContainer,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Center(
+                child: Text(
+                  'Total Expenses: $currency${totalExpenses.toStringAsFixed(2)}',
+                  style: theme.textTheme.titleLarge?.copyWith(
+                    color: theme.colorScheme.onErrorContainer,
+                  ),
+                ),
+              ),
+            ),
           ],
         ),
+      ),
+          const BudgetAnalyticsTab(),
+        ],
       ),
       floatingActionButton: FloatingActionButton.extended(
         backgroundColor: theme.colorScheme.primary,
@@ -405,6 +413,8 @@ class BudgetScreen extends StatelessWidget {
         icon: const Icon(Icons.add),
         label: const Text('Add Transaction'),
       ),
+    ),
     );
   }
 }
+

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:provider/provider.dart';
 import '../providers/settings_provider.dart';
@@ -79,22 +80,44 @@ class _BudgetAnalyticsState extends State<BudgetAnalytics> {
             itemBuilder: (context, index) {
               final isPie = index % 2 == 0;
               if (isPie) {
-                return PieChart(
-                  PieChartData(
-                    sections: widget.categories
-                        .map((c) {
-                          final amount = widget.categoryExpenses[c.id] ?? 0.0;
-                          return PieChartSectionData(
-                            color: Color(c.colorHex),
-                            value: amount,
-                            title: '$currency${amount.toStringAsFixed(0)}',
-                            radius: 50,
+                return Stack(
+                  children: [
+                    PieChart(
+                      PieChartData(
+                        sections: widget.categories
+                            .map((c) {
+                              final amount = widget.categoryExpenses[c.id] ?? 0.0;
+                              return PieChartSectionData(
+                                color: Color(c.colorHex),
+                                value: amount,
+                                title: '$currency${amount.toStringAsFixed(0)}',
+                                radius: 50,
+                              );
+                            })
+                            .where((s) => s.value > 0)
+                            .toList(),
+                        centerSpaceRadius: 40,
+                      ),
+                    ),
+                    Positioned(
+                      top: 0,
+                      right: 0,
+                      child: IconButton(
+                        icon: const Icon(Icons.fullscreen),
+                        onPressed: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => FullScreenDonutChart(
+                                categories: widget.categories,
+                                categoryExpenses: widget.categoryExpenses,
+                              ),
+                            ),
                           );
-                        })
-                        .where((s) => s.value > 0)
-                        .toList(),
-                    centerSpaceRadius: 40,
-                  ),
+                        },
+                      ),
+                    ),
+                  ],
                 );
               } else {
                 return Column(
@@ -237,6 +260,87 @@ class _BudgetAnalyticsState extends State<BudgetAnalytics> {
           );
         }),
       ],
+    );
+  }
+}
+
+class FullScreenDonutChart extends StatefulWidget {
+  final List<BudgetCategory> categories;
+  final Map<int, double> categoryExpenses;
+
+  const FullScreenDonutChart({
+    super.key,
+    required this.categories,
+    required this.categoryExpenses,
+  });
+
+  @override
+  State<FullScreenDonutChart> createState() => _FullScreenDonutChartState();
+}
+
+class _FullScreenDonutChartState extends State<FullScreenDonutChart> {
+  @override
+  void initState() {
+    super.initState();
+    SystemChrome.setPreferredOrientations([
+      DeviceOrientation.landscapeRight,
+      DeviceOrientation.landscapeLeft,
+    ]);
+  }
+
+  @override
+  void dispose() {
+    SystemChrome.setPreferredOrientations([
+      DeviceOrientation.portraitUp,
+      DeviceOrientation.portraitDown,
+      DeviceOrientation.landscapeRight,
+      DeviceOrientation.landscapeLeft,
+    ]);
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final currency = context.watch<SettingsProvider>().currency;
+    final validSections = widget.categories.map((c) {
+      final amount = widget.categoryExpenses[c.id] ?? 0.0;
+      return MapEntry(c, amount);
+    }).where((e) => e.value > 0).toList();
+
+    return Scaffold(
+      appBar: AppBar(title: const Text('Expenses Chart')),
+      body: Row(
+        children: [
+          Expanded(
+            flex: 2,
+            child: PieChart(
+              PieChartData(
+                sections: validSections.map((e) {
+                  return PieChartSectionData(
+                    color: Color(e.key.colorHex),
+                    value: e.value,
+                    title: '$currency${e.value.toStringAsFixed(0)}',
+                    radius: 80,
+                  );
+                }).toList(),
+                centerSpaceRadius: 60,
+              ),
+            ),
+          ),
+          Expanded(
+            flex: 1,
+            child: ListView(
+              children: validSections.map((e) {
+                return ListTile(
+                  leading: CircleAvatar(backgroundColor: Color(e.key.colorHex)),
+                  title: Text(e.key.name),
+                  trailing: Text('$currency${e.value.toStringAsFixed(2)}'),
+                );
+              }).toList(),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

@@ -59,10 +59,6 @@ class NotificationService {
           .resolvePlatformSpecificImplementation<
             AndroidFlutterLocalNotificationsPlugin
           >();
-      final granted = await androidImpl?.areNotificationsEnabled();
-      if (granted != true) {
-        await androidImpl?.requestNotificationsPermission();
-      }
       await androidImpl?.createNotificationChannel(
         const AndroidNotificationChannel(
           _channelId,
@@ -72,6 +68,20 @@ class NotificationService {
         ),
       );
     }
+  }
+
+  Future<void> requestPermissions() async {
+    if (!Platform.isAndroid) return;
+    final androidImpl = _plugin.resolvePlatformSpecificImplementation<
+        AndroidFlutterLocalNotificationsPlugin>();
+    
+    final granted = await androidImpl?.areNotificationsEnabled();
+    if (granted != true) {
+      await androidImpl?.requestNotificationsPermission();
+    }
+    // Android 12+ requires exact alarm permission for schedule/zonedSchedule
+    // This usually doesn't show a popup unless denied, but it's good to request.
+    await androidImpl?.requestExactAlarmsPermission();
   }
 
   Future<NotificationDetails> _buildDetails(bool isAlarm) async {
@@ -213,12 +223,13 @@ class NotificationService {
     int seconds, {
     bool isAlarm = false,
   }) async {
+    await requestPermissions();
     final now = tz.TZDateTime.now(tz.local);
     final scheduledDate = now.add(Duration(seconds: seconds));
     final details = await _buildDetails(isAlarm);
 
     await _plugin.zonedSchedule(
-      id: isAlarm ? 99998 : 99999,
+      id: DateTime.now().millisecond, // unique ID to avoid overlapping
       title: 'Test Timed ${isAlarm ? 'Alarm' : 'Notification'}',
       body:
           'This ${isAlarm ? 'alarm' : 'notification'} was scheduled $seconds seconds ago.',

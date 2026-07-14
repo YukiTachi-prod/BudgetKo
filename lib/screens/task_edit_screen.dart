@@ -5,6 +5,7 @@ import 'package:file_picker/file_picker.dart';
 import 'package:path/path.dart' as p;
 import 'package:uuid/uuid.dart';
 import '../models/task.dart';
+import '../services/notification/mobile_notification_service.dart';
 import '../providers/task_provider.dart';
 import '../providers/settings_provider.dart';
 import '../widgets/status_pill.dart';
@@ -157,8 +158,28 @@ class _TaskEditScreenState extends State<TaskEditScreen> {
     });
   }
 
-  void _saveTask() {
-    if (!_formKey.currentState!.validate()) return;
+  Future<void> _saveTask() async {
+    if (!_formKey.currentState!.validate()) {
+      showDialog(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: const Text('Required Fields Missing'),
+          content: const Text('Please fill out all required fields (like the Task Title) before saving.'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('OK'),
+            ),
+          ],
+        ),
+      );
+      return;
+    }
+
+    if (_hasDates || _isAlarm) {
+      await NotificationService().requestPermissions();
+    }
+    if (!mounted) return;
     final taskProvider = Provider.of<TaskProvider>(context, listen: false);
     try {
       final task = Task(
@@ -437,28 +458,34 @@ class _TaskEditScreenState extends State<TaskEditScreen> {
                     icon: Icons.radio_button_checked_rounded,
                     label: 'Status',
                     child: Expanded(
-                      child: DropdownButtonHideUnderline(
-                        child: DropdownButton<String>(
-                          value: _selectedStatus,
-                          isExpanded: true,
-                          itemHeight: 56, // Bigger touch target
-                          iconSize: 28,
-                          onChanged: isLocked
-                              ? null
-                              : (v) {
-                                  if (v != null) {
-                                    setState(() => _selectedStatus = v);
-                                  }
-                                },
-                          items: settings.statuses.map((s) {
-                            return DropdownMenuItem<String>(
-                              value: s,
-                              child: Align(
-                                alignment: Alignment.centerLeft,
-                                child: StatusPill(status: s),
-                              ),
-                            );
-                          }).toList(),
+                      child: Align(
+                        alignment: Alignment.centerLeft,
+                        child: FractionallySizedBox(
+                          widthFactor: 0.6,
+                          child: DropdownButtonHideUnderline(
+                            child: DropdownButton<String>(
+                              value: _selectedStatus,
+                              isExpanded: true,
+                              itemHeight: 56, // Bigger touch target
+                              iconSize: 28,
+                              onChanged: isLocked
+                                  ? null
+                                  : (v) {
+                                      if (v != null) {
+                                        setState(() => _selectedStatus = v);
+                                      }
+                                    },
+                              items: settings.statuses.map((s) {
+                                return DropdownMenuItem<String>(
+                                  value: s,
+                                  child: Align(
+                                    alignment: Alignment.centerLeft,
+                                    child: StatusPill(status: s),
+                                  ),
+                                );
+                              }).toList(),
+                            ),
+                          ),
                         ),
                       ),
                     ),
@@ -470,28 +497,34 @@ class _TaskEditScreenState extends State<TaskEditScreen> {
                     icon: Icons.folder_outlined,
                     label: 'Category',
                     child: Expanded(
-                      child: DropdownButtonHideUnderline(
-                        child: DropdownButton<String>(
-                          value: _selectedCategory,
-                          isExpanded: true,
-                          itemHeight: 56, // Bigger touch target
-                          iconSize: 28,
-                          onChanged: isLocked
-                              ? null
-                              : (v) {
-                                  if (v != null) {
-                                    setState(() => _selectedCategory = v);
-                                  }
-                                },
-                          items: settings.categories.map((c) {
-                            return DropdownMenuItem<String>(
-                              value: c,
-                              child: Align(
-                                alignment: Alignment.centerLeft,
-                                child: CategoryTag(category: c),
-                              ),
-                            );
-                          }).toList(),
+                      child: Align(
+                        alignment: Alignment.centerLeft,
+                        child: FractionallySizedBox(
+                          widthFactor: 0.6,
+                          child: DropdownButtonHideUnderline(
+                            child: DropdownButton<String>(
+                              value: _selectedCategory,
+                              isExpanded: true,
+                              itemHeight: 56, // Bigger touch target
+                              iconSize: 28,
+                              onChanged: isLocked
+                                  ? null
+                                  : (v) {
+                                      if (v != null) {
+                                        setState(() => _selectedCategory = v);
+                                      }
+                                    },
+                              items: settings.categories.map((c) {
+                                return DropdownMenuItem<String>(
+                                  value: c,
+                                  child: Align(
+                                    alignment: Alignment.centerLeft,
+                                    child: CategoryTag(category: c),
+                                  ),
+                                );
+                              }).toList(),
+                            ),
+                          ),
                         ),
                       ),
                     ),
