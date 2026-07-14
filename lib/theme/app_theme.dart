@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 class AppTheme {
   AppTheme._();
 
-  static ThemeData light() => _build(
+  static ThemeData light([Color? accentColor]) => _build(
     brightness: Brightness.light,
     bg: const Color(0xFFEEF2FF), // soft lavender
     surface: Colors.white,
@@ -12,10 +12,10 @@ class AppTheme {
     border: const Color(0xFFE5E7EB),
     text: const Color(0xFF1E1B4B), // dark navy
     subtext: const Color(0xFF6B7280),
-    accent: const Color(0xFF7C3AED), // violet
+    accent: accentColor ?? const Color(0xFF7C3AED), // violet
   );
 
-  static ThemeData dark() => _build(
+  static ThemeData dark([Color? accentColor]) => _build(
     brightness: Brightness.dark,
     bg: const Color(0xFF0D0B1A), // very dark violet
     surface: const Color(0xFF16132B), // dark purple-tinted
@@ -24,7 +24,7 @@ class AppTheme {
     border: const Color(0xFF2E2A4A),
     text: const Color(0xFFE2E8F0),
     subtext: const Color(0xFF94A3B8),
-    accent: const Color(0xFF8B5CF6), // lighter violet for dark
+    accent: accentColor ?? const Color(0xFF8B5CF6), // lighter violet for dark
   );
 
   static ThemeData _build({

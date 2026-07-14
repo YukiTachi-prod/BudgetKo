@@ -8,6 +8,7 @@ import 'analytics_screen.dart';
 import 'package:file_picker/file_picker.dart';
 import '../services/platform/platform_file_service.dart';
 import '../services/notification/notification_service.dart';
+import 'package:flutter_colorpicker/flutter_colorpicker.dart';
 
 class SettingsScreen extends StatelessWidget {
   const SettingsScreen({super.key});
@@ -37,6 +38,63 @@ class SettingsScreen extends StatelessWidget {
           subtitle: const Text('Default: Numeric/Keyboard input'),
           value: settings.useDialTimePicker,
           onChanged: (val) => settings.toggleUseDialTimePicker(val),
+        ),
+        ListTile(
+          title: const Text('Button Color Scheme'),
+          subtitle: const Text('Customize the accent/button color for the app'),
+          trailing: GestureDetector(
+            onTap: () {
+              showDialog(
+                context: context,
+                builder: (ctx) {
+                  Color selectedColor = settings.themeColor != null
+                      ? Color(settings.themeColor!)
+                      : const Color(0xFF7C3AED); // default violet
+                  return AlertDialog(
+                    title: const Text('Choose Color Scheme'),
+                    content: SingleChildScrollView(
+                      child: ColorPicker(
+                        pickerColor: selectedColor,
+                        onColorChanged: (c) => selectedColor = c,
+                        pickerAreaHeightPercent: 0.8,
+                      ),
+                    ),
+                    actions: [
+                      TextButton(
+                        onPressed: () {
+                          settings.setThemeColor(null);
+                          Navigator.pop(ctx);
+                        },
+                        child: const Text('Reset Default'),
+                      ),
+                      TextButton(
+                        onPressed: () => Navigator.pop(ctx),
+                        child: const Text('Cancel'),
+                      ),
+                      TextButton(
+                        onPressed: () {
+                          settings.setThemeColor(selectedColor.toARGB32());
+                          Navigator.pop(ctx);
+                        },
+                        child: const Text('Select'),
+                      ),
+                    ],
+                  );
+                },
+              );
+            },
+            child: Container(
+              width: 48,
+              height: 32,
+              decoration: BoxDecoration(
+                color: settings.themeColor != null
+                    ? Color(settings.themeColor!)
+                    : const Color(0xFF7C3AED),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.grey.shade400),
+              ),
+            ),
+          ),
         ),
         const Divider(),
         _buildSectionHeader('Analytics'),
@@ -217,65 +275,72 @@ class SettingsScreen extends StatelessWidget {
     SettingsProvider settings,
     String status,
   ) {
+    Color selectedColor = Color(
+      settings.statusColors[status] ?? Colors.grey.toARGB32(),
+    );
+
     showDialog(
       context: context,
       builder: (context) {
         return AlertDialog(
           title: Text('Select color for $status'),
-          content: Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: Colors.primaries.map((color) {
-              return GestureDetector(
-                onTap: () {
-                  String? duplicateStatus;
-                  for (var e in settings.statusColors.entries) {
-                    if (e.key != status && e.value == color.toARGB32()) {
-                      duplicateStatus = e.key;
-                      break;
-                    }
-                  }
-
-                  if (duplicateStatus != null) {
-                    showDialog(
-                      context: context,
-                      builder: (ctx) => AlertDialog(
-                        title: const Text('Duplicate Color'),
-                        content: Text(
-                          'This color is already used by "$duplicateStatus". Continue?',
-                        ),
-                        actions: [
-                          TextButton(
-                            onPressed: () => Navigator.pop(ctx),
-                            child: const Text('Cancel'),
-                          ),
-                          TextButton(
-                            onPressed: () {
-                              settings.setStatusColor(status, color.toARGB32());
-                              Navigator.pop(ctx);
-                              Navigator.pop(context);
-                            },
-                            child: const Text('Okay'),
-                          ),
-                        ],
-                      ),
-                    );
-                  } else {
-                    settings.setStatusColor(status, color.toARGB32());
-                    Navigator.pop(context);
-                  }
-                },
-                child: Container(
-                  width: 40,
-                  height: 40,
-                  decoration: BoxDecoration(
-                    color: color,
-                    shape: BoxShape.circle,
-                  ),
-                ),
-              );
-            }).toList(),
+          content: SingleChildScrollView(
+            child: ColorPicker(
+              pickerColor: selectedColor,
+              onColorChanged: (color) {
+                selectedColor = color;
+              },
+              pickerAreaHeightPercent: 0.8,
+            ),
           ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Cancel'),
+            ),
+            TextButton(
+              onPressed: () {
+                final colorVal = selectedColor.toARGB32();
+                String? duplicateStatus;
+                for (var e in settings.statusColors.entries) {
+                  if (e.key != status && e.value == colorVal) {
+                    duplicateStatus = e.key;
+                    break;
+                  }
+                }
+
+                if (duplicateStatus != null) {
+                  showDialog(
+                    context: context,
+                    builder: (ctx) => AlertDialog(
+                      title: const Text('Duplicate Color'),
+                      content: Text(
+                        'This color is already used by "$duplicateStatus". Continue?',
+                      ),
+                      actions: [
+                        TextButton(
+                          onPressed: () => Navigator.pop(ctx),
+                          child: const Text('Cancel'),
+                        ),
+                        TextButton(
+                          onPressed: () {
+                            settings.setStatusColor(status, colorVal);
+                            Navigator.pop(ctx);
+                            Navigator.pop(context);
+                          },
+                          child: const Text('Okay'),
+                        ),
+                      ],
+                    ),
+                  );
+                } else {
+                  settings.setStatusColor(status, colorVal);
+                  Navigator.pop(context);
+                }
+              },
+              child: const Text('Select'),
+            ),
+          ],
         );
       },
     );

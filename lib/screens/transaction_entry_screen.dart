@@ -61,6 +61,42 @@ class _TransactionEntryScreenState extends State<TransactionEntryScreen> {
     });
   }
 
+  double _calculateHypotheticalBalance(LedgerProvider provider) {
+    if (_selectedFromAccountId == null) return 0.0;
+    final acc = provider.accounts.firstWhere(
+      (a) => a.id == _selectedFromAccountId,
+    );
+    double balance = acc.currentBalance;
+    final amount = double.tryParse(_amountStr) ?? 0.0;
+
+    // If editing, reverse the old transaction first
+    if (widget.transactionToEdit != null) {
+      final oldTx = widget.transactionToEdit!;
+      final oldType = TransactionType.values[oldTx.transactionType];
+      if (oldTx.fromAccountId == _selectedFromAccountId) {
+        if (oldType == TransactionType.expense ||
+            oldType == TransactionType.transfer) {
+          balance += oldTx.amount;
+        } else if (oldType == TransactionType.income) {
+          balance -= oldTx.amount;
+        }
+      }
+      if (oldTx.toAccountId == _selectedFromAccountId &&
+          oldType == TransactionType.transfer) {
+        balance -= oldTx.amount;
+      }
+    }
+
+    // Now apply the new transaction
+    if (_type == TransactionType.expense || _type == TransactionType.transfer) {
+      balance -= amount;
+    } else if (_type == TransactionType.income) {
+      balance += amount;
+    }
+
+    return balance;
+  }
+
   Future<void> _saveTransaction() async {
     final amount = double.tryParse(_amountStr) ?? 0.0;
     if (amount <= 0 || _selectedFromAccountId == null) return;
@@ -72,8 +108,36 @@ class _TransactionEntryScreenState extends State<TransactionEntryScreen> {
       return;
     }
 
+    final provider = context.read<LedgerProvider>();
+    final currency = context.read<SettingsProvider>().currency;
+
+    if (_type == TransactionType.expense || _type == TransactionType.transfer) {
+      final newBalance = _calculateHypotheticalBalance(provider);
+      if (newBalance < 0) {
+        final acc = provider.accounts.firstWhere(
+          (a) => a.id == _selectedFromAccountId,
+        );
+        showDialog(
+          context: context,
+          builder: (ctx) => AlertDialog(
+            title: const Text('Negative Balance Warning'),
+            content: Text(
+              'This transaction will cause the account "${acc.name}" to drop to a negative balance ($currency${newBalance.toStringAsFixed(2)}).\n\nTransaction is blocked.',
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx),
+                child: const Text('OK'),
+              ),
+            ],
+          ),
+        );
+        return;
+      }
+    }
+
     if (widget.transactionToEdit != null) {
-      await context.read<LedgerProvider>().updateTransaction(
+      await provider.updateTransaction(
         transactionId: widget.transactionToEdit!.id,
         amount: amount,
         date: widget.transactionToEdit!.date,
@@ -87,7 +151,7 @@ class _TransactionEntryScreenState extends State<TransactionEntryScreen> {
             : null,
       );
     } else {
-      await context.read<LedgerProvider>().addTransaction(
+      await provider.addTransaction(
         amount: amount,
         date: DateTime.now(),
         type: _type,
@@ -101,8 +165,7 @@ class _TransactionEntryScreenState extends State<TransactionEntryScreen> {
       );
     }
 
-    if (!context.mounted) return;
-    // ignore: use_build_context_synchronously
+    if (!mounted) return;
     Navigator.pop(context);
   }
 
@@ -210,7 +273,20 @@ class _TransactionEntryScreenState extends State<TransactionEntryScreen> {
                         .map(
                           (c) => DropdownMenuItem(
                             value: c.id,
-                            child: Text(c.name),
+                            child: Row(
+                              children: [
+                                Container(
+                                  width: 12,
+                                  height: 12,
+                                  decoration: BoxDecoration(
+                                    color: Color(c.colorHex),
+                                    shape: BoxShape.circle,
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                Text(c.name),
+                              ],
+                            ),
                           ),
                         )
                         .toList(),
@@ -225,12 +301,28 @@ class _TransactionEntryScreenState extends State<TransactionEntryScreen> {
           _buildNumpad(),
 
           Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: SizedBox(
-              width: double.infinity,
-              child: FilledButton(
-                onPressed: _saveTransaction,
-                child: const Text('Save'),
+            padding: const EdgeInsets.only(
+              left: 16.0,
+              right: 16.0,
+              top: 16.0,
+              bottom: 40.0,
+            ),
+            child: Center(
+              child: SizedBox(
+                width: 160,
+                height: 52,
+                child: FilledButton(
+                  onPressed: _saveTransaction,
+                  style: FilledButton.styleFrom(
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(26),
+                    ),
+                  ),
+                  child: const Text(
+                    'Save',
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                  ),
+                ),
               ),
             ),
           ),

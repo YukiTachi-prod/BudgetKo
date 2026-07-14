@@ -14,6 +14,7 @@ class SettingsProvider with ChangeNotifier {
   static const String _keyStatusColors = 'status_colors';
   static const String _keyAlarmSoundPath = 'alarm_sound_path';
   static const String _keyAlarmChannelId = 'alarm_channel_id';
+  static const String _keyThemeColor = 'theme_color';
 
   bool _isDarkMode = false;
   bool _isTime24h = false;
@@ -45,6 +46,8 @@ class SettingsProvider with ChangeNotifier {
   Map<String, int> get statusColors => _statusColors;
   String? get alarmSoundPath => _alarmSoundPath;
   String get alarmChannelId => _alarmChannelId;
+  int? get themeColor => _themeColor;
+  int? _themeColor;
 
   Future<void> _loadSettings() async {
     final prefs = await SharedPreferences.getInstance();
@@ -75,6 +78,9 @@ class SettingsProvider with ChangeNotifier {
 
     _alarmSoundPath = prefs.getString(_keyAlarmSoundPath);
     _alarmChannelId = prefs.getString(_keyAlarmChannelId) ?? 'task_alarms';
+    _themeColor = prefs.containsKey(_keyThemeColor)
+        ? prefs.getInt(_keyThemeColor)
+        : null;
 
     notifyListeners();
   }
@@ -171,6 +177,17 @@ class SettingsProvider with ChangeNotifier {
     notifyListeners();
   }
 
+  Future<void> setThemeColor(int? colorVal) async {
+    _themeColor = colorVal;
+    final prefs = await SharedPreferences.getInstance();
+    if (colorVal == null) {
+      await prefs.remove(_keyThemeColor);
+    } else {
+      await prefs.setInt(_keyThemeColor, colorVal);
+    }
+    notifyListeners();
+  }
+
   Future<void> resetAllSettings() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.clear();
@@ -179,6 +196,7 @@ class SettingsProvider with ChangeNotifier {
     _hidePdfReminder = false;
     _useDialTimePicker = false;
     _currency = '₱';
+    _themeColor = null;
     _categories = ['Work', 'Personal', 'Shopping', 'Health'];
     _statuses = ['Not Started', 'Ongoing', 'Finished', 'Dropped'];
     _statusColors = {

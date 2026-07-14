@@ -109,7 +109,7 @@ class _MainScreenState extends State<MainScreen> {
                       color: Colors.white,
                     ),
                     onPressed: _openBudget,
-                    tooltip: 'Budget Calculator',
+                    tooltip: 'Wallet',
                   ),
                   const SizedBox(height: 16),
                 ],
@@ -167,13 +167,15 @@ class _MainScreenState extends State<MainScreen> {
   Widget _buildMobile(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
+        title: Text(_labels[_selectedIndex]),
+        centerTitle: true,
         leading: IconButton(
           icon: Icon(
             Icons.account_balance_wallet_rounded,
             color: Theme.of(context).colorScheme.primary,
           ),
           onPressed: _openBudget,
-          tooltip: 'Budget Calculator',
+          tooltip: 'Wallet',
         ),
         actions: [
           IconButton(

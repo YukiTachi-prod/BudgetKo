@@ -49,9 +49,36 @@ class _BudgetAnalyticsTabState extends State<BudgetAnalyticsTab> {
       }
     }
 
-    final expenses = filteredTransactions
-        .where((tx) => tx.transactionType == TransactionType.expense.index)
-        .toList();
+    final activeLoansCount = provider.loans.where((l) => !l.isPaid).length;
+    final totalBorrowed = provider.loans.fold(0.0, (sum, l) => sum + l.amount);
+    final totalRemaining = provider.loans.fold(
+      0.0,
+      (sum, l) => sum + l.remainingAmount,
+    );
+    final debtProgress = totalBorrowed > 0
+        ? (totalBorrowed - totalRemaining) / totalBorrowed
+        : 0.0;
+
+    final activeSubsCount = provider.subscriptions
+        .where((s) => s.isActive)
+        .length;
+    double monthlyCostSum = 0.0;
+    for (final sub in provider.subscriptions.where((s) => s.isActive)) {
+      if (sub.billingCycle == 'Monthly') {
+        monthlyCostSum += sub.cost;
+      } else if (sub.billingCycle == 'Yearly') {
+        monthlyCostSum += sub.cost / 12.0;
+      } else if (sub.billingCycle == 'Weekly') {
+        monthlyCostSum += sub.cost * 4.33;
+      }
+    }
+
+    Subscription? nextSub;
+    final activeSubs = provider.subscriptions.where((s) => s.isActive).toList();
+    if (activeSubs.isNotEmpty) {
+      activeSubs.sort((a, b) => a.nextBillingDate.compareTo(b.nextBillingDate));
+      nextSub = activeSubs.first;
+    }
 
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16.0),
@@ -85,6 +112,7 @@ class _BudgetAnalyticsTabState extends State<BudgetAnalyticsTab> {
               child: Padding(
                 padding: const EdgeInsets.all(16.0),
                 child: BudgetAnalytics(
+                  accounts: provider.accounts,
                   categories: provider.categories,
                   categoryExpenses: categoryExpenses,
                   recentTransactions: filteredTransactions,
@@ -94,33 +122,140 @@ class _BudgetAnalyticsTabState extends State<BudgetAnalyticsTab> {
           else
             const Text('No categories available yet.'),
           const SizedBox(height: 24),
-          Text('All Expenses', style: Theme.of(context).textTheme.titleLarge),
-          const SizedBox(height: 8),
-          SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            child: DataTable(
-              columns: const [
-                DataColumn(label: Text('Category')),
-                DataColumn(label: Text('Expense')),
-                DataColumn(label: Text('Date')),
-              ],
-              rows: expenses.map((tx) {
-                final catList = provider.categories
-                    .where((c) => c.id == tx.categoryId)
-                    .toList();
-                final catName = catList.isNotEmpty
-                    ? catList.first.name
-                    : 'Unknown';
-                return DataRow(
-                  cells: [
-                    DataCell(Text(catName)),
-                    DataCell(Text('$currency${tx.amount.toStringAsFixed(2)}')),
-                    DataCell(Text(tx.date.toString().split(' ')[0])),
-                  ],
-                );
-              }).toList(),
-            ),
+          Text(
+            'Loans & Subscriptions Analytics',
+            style: Theme.of(context).textTheme.titleLarge,
           ),
+          const SizedBox(height: 12),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: Card(
+                  elevation: 2,
+                  child: Padding(
+                    padding: const EdgeInsets.all(16.0),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            const Icon(Icons.money_off, color: Colors.red),
+                            const SizedBox(width: 8),
+                            Text(
+                              'Loans Summary',
+                              style: Theme.of(context).textTheme.titleMedium,
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 16),
+                        Text(
+                          'Active Debts: $activeLoansCount',
+                          style: const TextStyle(fontWeight: FontWeight.bold),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          'Total borrowed: $currency${totalBorrowed.toStringAsFixed(2)}',
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          'Total remaining: $currency${totalRemaining.toStringAsFixed(2)}',
+                          style: TextStyle(
+                            color: Colors.red.shade700,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        const Text(
+                          'Paid Off Progress:',
+                          style: TextStyle(fontSize: 12, color: Colors.grey),
+                        ),
+                        const SizedBox(height: 6),
+                        LinearProgressIndicator(
+                          value: debtProgress,
+                          color: Colors.green,
+                          backgroundColor: Colors.grey.shade300,
+                          minHeight: 6,
+                        ),
+                        const SizedBox(height: 4),
+                        Align(
+                          alignment: Alignment.bottomRight,
+                          child: Text(
+                            '${(debtProgress * 100).toStringAsFixed(0)}% paid',
+                            style: const TextStyle(
+                              fontSize: 10,
+                              color: Colors.grey,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Card(
+                  elevation: 2,
+                  child: Padding(
+                    padding: const EdgeInsets.all(16.0),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            const Icon(Icons.autorenew, color: Colors.blue),
+                            const SizedBox(width: 8),
+                            Text(
+                              'Subscriptions',
+                              style: Theme.of(context).textTheme.titleMedium,
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 16),
+                        Text(
+                          'Active: $activeSubsCount',
+                          style: const TextStyle(fontWeight: FontWeight.bold),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          'Est. Monthly Cost: $currency${monthlyCostSum.toStringAsFixed(2)}',
+                          style: TextStyle(
+                            color: Colors.blue.shade700,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        if (nextSub != null) ...[
+                          const Text(
+                            'Next Bill:',
+                            style: TextStyle(fontSize: 12, color: Colors.grey),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            '${nextSub.name} ($currency${nextSub.cost.toStringAsFixed(2)})',
+                          ),
+                          Text(
+                            'Due: ${nextSub.nextBillingDate.toString().split(' ')[0]}',
+                            style: const TextStyle(
+                              fontSize: 11,
+                              color: Colors.grey,
+                            ),
+                          ),
+                        ] else ...[
+                          const Text(
+                            'No upcoming bills.',
+                            style: TextStyle(fontSize: 12, color: Colors.grey),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
         ],
       ),
     );

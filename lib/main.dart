@@ -50,8 +50,12 @@ class TaskerApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       scrollBehavior: const NoScrollbarBehavior(),
       themeMode: settings.isDarkMode ? ThemeMode.dark : ThemeMode.light,
-      theme: AppTheme.light(),
-      darkTheme: AppTheme.dark(),
+      theme: AppTheme.light(
+        settings.themeColor != null ? Color(settings.themeColor!) : null,
+      ),
+      darkTheme: AppTheme.dark(
+        settings.themeColor != null ? Color(settings.themeColor!) : null,
+      ),
       home: const MainScreen(),
     );
   }

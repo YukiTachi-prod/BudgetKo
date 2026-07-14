@@ -27,6 +27,14 @@ Built with a modern Flutter architecture, TASKo leverages the **Provider** packa
 
 We are continuously improving TASKo to enhance your experience:
 
+- **App Theme Customization & Centered Layouts**: Centered the top app bar titles for the main screens and Wallet view. The back button inside the Wallet screen now displays the Notes/Tasks description icon in the user's chosen primary color. Additionally, a new **Button Color Scheme** picker in Settings allows full app-wide custom button color customization.
+- **Fully Customizable Color Pickers**: Installed `flutter_colorpicker`, replacing simple color chips with an interactive color wheel, HSV/RGB sliders, and Hex code editor across Statuses, Wallet Accounts, and Categories.
+- **Negative Balance Protection**: The app now prevents any transaction (expense or transfer) from dropping an account balance below zero, warning the user and blocking saving if triggered.
+- **Four-Tab Wallet System**: Renamed the "Budget Calculator" to "Wallet" and reorganized it into a 4-tab interface:
+    - **Wallet**: View total balance, account chips, category chips, and recent transactions highlighted subtly (opacity `0.08`) in category colors.
+    - **Expenses**: A dedicated tab containing the "All Expenses" DataTable with custom-colored account/category tags, driven by independent date range filters.
+    - **Loans & Subs**: A dedicated tab to track active Loans/Debts (amounts, remaining balances, due dates, pay-from accounts, notes) and Subscriptions/Bills (cycle, cost, next bill date, active status) using custom-colored account badges.
+    - **Analytics**: Displays a combined positive Account Balances Donut Chart, Category Expenses Donut Chart, Monthly limit progress indicators (styled in category colors), and summary statistics for Loans (total borrowed/remaining, payoff progress bar) and Subscriptions (active count, est. monthly cost, upcoming bill alerts).
 - **Android Focus**: Streamlined codebase prioritizing Android, removing previous web-specific support to focus on mobile perfection.
 - **Enhanced Stability**: Critical bug fixes address `TaskEditScreen` loading failures with empty categories/statuses, now gracefully handling defaults.
 - **Safe Deletions**: Confirmation dialogs added for deleting Categories and Statuses in `SettingsScreen` to prevent accidental data loss.
@@ -41,11 +49,9 @@ We are continuously improving TASKo to enhance your experience:
 - **Optimized Notifications & Alarms**: Refined reminder system fires at strategic intervals. Restructured alarm triggers, removed redundant Routine options, and introduced custom repeating ring intervals (e.g., Ring every X minutes). Plus, configure custom `.wav` alarm sounds in the settings for high-priority tasks! Background/notification permissions are elegantly requested only when required.
 - **Heatmap View**: A GitHub-commit-style task visualization grid showing the intensity of tasks finished across days and weeks, where color opacity scales with productivity. Access it via a two-finger squeeze gesture or the grid icon in the top bar!
 - **Customizable Status Colors**: Easily pick unique colors for your task statuses via the Settings screen using our built-in color picker.
-- **Wallet & Ledger System**: Introduced a new Budget Screen accessible from the main navigation, split cleanly into two tabs: **Wallet** and **Analytics**.
-    - **Wallet Tab**: Shows your total combined accounts balance and total expenses. Create, edit, and delete accounts and categories. Log income, expenses, and transfer funds using a fully integrated Drift-based SQLite database.
-    - **Analytics Tab**: Features powerful filtering (All Time, This Week, This Month, This Year) that drives a dynamic Donut Chart and rigid Line Chart for tracking expenses. Also includes an interactive list of all expenses with their categories and dates, and a fullscreen landscape mode for detailed chart viewing!
 - **Task Creation Overhaul**: Form fields and dropdowns are now cleaner and half-width for better use of space. Missing required fields (like Title) intelligently prompt you with warning popups. Background and notification permissions are smartly and gracefully requested only when actually needed.
 - **Developer Settings**: Locked behind a developer password (`jaceywashere`), includes advanced notification testing tools and a handy "Insert 50 Test Tasks" utility.
+
 
 ## Getting Started
 

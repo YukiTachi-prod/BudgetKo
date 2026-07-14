@@ -42,12 +42,51 @@ class Transactions extends Table {
   IntColumn get categoryId => integer().nullable()();
 }
 
-@DriftDatabase(tables: [Accounts, Categories, Transactions])
+@DataClassName('Loan')
+class Loans extends Table {
+  IntColumn get id => integer().autoIncrement()();
+  TextColumn get creditorName => text().withLength(min: 1, max: 50)();
+  RealColumn get amount => real()();
+  RealColumn get remainingAmount => real()();
+  DateTimeColumn get dueDate => dateTime()();
+  BoolColumn get isPaid => boolean().withDefault(const Constant(false))();
+  IntColumn get accountId => integer()();
+  TextColumn get notes => text().nullable()();
+}
+
+@DataClassName('Subscription')
+class Subscriptions extends Table {
+  IntColumn get id => integer().autoIncrement()();
+  TextColumn get name => text().withLength(min: 1, max: 50)();
+  RealColumn get cost => real()();
+  TextColumn get billingCycle => text().withLength(min: 1, max: 20)();
+  DateTimeColumn get nextBillingDate => dateTime()();
+  BoolColumn get isActive => boolean().withDefault(const Constant(true))();
+  IntColumn get accountId => integer()();
+  TextColumn get notes => text().nullable()();
+}
+
+@DriftDatabase(
+  tables: [Accounts, Categories, Transactions, Loans, Subscriptions],
+)
 class BudgetDatabase extends _$BudgetDatabase {
   BudgetDatabase() : super(_openConnection());
 
   @override
-  int get schemaVersion => 1;
+  int get schemaVersion => 2;
+
+  @override
+  MigrationStrategy get migration => MigrationStrategy(
+    onCreate: (m) async {
+      await m.createAll();
+    },
+    onUpgrade: (m, from, to) async {
+      if (from < 2) {
+        await m.createTable(loans);
+        await m.createTable(subscriptions);
+      }
+    },
+  );
 }
 
 LazyDatabase _openConnection() {

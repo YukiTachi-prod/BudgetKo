@@ -6,12 +6,14 @@ import '../providers/settings_provider.dart';
 import '../database/budget_database.dart';
 
 class BudgetAnalytics extends StatefulWidget {
+  final List<Account> accounts;
   final List<BudgetCategory> categories;
   final Map<int, double> categoryExpenses;
   final List<LedgerTransaction> recentTransactions;
 
   const BudgetAnalytics({
     super.key,
+    required this.accounts,
     required this.categories,
     required this.categoryExpenses,
     required this.recentTransactions,
@@ -22,7 +24,7 @@ class BudgetAnalytics extends StatefulWidget {
 }
 
 class _BudgetAnalyticsState extends State<BudgetAnalytics> {
-  final PageController _pageController = PageController(initialPage: 1000);
+  final PageController _pageController = PageController(initialPage: 1002);
   String _selectedPeriod = 'Week';
 
   @override
@@ -78,27 +80,95 @@ class _BudgetAnalyticsState extends State<BudgetAnalytics> {
           child: PageView.builder(
             controller: _pageController,
             itemBuilder: (context, index) {
-              final isPie = index % 2 == 0;
-              if (isPie) {
+              final pageType = index % 3;
+              if (pageType == 0) {
+                // Donut chart comparing amount of money inside accounts
+                final sections = widget.accounts
+                    .map((a) {
+                      return PieChartSectionData(
+                        color: Color(a.colorHex),
+                        value: a.currentBalance > 0 ? a.currentBalance : 0.0,
+                        title:
+                            '${a.name}\n$currency${a.currentBalance.toStringAsFixed(0)}',
+                        radius: 50,
+                        titleStyle: const TextStyle(
+                          fontSize: 10,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
+                        ),
+                      );
+                    })
+                    .where((s) => s.value > 0)
+                    .toList();
+
+                return Column(
+                  children: [
+                    Text(
+                      'Account Balances',
+                      style: theme.textTheme.titleMedium,
+                    ),
+                    const SizedBox(height: 16),
+                    Expanded(
+                      child: sections.isEmpty
+                          ? const Center(
+                              child: Text(
+                                'No positive account balances to display.',
+                              ),
+                            )
+                          : PieChart(
+                              PieChartData(
+                                sections: sections,
+                                centerSpaceRadius: 40,
+                              ),
+                            ),
+                    ),
+                  ],
+                );
+              } else if (pageType == 1) {
+                // Donut chart showing expense categories
+                final sections = widget.categories
+                    .map((c) {
+                      final amount = widget.categoryExpenses[c.id] ?? 0.0;
+                      return PieChartSectionData(
+                        color: Color(c.colorHex),
+                        value: amount,
+                        title:
+                            '${c.name}\n$currency${amount.toStringAsFixed(0)}',
+                        radius: 50,
+                        titleStyle: const TextStyle(
+                          fontSize: 10,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
+                        ),
+                      );
+                    })
+                    .where((s) => s.value > 0)
+                    .toList();
+
                 return Stack(
                   children: [
-                    PieChart(
-                      PieChartData(
-                        sections: widget.categories
-                            .map((c) {
-                              final amount =
-                                  widget.categoryExpenses[c.id] ?? 0.0;
-                              return PieChartSectionData(
-                                color: Color(c.colorHex),
-                                value: amount,
-                                title: '$currency${amount.toStringAsFixed(0)}',
-                                radius: 50,
-                              );
-                            })
-                            .where((s) => s.value > 0)
-                            .toList(),
-                        centerSpaceRadius: 40,
-                      ),
+                    Column(
+                      children: [
+                        Text(
+                          'Expense Categories',
+                          style: theme.textTheme.titleMedium,
+                        ),
+                        const SizedBox(height: 16),
+                        Expanded(
+                          child: sections.isEmpty
+                              ? const Center(
+                                  child: Text(
+                                    'No expenses recorded in this period.',
+                                  ),
+                                )
+                              : PieChart(
+                                  PieChartData(
+                                    sections: sections,
+                                    centerSpaceRadius: 40,
+                                  ),
+                                ),
+                        ),
+                      ],
                     ),
                     Positioned(
                       top: 0,
@@ -243,7 +313,13 @@ class _BudgetAnalyticsState extends State<BudgetAnalytics> {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Text(c.name),
+                    Text(
+                      c.name,
+                      style: TextStyle(
+                        color: Color(c.colorHex),
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
                     Text(
                       '$currency${spent.toStringAsFixed(2)} / $currency${limit.toStringAsFixed(2)}',
                     ),

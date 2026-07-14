@@ -8,6 +8,8 @@ class LedgerProvider extends ChangeNotifier {
   List<Account> accounts = [];
   List<BudgetCategory> categories = [];
   List<LedgerTransaction> recentTransactions = [];
+  List<Loan> loans = [];
+  List<Subscription> subscriptions = [];
 
   // Sticky defaults
   int? lastUsedAccountId;
@@ -62,17 +64,23 @@ class LedgerProvider extends ChangeNotifier {
               ..orderBy([(t) => OrderingTerm.desc(t.date)])
               ..limit(50))
             .get();
+    loans = await _db.select(_db.loans).get();
+    subscriptions = await _db.select(_db.subscriptions).get();
     notifyListeners();
   }
 
-  Future<void> addAccount(String name, double initialBalance) async {
+  Future<void> addAccount(
+    String name,
+    double initialBalance, {
+    int? colorHex,
+  }) async {
     await _db
         .into(_db.accounts)
         .insert(
           AccountsCompanion.insert(
             name: name,
             iconCodePoint: Icons.account_balance_wallet.codePoint,
-            colorHex: Colors.blue.toARGB32(),
+            colorHex: colorHex ?? Colors.blue.toARGB32(),
             initialBalance: Value(initialBalance),
             currentBalance: Value(initialBalance),
           ),
@@ -83,8 +91,9 @@ class LedgerProvider extends ChangeNotifier {
   Future<void> addCategory(
     String name,
     bool isExpense,
-    double? monthlyLimit,
-  ) async {
+    double? monthlyLimit, {
+    int? colorHex,
+  }) async {
     await _db
         .into(_db.categories)
         .insert(
@@ -93,9 +102,11 @@ class LedgerProvider extends ChangeNotifier {
             iconCodePoint: isExpense
                 ? Icons.shopping_bag.codePoint
                 : Icons.attach_money.codePoint,
-            colorHex: isExpense
-                ? Colors.purple.toARGB32()
-                : Colors.green.toARGB32(),
+            colorHex:
+                colorHex ??
+                (isExpense
+                    ? Colors.purple.toARGB32()
+                    : Colors.green.toARGB32()),
             isExpense: isExpense,
             monthlyBudgetLimit: Value(monthlyLimit),
           ),
@@ -103,11 +114,20 @@ class LedgerProvider extends ChangeNotifier {
     await refreshData();
   }
 
-  Future<void> updateAccount(int accountId, String name, double balance) async {
+  Future<void> updateAccount(
+    int accountId,
+    String name,
+    double balance, {
+    int? colorHex,
+  }) async {
     await (_db.update(
       _db.accounts,
     )..where((a) => a.id.equals(accountId))).write(
-      AccountsCompanion(name: Value(name), currentBalance: Value(balance)),
+      AccountsCompanion(
+        name: Value(name),
+        currentBalance: Value(balance),
+        colorHex: colorHex != null ? Value(colorHex) : const Value.absent(),
+      ),
     );
     await refreshData();
   }
@@ -132,8 +152,9 @@ class LedgerProvider extends ChangeNotifier {
     int categoryId,
     String name,
     bool isExpense,
-    double? monthlyLimit,
-  ) async {
+    double? monthlyLimit, {
+    int? colorHex,
+  }) async {
     await (_db.update(
       _db.categories,
     )..where((c) => c.id.equals(categoryId))).write(
@@ -147,7 +168,8 @@ class LedgerProvider extends ChangeNotifier {
               : Icons.attach_money.codePoint,
         ),
         colorHex: Value(
-          isExpense ? Colors.purple.toARGB32() : Colors.green.toARGB32(),
+          colorHex ??
+              (isExpense ? Colors.purple.toARGB32() : Colors.green.toARGB32()),
         ),
       ),
     );
@@ -335,5 +357,117 @@ class LedgerProvider extends ChangeNotifier {
   Future<void> _updateAccountBalance(int accountId, double newBalance) async {
     await (_db.update(_db.accounts)..where((a) => a.id.equals(accountId)))
         .write(AccountsCompanion(currentBalance: Value(newBalance)));
+  }
+
+  // ── Loans Management ──────────────────────────────────────────
+  Future<void> addLoan({
+    required String creditorName,
+    required double amount,
+    required double remainingAmount,
+    required DateTime dueDate,
+    required int accountId,
+    String? notes,
+  }) async {
+    await _db
+        .into(_db.loans)
+        .insert(
+          LoansCompanion.insert(
+            creditorName: creditorName,
+            amount: amount,
+            remainingAmount: remainingAmount,
+            dueDate: dueDate,
+            accountId: accountId,
+            notes: Value(notes),
+            isPaid: const Value(false),
+          ),
+        );
+    await refreshData();
+  }
+
+  Future<void> updateLoan({
+    required int loanId,
+    required String creditorName,
+    required double amount,
+    required double remainingAmount,
+    required DateTime dueDate,
+    required bool isPaid,
+    required int accountId,
+    String? notes,
+  }) async {
+    await (_db.update(_db.loans)..where((l) => l.id.equals(loanId))).write(
+      LoansCompanion(
+        creditorName: Value(creditorName),
+        amount: Value(amount),
+        remainingAmount: Value(remainingAmount),
+        dueDate: Value(dueDate),
+        isPaid: Value(isPaid),
+        accountId: Value(accountId),
+        notes: Value(notes),
+      ),
+    );
+    await refreshData();
+  }
+
+  Future<void> deleteLoan(int loanId) async {
+    await (_db.delete(_db.loans)..where((l) => l.id.equals(loanId))).go();
+    await refreshData();
+  }
+
+  // ── Subscriptions Management ──────────────────────────────────
+  Future<void> addSubscription({
+    required String name,
+    required double cost,
+    required String billingCycle,
+    required DateTime nextBillingDate,
+    required int accountId,
+    String? notes,
+  }) async {
+    await _db
+        .into(_db.subscriptions)
+        .insert(
+          SubscriptionsCompanion.insert(
+            name: name,
+            cost: cost,
+            billingCycle: billingCycle,
+            nextBillingDate: nextBillingDate,
+            accountId: accountId,
+            notes: Value(notes),
+            isActive: const Value(true),
+          ),
+        );
+    await refreshData();
+  }
+
+  Future<void> updateSubscription({
+    required int subscriptionId,
+    required String name,
+    required double cost,
+    required String billingCycle,
+    required DateTime nextBillingDate,
+    required bool isActive,
+    required int accountId,
+    String? notes,
+  }) async {
+    await (_db.update(
+      _db.subscriptions,
+    )..where((s) => s.id.equals(subscriptionId))).write(
+      SubscriptionsCompanion(
+        name: Value(name),
+        cost: Value(cost),
+        billingCycle: Value(billingCycle),
+        nextBillingDate: Value(nextBillingDate),
+        isActive: Value(isActive),
+        accountId: Value(accountId),
+        notes: Value(notes),
+      ),
+    );
+    await refreshData();
+  }
+
+  Future<void> deleteSubscription(int subscriptionId) async {
+    await (_db.delete(
+      _db.subscriptions,
+    )..where((s) => s.id.equals(subscriptionId))).go();
+    await refreshData();
   }
 }
