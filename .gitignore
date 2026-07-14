@@ -209,3 +209,6 @@ yarn-error.log
 *.swp
 *.swo
 *~
+
+sshkey.txt
+sshkey.txt.pub
