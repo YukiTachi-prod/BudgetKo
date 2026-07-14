@@ -164,7 +164,9 @@ class _TaskEditScreenState extends State<TaskEditScreen> {
         context: context,
         builder: (ctx) => AlertDialog(
           title: const Text('Required Fields Missing'),
-          content: const Text('Please fill out all required fields (like the Task Title) before saving.'),
+          content: const Text(
+            'Please fill out all required fields (like the Task Title) before saving.',
+          ),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(ctx),

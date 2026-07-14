@@ -189,7 +189,10 @@ class BudgetScreen extends StatelessWidget {
     final currency = settings.currency;
     final theme = Theme.of(context);
 
-    final totalMoney = provider.accounts.fold(0.0, (sum, acc) => sum + acc.currentBalance);
+    final totalMoney = provider.accounts.fold(
+      0.0,
+      (sum, acc) => sum + acc.currentBalance,
+    );
     final totalExpenses = provider.recentTransactions
         .where((tx) => tx.transactionType == TransactionType.expense.index)
         .fold(0.0, (sum, tx) => sum + tx.amount);
@@ -206,215 +209,228 @@ class BudgetScreen extends StatelessWidget {
             ],
           ),
           actions: [
-          DropdownButtonHideUnderline(
-            child: DropdownButton<String>(
-              value: currency,
-              icon: const Icon(Icons.arrow_drop_down),
-              onChanged: (String? newValue) {
-                if (newValue != null) {
-                  settings.setCurrency(newValue);
-                }
+            DropdownButtonHideUnderline(
+              child: DropdownButton<String>(
+                value: currency,
+                icon: const Icon(Icons.arrow_drop_down),
+                onChanged: (String? newValue) {
+                  if (newValue != null) {
+                    settings.setCurrency(newValue);
+                  }
+                },
+                items: <String>['\$', '€', '£', '¥', '₱', '₹', '₽']
+                    .map<DropdownMenuItem<String>>((String value) {
+                      return DropdownMenuItem<String>(
+                        value: value,
+                        child: Text(value),
+                      );
+                    })
+                    .toList(),
+              ),
+            ),
+            IconButton(
+              icon: const Icon(Icons.file_download),
+              onPressed: () async {
+                final db = context.read<BudgetDatabase>();
+                await DataExportService(db).exportLedgerToCsv();
               },
-              items: <String>['\$', '€', '£', '¥', '₱', '₹', '₽']
-                  .map<DropdownMenuItem<String>>((String value) {
-                    return DropdownMenuItem<String>(
-                      value: value,
-                      child: Text(value),
-                    );
-                  })
-                  .toList(),
-            ),
-          ),
-          IconButton(
-            icon: const Icon(Icons.file_download),
-            onPressed: () async {
-              final db = context.read<BudgetDatabase>();
-              await DataExportService(db).exportLedgerToCsv();
-            },
-            tooltip: 'Export to CSV',
-          ),
-        ],
-      ),
-      body: TabBarView(
-        children: [
-          SingleChildScrollView(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Row(
-                  children: [
-                    Text('Accounts', style: theme.textTheme.titleLarge),
-                    const SizedBox(width: 8),
-                    Text('($currency${totalMoney.toStringAsFixed(2)})', style: theme.textTheme.titleMedium),
-                  ],
-                ),
-                IconButton(
-                  icon: const Icon(Icons.add),
-                  onPressed: () => _showAccountDialog(context),
-                ),
-              ],
-            ),
-            const SizedBox(height: 8),
-            if (provider.accounts.isEmpty)
-              const Text('No accounts yet. Add one to start tracking!')
-            else
-              Wrap(
-                spacing: 8.0,
-                runSpacing: 8.0,
-                children: provider.accounts.map((acc) {
-                  return ActionChip(
-                    label: Text(
-                      '${acc.name}: $currency${acc.currentBalance.toStringAsFixed(2)}',
-                      style: TextStyle(
-                        fontWeight: FontWeight.w500,
-                        color: acc.currentBalance >= 0
-                            ? Colors.green.shade700
-                            : Colors.red.shade700,
-                      ),
-                    ),
-                    backgroundColor: theme.colorScheme.surface,
-                    side: BorderSide(color: theme.colorScheme.outlineVariant),
-                    onPressed: () => _showAccountDialog(context, acc),
-                  );
-                }).toList(),
-              ),
-
-            const SizedBox(height: 24),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text('Categories', style: theme.textTheme.titleLarge),
-                IconButton(
-                  icon: const Icon(Icons.add),
-                  onPressed: () => _showCategoryDialog(context),
-                ),
-              ],
-            ),
-            const SizedBox(height: 8),
-            if (provider.categories.isEmpty)
-              const Text('No categories yet. Add one to start tracking!')
-            else
-              Wrap(
-                spacing: 8.0,
-                runSpacing: 8.0,
-                children: provider.categories.map((cat) {
-                  return ActionChip(
-                    label: Text(
-                      '${cat.name} ${cat.monthlyBudgetLimit != null ? '($currency${cat.monthlyBudgetLimit!.toStringAsFixed(0)})' : ''}',
-                    ),
-                    avatar: Icon(
-                      cat.isExpense ? Icons.arrow_downward : Icons.arrow_upward,
-                      color: cat.isExpense ? Colors.red : Colors.green,
-                      size: 16,
-                    ),
-                    backgroundColor: theme.colorScheme.surface,
-                    side: BorderSide(color: theme.colorScheme.outlineVariant),
-                    onPressed: () => _showCategoryDialog(context, cat),
-                  );
-                }).toList(),
-              ),
-
-            const SizedBox(height: 24),
-            Text('Recent Transactions', style: theme.textTheme.titleLarge),
-            const SizedBox(height: 8),
-
-            // Transactions List
-            ListView.builder(
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              itemCount: provider.recentTransactions.length,
-              itemBuilder: (context, index) {
-                final tx = provider.recentTransactions[index];
-                final isInc =
-                    tx.transactionType == TransactionType.income.index;
-                final isTransfer =
-                    tx.transactionType == TransactionType.transfer.index;
-
-                return ListTile(
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) =>
-                            TransactionEntryScreen(transactionToEdit: tx),
-                      ),
-                    );
-                  },
-                  leading: CircleAvatar(
-                    backgroundColor: isInc
-                        ? Colors.green.withValues(alpha: 0.2)
-                        : (isTransfer
-                              ? Colors.blue.withValues(alpha: 0.2)
-                              : Colors.red.withValues(alpha: 0.2)),
-                    child: Icon(
-                      isTransfer
-                          ? Icons.swap_horiz
-                          : (isInc ? Icons.arrow_downward : Icons.arrow_upward),
-                      color: isInc
-                          ? Colors.green
-                          : (isTransfer ? Colors.blue : Colors.red),
-                    ),
-                  ),
-                  title: Text(
-                    tx.notes ??
-                        (isTransfer
-                            ? 'Transfer'
-                            : (isInc ? 'Income' : 'Expense')),
-                  ),
-                  subtitle: Text(tx.date.toString().split('.')[0]),
-                  trailing: Text(
-                    '${isInc ? '+' : (isTransfer ? '' : '-')}$currency${tx.amount.toStringAsFixed(2)}',
-                    style: TextStyle(
-                      color: isInc
-                          ? Colors.green
-                          : (isTransfer ? Colors.blue : Colors.red),
-                      fontWeight: FontWeight.bold,
-                      fontSize: 16,
-                    ),
-                  ),
-                );
-              },
-            ),
-            const SizedBox(height: 24),
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: theme.colorScheme.errorContainer,
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Center(
-                child: Text(
-                  'Total Expenses: $currency${totalExpenses.toStringAsFixed(2)}',
-                  style: theme.textTheme.titleLarge?.copyWith(
-                    color: theme.colorScheme.onErrorContainer,
-                  ),
-                ),
-              ),
+              tooltip: 'Export to CSV',
             ),
           ],
         ),
+        body: TabBarView(
+          children: [
+            SingleChildScrollView(
+              padding: const EdgeInsets.all(16.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Row(
+                        children: [
+                          Text('Accounts', style: theme.textTheme.titleLarge),
+                          const SizedBox(width: 8),
+                          Text(
+                            '($currency${totalMoney.toStringAsFixed(2)})',
+                            style: theme.textTheme.titleMedium,
+                          ),
+                        ],
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.add),
+                        onPressed: () => _showAccountDialog(context),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  if (provider.accounts.isEmpty)
+                    const Text('No accounts yet. Add one to start tracking!')
+                  else
+                    Wrap(
+                      spacing: 8.0,
+                      runSpacing: 8.0,
+                      children: provider.accounts.map((acc) {
+                        return ActionChip(
+                          label: Text(
+                            '${acc.name}: $currency${acc.currentBalance.toStringAsFixed(2)}',
+                            style: TextStyle(
+                              fontWeight: FontWeight.w500,
+                              color: acc.currentBalance >= 0
+                                  ? Colors.green.shade700
+                                  : Colors.red.shade700,
+                            ),
+                          ),
+                          backgroundColor: theme.colorScheme.surface,
+                          side: BorderSide(
+                            color: theme.colorScheme.outlineVariant,
+                          ),
+                          onPressed: () => _showAccountDialog(context, acc),
+                        );
+                      }).toList(),
+                    ),
+
+                  const SizedBox(height: 24),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text('Categories', style: theme.textTheme.titleLarge),
+                      IconButton(
+                        icon: const Icon(Icons.add),
+                        onPressed: () => _showCategoryDialog(context),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  if (provider.categories.isEmpty)
+                    const Text('No categories yet. Add one to start tracking!')
+                  else
+                    Wrap(
+                      spacing: 8.0,
+                      runSpacing: 8.0,
+                      children: provider.categories.map((cat) {
+                        return ActionChip(
+                          label: Text(
+                            '${cat.name} ${cat.monthlyBudgetLimit != null ? '($currency${cat.monthlyBudgetLimit!.toStringAsFixed(0)})' : ''}',
+                          ),
+                          avatar: Icon(
+                            cat.isExpense
+                                ? Icons.arrow_downward
+                                : Icons.arrow_upward,
+                            color: cat.isExpense ? Colors.red : Colors.green,
+                            size: 16,
+                          ),
+                          backgroundColor: theme.colorScheme.surface,
+                          side: BorderSide(
+                            color: theme.colorScheme.outlineVariant,
+                          ),
+                          onPressed: () => _showCategoryDialog(context, cat),
+                        );
+                      }).toList(),
+                    ),
+
+                  const SizedBox(height: 24),
+                  Text(
+                    'Recent Transactions',
+                    style: theme.textTheme.titleLarge,
+                  ),
+                  const SizedBox(height: 8),
+
+                  // Transactions List
+                  ListView.builder(
+                    shrinkWrap: true,
+                    physics: const NeverScrollableScrollPhysics(),
+                    itemCount: provider.recentTransactions.length,
+                    itemBuilder: (context, index) {
+                      final tx = provider.recentTransactions[index];
+                      final isInc =
+                          tx.transactionType == TransactionType.income.index;
+                      final isTransfer =
+                          tx.transactionType == TransactionType.transfer.index;
+
+                      return ListTile(
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) =>
+                                  TransactionEntryScreen(transactionToEdit: tx),
+                            ),
+                          );
+                        },
+                        leading: CircleAvatar(
+                          backgroundColor: isInc
+                              ? Colors.green.withValues(alpha: 0.2)
+                              : (isTransfer
+                                    ? Colors.blue.withValues(alpha: 0.2)
+                                    : Colors.red.withValues(alpha: 0.2)),
+                          child: Icon(
+                            isTransfer
+                                ? Icons.swap_horiz
+                                : (isInc
+                                      ? Icons.arrow_downward
+                                      : Icons.arrow_upward),
+                            color: isInc
+                                ? Colors.green
+                                : (isTransfer ? Colors.blue : Colors.red),
+                          ),
+                        ),
+                        title: Text(
+                          tx.notes ??
+                              (isTransfer
+                                  ? 'Transfer'
+                                  : (isInc ? 'Income' : 'Expense')),
+                        ),
+                        subtitle: Text(tx.date.toString().split('.')[0]),
+                        trailing: Text(
+                          '${isInc ? '+' : (isTransfer ? '' : '-')}$currency${tx.amount.toStringAsFixed(2)}',
+                          style: TextStyle(
+                            color: isInc
+                                ? Colors.green
+                                : (isTransfer ? Colors.blue : Colors.red),
+                            fontWeight: FontWeight.bold,
+                            fontSize: 16,
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                  const SizedBox(height: 24),
+                  Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: theme.colorScheme.errorContainer,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Center(
+                      child: Text(
+                        'Total Expenses: $currency${totalExpenses.toStringAsFixed(2)}',
+                        style: theme.textTheme.titleLarge?.copyWith(
+                          color: theme.colorScheme.onErrorContainer,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const BudgetAnalyticsTab(),
+          ],
+        ),
+        floatingActionButton: FloatingActionButton.extended(
+          backgroundColor: theme.colorScheme.primary,
+          foregroundColor: Colors.white,
+          onPressed: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const TransactionEntryScreen()),
+            );
+          },
+          icon: const Icon(Icons.add),
+          label: const Text('Add Transaction'),
+        ),
       ),
-          const BudgetAnalyticsTab(),
-        ],
-      ),
-      floatingActionButton: FloatingActionButton.extended(
-        backgroundColor: theme.colorScheme.primary,
-        foregroundColor: Colors.white,
-        onPressed: () {
-          Navigator.push(
-            context,
-            MaterialPageRoute(builder: (_) => const TransactionEntryScreen()),
-          );
-        },
-        icon: const Icon(Icons.add),
-        label: const Text('Add Transaction'),
-      ),
-    ),
     );
   }
 }
-

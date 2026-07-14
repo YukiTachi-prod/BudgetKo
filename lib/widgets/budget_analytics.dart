@@ -86,7 +86,8 @@ class _BudgetAnalyticsState extends State<BudgetAnalytics> {
                       PieChartData(
                         sections: widget.categories
                             .map((c) {
-                              final amount = widget.categoryExpenses[c.id] ?? 0.0;
+                              final amount =
+                                  widget.categoryExpenses[c.id] ?? 0.0;
                               return PieChartSectionData(
                                 color: Color(c.colorHex),
                                 value: amount,
@@ -302,10 +303,13 @@ class _FullScreenDonutChartState extends State<FullScreenDonutChart> {
   @override
   Widget build(BuildContext context) {
     final currency = context.watch<SettingsProvider>().currency;
-    final validSections = widget.categories.map((c) {
-      final amount = widget.categoryExpenses[c.id] ?? 0.0;
-      return MapEntry(c, amount);
-    }).where((e) => e.value > 0).toList();
+    final validSections = widget.categories
+        .map((c) {
+          final amount = widget.categoryExpenses[c.id] ?? 0.0;
+          return MapEntry(c, amount);
+        })
+        .where((e) => e.value > 0)
+        .toList();
 
     return Scaffold(
       appBar: AppBar(title: const Text('Expenses Chart')),

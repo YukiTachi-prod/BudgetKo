@@ -61,7 +61,10 @@ class _BudgetAnalyticsTabState extends State<BudgetAnalyticsTab> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text('Analytics Filter', style: Theme.of(context).textTheme.titleMedium),
+              Text(
+                'Analytics Filter',
+                style: Theme.of(context).textTheme.titleMedium,
+              ),
               DropdownButton<String>(
                 value: _dateFilter,
                 items: ['All Time', 'This Week', 'This Month', 'This Year']
@@ -102,13 +105,19 @@ class _BudgetAnalyticsTabState extends State<BudgetAnalyticsTab> {
                 DataColumn(label: Text('Date')),
               ],
               rows: expenses.map((tx) {
-                final catList = provider.categories.where((c) => c.id == tx.categoryId).toList();
-                final catName = catList.isNotEmpty ? catList.first.name : 'Unknown';
-                return DataRow(cells: [
-                  DataCell(Text(catName)),
-                  DataCell(Text('$currency${tx.amount.toStringAsFixed(2)}')),
-                  DataCell(Text(tx.date.toString().split(' ')[0])),
-                ]);
+                final catList = provider.categories
+                    .where((c) => c.id == tx.categoryId)
+                    .toList();
+                final catName = catList.isNotEmpty
+                    ? catList.first.name
+                    : 'Unknown';
+                return DataRow(
+                  cells: [
+                    DataCell(Text(catName)),
+                    DataCell(Text('$currency${tx.amount.toStringAsFixed(2)}')),
+                    DataCell(Text(tx.date.toString().split(' ')[0])),
+                  ],
+                );
               }).toList(),
             ),
           ),
