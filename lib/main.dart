@@ -7,6 +7,7 @@ import 'screens/main_screen.dart';
 import 'database/budget_database.dart';
 import 'providers/ledger_provider.dart';
 import 'theme/app_theme.dart';
+import 'screens/budget_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -56,7 +57,9 @@ class TaskerApp extends StatelessWidget {
       darkTheme: AppTheme.dark(
         settings.themeColor != null ? Color(settings.themeColor!) : null,
       ),
-      home: const MainScreen(),
+      home: settings.defaultMainScreen == 'Wallet'
+          ? const BudgetScreen(isDefault: true)
+          : const MainScreen(),
     );
   }
 }

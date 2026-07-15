@@ -13,22 +13,6 @@ class MainScreen extends StatefulWidget {
 }
 
 class _MainScreenState extends State<MainScreen> {
-  int _selectedIndex = 0;
-
-  static const _labels = ['Tasks', 'Settings'];
-  static const _icons = [Icons.description_outlined, Icons.settings_outlined];
-  static const _selectedIcons = [
-    Icons.description_rounded,
-    Icons.settings_rounded,
-  ];
-
-  // IndexedStack preserves scroll/state on tab switch
-  static const _screens = [DashboardScreen(), SettingsScreen()];
-
-  void _onTab(int index) => setState(() => _selectedIndex = index);
-
-  bool get _showNewButton => _selectedIndex < 1;
-
   void _openNewTask() {
     Navigator.push(
       context,
@@ -90,74 +74,22 @@ class _MainScreenState extends State<MainScreen> {
 
     return Scaffold(
       backgroundColor: theme.scaffoldBackgroundColor,
-      body: Row(
+      body: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          // Sidebar
-          NavigationRail(
-            selectedIndex: _selectedIndex,
-            onDestinationSelected: _onTab,
-            labelType: NavigationRailLabelType.all,
-            leading: Padding(
-              padding: const EdgeInsets.only(bottom: 8),
-              child: Column(
-                children: [
-                  const SizedBox(height: 16),
-                  IconButton(
-                    icon: const Icon(
-                      Icons.account_balance_wallet_rounded,
-                      size: 26,
-                      color: Colors.white,
-                    ),
-                    onPressed: _openBudget,
-                    tooltip: 'Wallet',
-                  ),
-                  const SizedBox(height: 16),
-                ],
-              ),
-            ),
-            destinations: [
-              for (int i = 0; i < _labels.length; i++)
-                NavigationRailDestination(
-                  icon: Icon(_icons[i]),
-                  selectedIcon: Icon(_selectedIcons[i]),
-                  label: Text(_labels[i]),
-                ),
-            ],
+          _DesktopHeader(
+            title: 'Tasks',
+            onNewTask: _openNewTask,
+            onOpenHeatmap: _openHeatmap,
+            onOpenBudget: _openBudget,
+            onOpenSettings: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const SettingsScreen()),
+              );
+            },
           ),
-
-          Container(
-            width: 1,
-            decoration: BoxDecoration(
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.12),
-                  blurRadius: 8,
-                  offset: const Offset(2, 0),
-                ),
-              ],
-            ),
-          ),
-
-          // Main content
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                _DesktopHeader(
-                  title: _labels[_selectedIndex],
-                  showNewButton: _showNewButton,
-                  onNewTask: _openNewTask,
-                  onOpenHeatmap: _openHeatmap,
-                ),
-                Expanded(
-                  child: IndexedStack(
-                    index: _selectedIndex,
-                    children: _screens,
-                  ),
-                ),
-              ],
-            ),
-          ),
+          const Expanded(child: DashboardScreen()),
         ],
       ),
     );
@@ -167,59 +99,63 @@ class _MainScreenState extends State<MainScreen> {
   Widget _buildMobile(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text(_labels[_selectedIndex]),
+        title: const Text('Tasks'),
         centerTitle: true,
-        leading: IconButton(
-          icon: Icon(
-            Icons.account_balance_wallet_rounded,
-            color: Theme.of(context).colorScheme.primary,
-          ),
-          onPressed: _openBudget,
-          tooltip: 'Wallet',
-        ),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.grid_view_rounded),
-            onPressed: _openHeatmap,
-            tooltip: 'Web: Open Heatmap (Squeeze)',
-          ),
-          if (_showNewButton)
+        leadingWidth: 140, // accommodate 3 icons
+        leading: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            IconButton(
+              icon: Icon(
+                Icons.account_balance_wallet_rounded,
+                color: Theme.of(context).colorScheme.primary,
+              ),
+              onPressed: _openBudget,
+              tooltip: 'Wallet',
+            ),
+            IconButton(
+              icon: const Icon(Icons.grid_view_rounded),
+              onPressed: _openHeatmap,
+              tooltip: 'Web: Open Heatmap (Squeeze)',
+            ),
             IconButton(
               icon: const Icon(Icons.add_rounded),
               onPressed: _openNewTask,
               tooltip: 'New task',
             ),
+          ],
+        ),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.settings_rounded),
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const SettingsScreen()),
+              );
+            },
+            tooltip: 'Settings',
+          ),
         ],
       ),
-      body: IndexedStack(index: _selectedIndex, children: _screens),
-      bottomNavigationBar: BottomNavigationBar(
-        currentIndex: _selectedIndex,
-        onTap: _onTab,
-        items: [
-          for (int i = 0; i < _labels.length; i++)
-            BottomNavigationBarItem(
-              icon: Icon(_icons[i]),
-              activeIcon: Icon(_selectedIcons[i]),
-              label: _labels[i],
-            ),
-        ],
-      ),
+      body: const DashboardScreen(),
     );
   }
 }
 
-// ── Desktop page header ────────────────────────────────────────────
 class _DesktopHeader extends StatelessWidget {
   final String title;
-  final bool showNewButton;
   final VoidCallback onNewTask;
   final VoidCallback onOpenHeatmap;
+  final VoidCallback onOpenBudget;
+  final VoidCallback onOpenSettings;
 
   const _DesktopHeader({
     required this.title,
-    required this.showNewButton,
     required this.onNewTask,
     required this.onOpenHeatmap,
+    required this.onOpenBudget,
+    required this.onOpenSettings,
   });
 
   @override
@@ -234,20 +170,34 @@ class _DesktopHeader extends StatelessWidget {
       ),
       child: Row(
         children: [
-          Text(title, style: theme.textTheme.titleLarge),
-          const Spacer(),
+          IconButton(
+            icon: Icon(
+              Icons.account_balance_wallet_rounded,
+              color: theme.colorScheme.primary,
+            ),
+            onPressed: onOpenBudget,
+            tooltip: 'Wallet',
+          ),
+          const SizedBox(width: 8),
           IconButton(
             icon: const Icon(Icons.grid_view_rounded),
             onPressed: onOpenHeatmap,
             tooltip: 'Web: Open Heatmap (Squeeze)',
           ),
           const SizedBox(width: 8),
-          if (showNewButton)
-            FilledButton.icon(
-              icon: const Icon(Icons.add_rounded, size: 16),
-              label: const Text('New task'),
-              onPressed: onNewTask,
-            ),
+          FilledButton.icon(
+            icon: const Icon(Icons.add_rounded, size: 16),
+            label: const Text('New task'),
+            onPressed: onNewTask,
+          ),
+          const Spacer(),
+          Text(title, style: theme.textTheme.titleLarge),
+          const Spacer(),
+          IconButton(
+            icon: const Icon(Icons.settings_rounded),
+            onPressed: onOpenSettings,
+            tooltip: 'Settings',
+          ),
         ],
       ),
     );

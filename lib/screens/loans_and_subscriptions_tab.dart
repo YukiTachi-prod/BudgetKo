@@ -451,37 +451,12 @@ class LoansAndSubscriptionsTab extends StatelessWidget {
                 color: loan.isPaid ? Colors.green : Colors.red,
               ),
             ),
-            title: Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    loan.creditorName,
-                    style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      decoration: loan.isPaid
-                          ? TextDecoration.lineThrough
-                          : null,
-                    ),
-                  ),
-                ),
-                if (!loan.isPaid)
-                  FilledButton.tonal(
-                    onPressed: () {
-                      provider.updateLoan(
-                        loanId: loan.id,
-                        creditorName: loan.creditorName,
-                        amount: loan.amount,
-                        remainingAmount: loan.remainingAmount,
-                        dueDate: loan.dueDate,
-                        isPaid: true,
-                        accountId: loan.accountId,
-                        isOutgoing: loan.isOutgoing,
-                        notes: loan.notes,
-                      );
-                    },
-                    child: const Text('Paid', style: TextStyle(fontSize: 16)),
-                  ),
-              ],
+            title: Text(
+              loan.creditorName,
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                decoration: loan.isPaid ? TextDecoration.lineThrough : null,
+              ),
             ),
             subtitle: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -500,27 +475,60 @@ class LoansAndSubscriptionsTab extends StatelessWidget {
                   ),
               ],
             ),
-            trailing: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              crossAxisAlignment: CrossAxisAlignment.end,
+            trailing: Row(
+              mainAxisSize: MainAxisSize.min,
               children: [
-                Text(
-                  '$currency${loan.remainingAmount.toStringAsFixed(2)}',
-                  style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    color: loan.isPaid
-                        ? Colors.grey
-                        : (isOutgoing
-                              ? Colors.green.shade700
-                              : Colors.red.shade700),
-                    fontSize: 24,
+                if (!loan.isPaid) ...[
+                  SizedBox(
+                    height: 32,
+                    child: FilledButton.tonal(
+                      style: FilledButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(horizontal: 12),
+                      ),
+                      onPressed: () {
+                        provider.updateLoan(
+                          loanId: loan.id,
+                          creditorName: loan.creditorName,
+                          amount: loan.amount,
+                          remainingAmount: loan.remainingAmount,
+                          dueDate: loan.dueDate,
+                          isPaid: true,
+                          accountId: loan.accountId,
+                          isOutgoing: loan.isOutgoing,
+                          notes: loan.notes,
+                        );
+                      },
+                      child: const Text('Paid', style: TextStyle(fontSize: 12)),
+                    ),
                   ),
+                  const SizedBox(width: 12),
+                ],
+                Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    Text(
+                      '$currency${loan.remainingAmount.toStringAsFixed(2)}',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        color: loan.isPaid
+                            ? Colors.grey
+                            : (isOutgoing
+                                  ? Colors.green.shade700
+                                  : Colors.red.shade700),
+                        fontSize: 24,
+                      ),
+                    ),
+                    if (loan.isPaid)
+                      Text(
+                        'of $currency${loan.amount.toStringAsFixed(2)}',
+                        style: const TextStyle(
+                          fontSize: 14,
+                          color: Colors.grey,
+                        ),
+                      ),
+                  ],
                 ),
-                if (loan.isPaid)
-                  Text(
-                    'of $currency${loan.amount.toStringAsFixed(2)}',
-                    style: const TextStyle(fontSize: 14, color: Colors.grey),
-                  ),
               ],
             ),
           ),

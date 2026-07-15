@@ -10,9 +10,12 @@ import 'loans_and_subscriptions_tab.dart';
 import 'expenses_tab.dart';
 import 'package:flutter_colorpicker/flutter_colorpicker.dart';
 import '../utils/math_util.dart';
+import 'main_screen.dart';
+import 'settings_screen.dart';
 
 class BudgetScreen extends StatelessWidget {
-  const BudgetScreen({super.key});
+  final bool isDefault;
+  const BudgetScreen({super.key, this.isDefault = false});
 
   void _showAccountDialog(BuildContext context, [Account? accountToEdit]) {
     final nameCtrl = TextEditingController(text: accountToEdit?.name ?? '');
@@ -382,13 +385,55 @@ class BudgetScreen extends StatelessWidget {
         appBar: AppBar(
           title: const Text('Wallet'),
           centerTitle: true,
-          leading: IconButton(
-            icon: Icon(
-              Icons.description_rounded,
-              color: Theme.of(context).colorScheme.primary,
-            ),
-            onPressed: () => Navigator.pop(context),
-            tooltip: 'Back to Tasks',
+          leadingWidth: 180,
+          leading: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              IconButton(
+                icon: Icon(
+                  Icons.description_rounded,
+                  color: Theme.of(context).colorScheme.primary,
+                ),
+                onPressed: () {
+                  if (isDefault) {
+                    Navigator.pushReplacement(
+                      context,
+                      MaterialPageRoute(builder: (_) => const MainScreen()),
+                    );
+                  } else {
+                    Navigator.pop(context);
+                  }
+                },
+                tooltip: 'Tasks',
+              ),
+              IconButton(
+                icon: const Icon(Icons.file_download),
+                onPressed: () async {
+                  final db = context.read<BudgetDatabase>();
+                  await DataExportService(db).exportLedgerToCsv();
+                },
+                tooltip: 'Export to CSV',
+              ),
+              DropdownButtonHideUnderline(
+                child: DropdownButton<String>(
+                  value: currency,
+                  icon: const Icon(Icons.arrow_drop_down),
+                  onChanged: (String? newValue) {
+                    if (newValue != null) {
+                      settings.setCurrency(newValue);
+                    }
+                  },
+                  items: <String>['\$', '€', '£', '¥', '₱', '₹', '₽']
+                      .map<DropdownMenuItem<String>>((String value) {
+                        return DropdownMenuItem<String>(
+                          value: value,
+                          child: Text(value),
+                        );
+                      })
+                      .toList(),
+                ),
+              ),
+            ],
           ),
           bottom: const TabBar(
             tabs: [
@@ -399,32 +444,15 @@ class BudgetScreen extends StatelessWidget {
             ],
           ),
           actions: [
-            DropdownButtonHideUnderline(
-              child: DropdownButton<String>(
-                value: currency,
-                icon: const Icon(Icons.arrow_drop_down),
-                onChanged: (String? newValue) {
-                  if (newValue != null) {
-                    settings.setCurrency(newValue);
-                  }
-                },
-                items: <String>['\$', '€', '£', '¥', '₱', '₹', '₽']
-                    .map<DropdownMenuItem<String>>((String value) {
-                      return DropdownMenuItem<String>(
-                        value: value,
-                        child: Text(value),
-                      );
-                    })
-                    .toList(),
-              ),
-            ),
             IconButton(
-              icon: const Icon(Icons.file_download),
-              onPressed: () async {
-                final db = context.read<BudgetDatabase>();
-                await DataExportService(db).exportLedgerToCsv();
+              icon: const Icon(Icons.settings_rounded),
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const SettingsScreen()),
+                );
               },
-              tooltip: 'Export to CSV',
+              tooltip: 'Settings',
             ),
           ],
         ),

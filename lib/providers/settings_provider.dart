@@ -10,6 +10,7 @@ class SettingsProvider with ChangeNotifier {
   static const String _keyHidePdfReminder = 'hide_pdf_reminder';
   static const String _keyUseDialTimePicker = 'use_dial_time_picker';
   static const String _keyCurrency = 'currency';
+  static const String _keyDefaultMainScreen = 'default_main_screen';
 
   static const String _keyStatusColors = 'status_colors';
   static const String _keyAlarmSoundPath = 'alarm_sound_path';
@@ -21,6 +22,7 @@ class SettingsProvider with ChangeNotifier {
   bool _hidePdfReminder = false;
   bool _useDialTimePicker = false; // Default to numeric input
   String _currency = '₱';
+  String _defaultMainScreen = 'Notes';
   String? _alarmSoundPath;
   String _alarmChannelId = 'task_alarms';
   List<String> _categories = ['Work', 'Personal', 'Shopping', 'Health'];
@@ -41,6 +43,7 @@ class SettingsProvider with ChangeNotifier {
   bool get hidePdfReminder => _hidePdfReminder;
   bool get useDialTimePicker => _useDialTimePicker;
   String get currency => _currency;
+  String get defaultMainScreen => _defaultMainScreen;
   List<String> get categories => _categories;
   List<String> get statuses => _statuses;
   Map<String, int> get statusColors => _statusColors;
@@ -56,6 +59,7 @@ class SettingsProvider with ChangeNotifier {
     _hidePdfReminder = prefs.getBool(_keyHidePdfReminder) ?? false;
     _useDialTimePicker = prefs.getBool(_keyUseDialTimePicker) ?? false;
     _currency = prefs.getString(_keyCurrency) ?? '₱';
+    _defaultMainScreen = prefs.getString(_keyDefaultMainScreen) ?? 'Notes';
     _categories =
         prefs.getStringList(_keyCategories) ??
         ['Work', 'Personal', 'Shopping', 'Health'];
@@ -117,6 +121,13 @@ class SettingsProvider with ChangeNotifier {
     _currency = value;
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(_keyCurrency, value);
+    notifyListeners();
+  }
+
+  Future<void> setDefaultMainScreen(String value) async {
+    _defaultMainScreen = value;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_keyDefaultMainScreen, value);
     notifyListeners();
   }
 
@@ -196,6 +207,7 @@ class SettingsProvider with ChangeNotifier {
     _hidePdfReminder = false;
     _useDialTimePicker = false;
     _currency = '₱';
+    _defaultMainScreen = 'Notes';
     _themeColor = null;
     _categories = ['Work', 'Personal', 'Shopping', 'Health'];
     _statuses = ['Not Started', 'Ongoing', 'Finished', 'Dropped'];
