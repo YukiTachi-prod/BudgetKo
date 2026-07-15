@@ -4,12 +4,18 @@ import 'package:provider/provider.dart';
 import '../providers/ledger_provider.dart';
 import '../providers/settings_provider.dart';
 import '../database/budget_database.dart';
+import '../utils/math_util.dart';
 
 class LoansAndSubscriptionsTab extends StatelessWidget {
   const LoansAndSubscriptionsTab({super.key});
 
-  void _showLoanDialog(BuildContext context, [Loan? loanToEdit]) {
+  void _showLoanDialog(
+    BuildContext context, {
+    Loan? loanToEdit,
+    bool isOutgoing = false,
+  }) {
     final provider = context.read<LedgerProvider>();
+    final isEditOutgoing = loanToEdit?.isOutgoing ?? isOutgoing;
     final creditorCtrl = TextEditingController(
       text: loanToEdit?.creditorName ?? '',
     );
@@ -40,8 +46,10 @@ class LoansAndSubscriptionsTab extends StatelessWidget {
                   children: [
                     TextField(
                       controller: creditorCtrl,
-                      decoration: const InputDecoration(
-                        labelText: 'Creditor Name',
+                      decoration: InputDecoration(
+                        labelText: isEditOutgoing
+                            ? 'Debtor Name (owes you)'
+                            : 'Creditor Name (you owe)',
                       ),
                     ),
                     const SizedBox(height: 12),
@@ -154,9 +162,10 @@ class LoansAndSubscriptionsTab extends StatelessWidget {
                 FilledButton(
                   onPressed: () {
                     final creditor = creditorCtrl.text.trim();
-                    final amount = double.tryParse(amountCtrl.text) ?? 0.0;
-                    final remaining =
-                        double.tryParse(remainingCtrl.text) ?? amount;
+                    final amount = parseAmount(amountCtrl.text);
+                    final remaining = remainingCtrl.text.isNotEmpty
+                        ? parseAmount(remainingCtrl.text)
+                        : amount;
                     if (creditor.isNotEmpty && selectedAccountId != null) {
                       if (loanToEdit == null) {
                         provider.addLoan(
@@ -165,6 +174,7 @@ class LoansAndSubscriptionsTab extends StatelessWidget {
                           remainingAmount: remaining,
                           dueDate: selectedDate,
                           accountId: selectedAccountId!,
+                          isOutgoing: isEditOutgoing,
                           notes: notesCtrl.text.trim().isEmpty
                               ? null
                               : notesCtrl.text.trim(),
@@ -178,6 +188,7 @@ class LoansAndSubscriptionsTab extends StatelessWidget {
                           dueDate: selectedDate,
                           isPaid: isPaid,
                           accountId: selectedAccountId!,
+                          isOutgoing: isEditOutgoing,
                           notes: notesCtrl.text.trim().isEmpty
                               ? null
                               : notesCtrl.text.trim(),
@@ -355,7 +366,7 @@ class LoansAndSubscriptionsTab extends StatelessWidget {
                 FilledButton(
                   onPressed: () {
                     final name = nameCtrl.text.trim();
-                    final cost = double.tryParse(costCtrl.text) ?? 0.0;
+                    final cost = parseAmount(costCtrl.text);
                     if (name.isNotEmpty && selectedAccountId != null) {
                       if (subToEdit == null) {
                         provider.addSubscription(
@@ -395,6 +406,129 @@ class LoansAndSubscriptionsTab extends StatelessWidget {
     );
   }
 
+  Widget _buildLoansList(
+    BuildContext context,
+    List<Loan> loansList,
+    LedgerProvider provider,
+    String currency,
+    bool isOutgoing,
+  ) {
+    if (loansList.isEmpty) {
+      return const Padding(
+        padding: EdgeInsets.symmetric(vertical: 16.0),
+        child: Text('No active loans here. Add one above!'),
+      );
+    }
+    return ListView.builder(
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      itemCount: loansList.length,
+      itemBuilder: (context, index) {
+        final loan = loansList[index];
+        final acc = provider.accounts.firstWhere(
+          (a) => a.id == loan.accountId,
+          orElse: () => provider.accounts.first, // fallback
+        );
+        final accColor = Color(acc.colorHex);
+
+        return Padding(
+          padding: const EdgeInsets.symmetric(vertical: 4),
+          child: ListTile(
+            onTap: () => _showLoanDialog(context, loanToEdit: loan),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+              side: BorderSide(color: accColor.withValues(alpha: 0.3)),
+            ),
+            tileColor: accColor.withValues(alpha: 0.05),
+            leading: CircleAvatar(
+              backgroundColor: loan.isPaid
+                  ? Colors.green.withValues(alpha: 0.2)
+                  : Colors.red.withValues(alpha: 0.2),
+              child: Icon(
+                loan.isPaid
+                    ? Icons.check
+                    : (isOutgoing ? Icons.arrow_downward : Icons.arrow_upward),
+                color: loan.isPaid ? Colors.green : Colors.red,
+              ),
+            ),
+            title: Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    loan.creditorName,
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      decoration: loan.isPaid
+                          ? TextDecoration.lineThrough
+                          : null,
+                    ),
+                  ),
+                ),
+                if (!loan.isPaid)
+                  FilledButton.tonal(
+                    onPressed: () {
+                      provider.updateLoan(
+                        loanId: loan.id,
+                        creditorName: loan.creditorName,
+                        amount: loan.amount,
+                        remainingAmount: loan.remainingAmount,
+                        dueDate: loan.dueDate,
+                        isPaid: true,
+                        accountId: loan.accountId,
+                        isOutgoing: loan.isOutgoing,
+                        notes: loan.notes,
+                      );
+                    },
+                    child: const Text('Paid', style: TextStyle(fontSize: 16)),
+                  ),
+              ],
+            ),
+            subtitle: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const SizedBox(height: 4),
+                Text(
+                  'Due Date: ${DateFormat('yyyy-MM-dd').format(loan.dueDate)}',
+                ),
+                if (loan.notes != null && loan.notes!.isNotEmpty)
+                  Text(
+                    'Notes: ${loan.notes}',
+                    style: const TextStyle(
+                      fontSize: 12,
+                      fontStyle: FontStyle.italic,
+                    ),
+                  ),
+              ],
+            ),
+            trailing: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                Text(
+                  '$currency${loan.remainingAmount.toStringAsFixed(2)}',
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    color: loan.isPaid
+                        ? Colors.grey
+                        : (isOutgoing
+                              ? Colors.green.shade700
+                              : Colors.red.shade700),
+                    fontSize: 24,
+                  ),
+                ),
+                if (loan.isPaid)
+                  Text(
+                    'of $currency${loan.amount.toStringAsFixed(2)}',
+                    style: const TextStyle(fontSize: 14, color: Colors.grey),
+                  ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final provider = context.watch<LedgerProvider>();
@@ -406,131 +540,46 @@ class LoansAndSubscriptionsTab extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          // Loans Header
+          // Incoming Loans Header
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text('Loans & Debts', style: theme.textTheme.titleLarge),
+              Text('Incoming Loans', style: theme.textTheme.titleLarge),
               IconButton(
                 icon: const Icon(Icons.add_circle_outline, color: Colors.blue),
-                onPressed: () => _showLoanDialog(context),
+                onPressed: () => _showLoanDialog(context, isOutgoing: false),
               ),
             ],
           ),
           const SizedBox(height: 8),
-          if (provider.loans.isEmpty)
-            const Padding(
-              padding: EdgeInsets.symmetric(vertical: 16.0),
-              child: Text('No active loans or debts. Add one above!'),
-            )
-          else
-            ListView.builder(
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              itemCount: provider.loans.length,
-              itemBuilder: (context, index) {
-                final loan = provider.loans[index];
-                final acc = provider.accounts.firstWhere(
-                  (a) => a.id == loan.accountId,
-                  orElse: () => provider.accounts.first, // fallback
-                );
-                final accColor = Color(acc.colorHex);
+          _buildLoansList(
+            context,
+            provider.loans.where((l) => !l.isOutgoing).toList(),
+            provider,
+            currency,
+            false,
+          ),
+          const SizedBox(height: 32),
 
-                return Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 4),
-                  child: ListTile(
-                    onTap: () => _showLoanDialog(context, loan),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      side: BorderSide(color: accColor.withValues(alpha: 0.3)),
-                    ),
-                    tileColor: accColor.withValues(alpha: 0.05),
-                    leading: CircleAvatar(
-                      backgroundColor: loan.isPaid
-                          ? Colors.green.withValues(alpha: 0.2)
-                          : Colors.red.withValues(alpha: 0.2),
-                      child: Icon(
-                        loan.isPaid ? Icons.check : Icons.money_off,
-                        color: loan.isPaid ? Colors.green : Colors.red,
-                      ),
-                    ),
-                    title: Row(
-                      children: [
-                        Expanded(
-                          child: Text(
-                            loan.creditorName,
-                            style: TextStyle(
-                              fontWeight: FontWeight.bold,
-                              decoration: loan.isPaid
-                                  ? TextDecoration.lineThrough
-                                  : null,
-                            ),
-                          ),
-                        ),
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 6,
-                            vertical: 2,
-                          ),
-                          decoration: BoxDecoration(
-                            color: accColor.withValues(alpha: 0.15),
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: Text(
-                            acc.name,
-                            style: TextStyle(
-                              fontSize: 10,
-                              fontWeight: FontWeight.bold,
-                              color: accColor,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                    subtitle: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const SizedBox(height: 4),
-                        Text(
-                          'Due Date: ${DateFormat('yyyy-MM-dd').format(loan.dueDate)}',
-                        ),
-                        if (loan.notes != null && loan.notes!.isNotEmpty)
-                          Text(
-                            'Notes: ${loan.notes}',
-                            style: const TextStyle(
-                              fontSize: 12,
-                              fontStyle: FontStyle.italic,
-                            ),
-                          ),
-                      ],
-                    ),
-                    trailing: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      crossAxisAlignment: CrossAxisAlignment.end,
-                      children: [
-                        Text(
-                          '$currency${loan.remainingAmount.toStringAsFixed(2)}',
-                          style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            color: loan.isPaid
-                                ? Colors.grey
-                                : Colors.red.shade700,
-                            fontSize: 16,
-                          ),
-                        ),
-                        Text(
-                          'of $currency${loan.amount.toStringAsFixed(2)}',
-                          style: const TextStyle(
-                            fontSize: 11,
-                            color: Colors.grey,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                );
-              },
-            ),
+          // Outgoing Loans Header
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text('Outgoing Loans', style: theme.textTheme.titleLarge),
+              IconButton(
+                icon: const Icon(Icons.add_circle_outline, color: Colors.blue),
+                onPressed: () => _showLoanDialog(context, isOutgoing: true),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          _buildLoansList(
+            context,
+            provider.loans.where((l) => l.isOutgoing).toList(),
+            provider,
+            currency,
+            true,
+          ),
 
           const SizedBox(height: 32),
 

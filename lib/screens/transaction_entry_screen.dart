@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import '../providers/settings_provider.dart';
 import '../providers/ledger_provider.dart';
 import '../database/budget_database.dart';
+import '../utils/math_util.dart';
 
 class TransactionEntryScreen extends StatefulWidget {
   final LedgerTransaction? transactionToEdit;
@@ -51,8 +52,13 @@ class _TransactionEntryScreenState extends State<TransactionEntryScreen> {
         }
       } else if (value == '.') {
         if (!_amountStr.contains('.')) _amountStr += '.';
+      } else if (value == '=') {
+        _amountStr = parseAmount(_amountStr).toString();
+        if (_amountStr.endsWith('.0')) {
+          _amountStr = _amountStr.substring(0, _amountStr.length - 2);
+        }
       } else {
-        if (_amountStr == '0') {
+        if (_amountStr == '0' && value != '+' && value != '-') {
           _amountStr = value;
         } else {
           _amountStr += value;
@@ -67,7 +73,7 @@ class _TransactionEntryScreenState extends State<TransactionEntryScreen> {
       (a) => a.id == _selectedFromAccountId,
     );
     double balance = acc.currentBalance;
-    final amount = double.tryParse(_amountStr) ?? 0.0;
+    final amount = parseAmount(_amountStr);
 
     // If editing, reverse the old transaction first
     if (widget.transactionToEdit != null) {
@@ -98,7 +104,7 @@ class _TransactionEntryScreenState extends State<TransactionEntryScreen> {
   }
 
   Future<void> _saveTransaction() async {
-    final amount = double.tryParse(_amountStr) ?? 0.0;
+    final amount = parseAmount(_amountStr);
     if (amount <= 0 || _selectedFromAccountId == null) return;
 
     if (_type == TransactionType.transfer && _selectedToAccountId == null) {

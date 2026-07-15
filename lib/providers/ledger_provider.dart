@@ -73,6 +73,7 @@ class LedgerProvider extends ChangeNotifier {
     String name,
     double initialBalance, {
     int? colorHex,
+    double minBalance = 0.0,
   }) async {
     await _db
         .into(_db.accounts)
@@ -83,6 +84,7 @@ class LedgerProvider extends ChangeNotifier {
             colorHex: colorHex ?? Colors.blue.toARGB32(),
             initialBalance: Value(initialBalance),
             currentBalance: Value(initialBalance),
+            minBalance: Value(minBalance),
           ),
         );
     await refreshData();
@@ -119,6 +121,7 @@ class LedgerProvider extends ChangeNotifier {
     String name,
     double balance, {
     int? colorHex,
+    double? minBalance,
   }) async {
     await (_db.update(
       _db.accounts,
@@ -127,6 +130,9 @@ class LedgerProvider extends ChangeNotifier {
         name: Value(name),
         currentBalance: Value(balance),
         colorHex: colorHex != null ? Value(colorHex) : const Value.absent(),
+        minBalance: minBalance != null
+            ? Value(minBalance)
+            : const Value.absent(),
       ),
     );
     await refreshData();
@@ -366,6 +372,7 @@ class LedgerProvider extends ChangeNotifier {
     required double remainingAmount,
     required DateTime dueDate,
     required int accountId,
+    required bool isOutgoing,
     String? notes,
   }) async {
     await _db
@@ -379,6 +386,7 @@ class LedgerProvider extends ChangeNotifier {
             accountId: accountId,
             notes: Value(notes),
             isPaid: const Value(false),
+            isOutgoing: Value(isOutgoing),
           ),
         );
     await refreshData();
@@ -392,19 +400,54 @@ class LedgerProvider extends ChangeNotifier {
     required DateTime dueDate,
     required bool isPaid,
     required int accountId,
+    required bool isOutgoing,
     String? notes,
   }) async {
-    await (_db.update(_db.loans)..where((l) => l.id.equals(loanId))).write(
-      LoansCompanion(
-        creditorName: Value(creditorName),
-        amount: Value(amount),
-        remainingAmount: Value(remainingAmount),
-        dueDate: Value(dueDate),
-        isPaid: Value(isPaid),
-        accountId: Value(accountId),
-        notes: Value(notes),
-      ),
-    );
+    await _db.transaction(() async {
+      final oldLoan = await (_db.select(
+        _db.loans,
+      )..where((l) => l.id.equals(loanId))).getSingle();
+
+      if (!oldLoan.isPaid && isPaid) {
+        final acc = accounts.firstWhere((a) => a.id == accountId);
+        if (isOutgoing) {
+          await _updateAccountBalance(
+            accountId,
+            acc.currentBalance + remainingAmount,
+          );
+        } else {
+          await _updateAccountBalance(
+            accountId,
+            acc.currentBalance - remainingAmount,
+          );
+        }
+      } else if (oldLoan.isPaid && !isPaid) {
+        final acc = accounts.firstWhere((a) => a.id == accountId);
+        if (isOutgoing) {
+          await _updateAccountBalance(
+            accountId,
+            acc.currentBalance - remainingAmount,
+          );
+        } else {
+          await _updateAccountBalance(
+            accountId,
+            acc.currentBalance + remainingAmount,
+          );
+        }
+      }
+      await (_db.update(_db.loans)..where((l) => l.id.equals(loanId))).write(
+        LoansCompanion(
+          creditorName: Value(creditorName),
+          amount: Value(amount),
+          remainingAmount: Value(remainingAmount),
+          dueDate: Value(dueDate),
+          isPaid: Value(isPaid),
+          accountId: Value(accountId),
+          notes: Value(notes),
+          isOutgoing: Value(isOutgoing),
+        ),
+      );
+    });
     await refreshData();
   }
 

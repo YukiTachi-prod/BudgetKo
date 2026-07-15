@@ -80,6 +80,18 @@ class $AccountsTable extends Accounts with TableInfo<$AccountsTable, Account> {
     requiredDuringInsert: false,
     defaultValue: const Constant(0.0),
   );
+  static const VerificationMeta _minBalanceMeta = const VerificationMeta(
+    'minBalance',
+  );
+  @override
+  late final GeneratedColumn<double> minBalance = GeneratedColumn<double>(
+    'min_balance',
+    aliasedName,
+    false,
+    type: DriftSqlType.double,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0.0),
+  );
   @override
   List<GeneratedColumn> get $columns => [
     id,
@@ -88,6 +100,7 @@ class $AccountsTable extends Accounts with TableInfo<$AccountsTable, Account> {
     colorHex,
     initialBalance,
     currentBalance,
+    minBalance,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -149,6 +162,12 @@ class $AccountsTable extends Accounts with TableInfo<$AccountsTable, Account> {
         ),
       );
     }
+    if (data.containsKey('min_balance')) {
+      context.handle(
+        _minBalanceMeta,
+        minBalance.isAcceptableOrUnknown(data['min_balance']!, _minBalanceMeta),
+      );
+    }
     return context;
   }
 
@@ -182,6 +201,10 @@ class $AccountsTable extends Accounts with TableInfo<$AccountsTable, Account> {
         DriftSqlType.double,
         data['${effectivePrefix}current_balance'],
       )!,
+      minBalance: attachedDatabase.typeMapping.read(
+        DriftSqlType.double,
+        data['${effectivePrefix}min_balance'],
+      )!,
     );
   }
 
@@ -198,6 +221,7 @@ class Account extends DataClass implements Insertable<Account> {
   final int colorHex;
   final double initialBalance;
   final double currentBalance;
+  final double minBalance;
   const Account({
     required this.id,
     required this.name,
@@ -205,6 +229,7 @@ class Account extends DataClass implements Insertable<Account> {
     required this.colorHex,
     required this.initialBalance,
     required this.currentBalance,
+    required this.minBalance,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -215,6 +240,7 @@ class Account extends DataClass implements Insertable<Account> {
     map['color_hex'] = Variable<int>(colorHex);
     map['initial_balance'] = Variable<double>(initialBalance);
     map['current_balance'] = Variable<double>(currentBalance);
+    map['min_balance'] = Variable<double>(minBalance);
     return map;
   }
 
@@ -226,6 +252,7 @@ class Account extends DataClass implements Insertable<Account> {
       colorHex: Value(colorHex),
       initialBalance: Value(initialBalance),
       currentBalance: Value(currentBalance),
+      minBalance: Value(minBalance),
     );
   }
 
@@ -241,6 +268,7 @@ class Account extends DataClass implements Insertable<Account> {
       colorHex: serializer.fromJson<int>(json['colorHex']),
       initialBalance: serializer.fromJson<double>(json['initialBalance']),
       currentBalance: serializer.fromJson<double>(json['currentBalance']),
+      minBalance: serializer.fromJson<double>(json['minBalance']),
     );
   }
   @override
@@ -253,6 +281,7 @@ class Account extends DataClass implements Insertable<Account> {
       'colorHex': serializer.toJson<int>(colorHex),
       'initialBalance': serializer.toJson<double>(initialBalance),
       'currentBalance': serializer.toJson<double>(currentBalance),
+      'minBalance': serializer.toJson<double>(minBalance),
     };
   }
 
@@ -263,6 +292,7 @@ class Account extends DataClass implements Insertable<Account> {
     int? colorHex,
     double? initialBalance,
     double? currentBalance,
+    double? minBalance,
   }) => Account(
     id: id ?? this.id,
     name: name ?? this.name,
@@ -270,6 +300,7 @@ class Account extends DataClass implements Insertable<Account> {
     colorHex: colorHex ?? this.colorHex,
     initialBalance: initialBalance ?? this.initialBalance,
     currentBalance: currentBalance ?? this.currentBalance,
+    minBalance: minBalance ?? this.minBalance,
   );
   Account copyWithCompanion(AccountsCompanion data) {
     return Account(
@@ -285,6 +316,9 @@ class Account extends DataClass implements Insertable<Account> {
       currentBalance: data.currentBalance.present
           ? data.currentBalance.value
           : this.currentBalance,
+      minBalance: data.minBalance.present
+          ? data.minBalance.value
+          : this.minBalance,
     );
   }
 
@@ -296,7 +330,8 @@ class Account extends DataClass implements Insertable<Account> {
           ..write('iconCodePoint: $iconCodePoint, ')
           ..write('colorHex: $colorHex, ')
           ..write('initialBalance: $initialBalance, ')
-          ..write('currentBalance: $currentBalance')
+          ..write('currentBalance: $currentBalance, ')
+          ..write('minBalance: $minBalance')
           ..write(')'))
         .toString();
   }
@@ -309,6 +344,7 @@ class Account extends DataClass implements Insertable<Account> {
     colorHex,
     initialBalance,
     currentBalance,
+    minBalance,
   );
   @override
   bool operator ==(Object other) =>
@@ -319,7 +355,8 @@ class Account extends DataClass implements Insertable<Account> {
           other.iconCodePoint == this.iconCodePoint &&
           other.colorHex == this.colorHex &&
           other.initialBalance == this.initialBalance &&
-          other.currentBalance == this.currentBalance);
+          other.currentBalance == this.currentBalance &&
+          other.minBalance == this.minBalance);
 }
 
 class AccountsCompanion extends UpdateCompanion<Account> {
@@ -329,6 +366,7 @@ class AccountsCompanion extends UpdateCompanion<Account> {
   final Value<int> colorHex;
   final Value<double> initialBalance;
   final Value<double> currentBalance;
+  final Value<double> minBalance;
   const AccountsCompanion({
     this.id = const Value.absent(),
     this.name = const Value.absent(),
@@ -336,6 +374,7 @@ class AccountsCompanion extends UpdateCompanion<Account> {
     this.colorHex = const Value.absent(),
     this.initialBalance = const Value.absent(),
     this.currentBalance = const Value.absent(),
+    this.minBalance = const Value.absent(),
   });
   AccountsCompanion.insert({
     this.id = const Value.absent(),
@@ -344,6 +383,7 @@ class AccountsCompanion extends UpdateCompanion<Account> {
     required int colorHex,
     this.initialBalance = const Value.absent(),
     this.currentBalance = const Value.absent(),
+    this.minBalance = const Value.absent(),
   }) : name = Value(name),
        iconCodePoint = Value(iconCodePoint),
        colorHex = Value(colorHex);
@@ -354,6 +394,7 @@ class AccountsCompanion extends UpdateCompanion<Account> {
     Expression<int>? colorHex,
     Expression<double>? initialBalance,
     Expression<double>? currentBalance,
+    Expression<double>? minBalance,
   }) {
     return RawValuesInsertable({
       if (id != null) 'id': id,
@@ -362,6 +403,7 @@ class AccountsCompanion extends UpdateCompanion<Account> {
       if (colorHex != null) 'color_hex': colorHex,
       if (initialBalance != null) 'initial_balance': initialBalance,
       if (currentBalance != null) 'current_balance': currentBalance,
+      if (minBalance != null) 'min_balance': minBalance,
     });
   }
 
@@ -372,6 +414,7 @@ class AccountsCompanion extends UpdateCompanion<Account> {
     Value<int>? colorHex,
     Value<double>? initialBalance,
     Value<double>? currentBalance,
+    Value<double>? minBalance,
   }) {
     return AccountsCompanion(
       id: id ?? this.id,
@@ -380,6 +423,7 @@ class AccountsCompanion extends UpdateCompanion<Account> {
       colorHex: colorHex ?? this.colorHex,
       initialBalance: initialBalance ?? this.initialBalance,
       currentBalance: currentBalance ?? this.currentBalance,
+      minBalance: minBalance ?? this.minBalance,
     );
   }
 
@@ -404,6 +448,9 @@ class AccountsCompanion extends UpdateCompanion<Account> {
     if (currentBalance.present) {
       map['current_balance'] = Variable<double>(currentBalance.value);
     }
+    if (minBalance.present) {
+      map['min_balance'] = Variable<double>(minBalance.value);
+    }
     return map;
   }
 
@@ -415,7 +462,8 @@ class AccountsCompanion extends UpdateCompanion<Account> {
           ..write('iconCodePoint: $iconCodePoint, ')
           ..write('colorHex: $colorHex, ')
           ..write('initialBalance: $initialBalance, ')
-          ..write('currentBalance: $currentBalance')
+          ..write('currentBalance: $currentBalance, ')
+          ..write('minBalance: $minBalance')
           ..write(')'))
         .toString();
   }
@@ -1442,6 +1490,21 @@ class $LoansTable extends Loans with TableInfo<$LoansTable, Loan> {
     ),
     defaultValue: const Constant(false),
   );
+  static const VerificationMeta _isOutgoingMeta = const VerificationMeta(
+    'isOutgoing',
+  );
+  @override
+  late final GeneratedColumn<bool> isOutgoing = GeneratedColumn<bool>(
+    'is_outgoing',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("is_outgoing" IN (0, 1))',
+    ),
+    defaultValue: const Constant(false),
+  );
   static const VerificationMeta _accountIdMeta = const VerificationMeta(
     'accountId',
   );
@@ -1470,6 +1533,7 @@ class $LoansTable extends Loans with TableInfo<$LoansTable, Loan> {
     remainingAmount,
     dueDate,
     isPaid,
+    isOutgoing,
     accountId,
     notes,
   ];
@@ -1532,6 +1596,12 @@ class $LoansTable extends Loans with TableInfo<$LoansTable, Loan> {
         isPaid.isAcceptableOrUnknown(data['is_paid']!, _isPaidMeta),
       );
     }
+    if (data.containsKey('is_outgoing')) {
+      context.handle(
+        _isOutgoingMeta,
+        isOutgoing.isAcceptableOrUnknown(data['is_outgoing']!, _isOutgoingMeta),
+      );
+    }
     if (data.containsKey('account_id')) {
       context.handle(
         _accountIdMeta,
@@ -1579,6 +1649,10 @@ class $LoansTable extends Loans with TableInfo<$LoansTable, Loan> {
         DriftSqlType.bool,
         data['${effectivePrefix}is_paid'],
       )!,
+      isOutgoing: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}is_outgoing'],
+      )!,
       accountId: attachedDatabase.typeMapping.read(
         DriftSqlType.int,
         data['${effectivePrefix}account_id'],
@@ -1603,6 +1677,7 @@ class Loan extends DataClass implements Insertable<Loan> {
   final double remainingAmount;
   final DateTime dueDate;
   final bool isPaid;
+  final bool isOutgoing;
   final int accountId;
   final String? notes;
   const Loan({
@@ -1612,6 +1687,7 @@ class Loan extends DataClass implements Insertable<Loan> {
     required this.remainingAmount,
     required this.dueDate,
     required this.isPaid,
+    required this.isOutgoing,
     required this.accountId,
     this.notes,
   });
@@ -1624,6 +1700,7 @@ class Loan extends DataClass implements Insertable<Loan> {
     map['remaining_amount'] = Variable<double>(remainingAmount);
     map['due_date'] = Variable<DateTime>(dueDate);
     map['is_paid'] = Variable<bool>(isPaid);
+    map['is_outgoing'] = Variable<bool>(isOutgoing);
     map['account_id'] = Variable<int>(accountId);
     if (!nullToAbsent || notes != null) {
       map['notes'] = Variable<String>(notes);
@@ -1639,6 +1716,7 @@ class Loan extends DataClass implements Insertable<Loan> {
       remainingAmount: Value(remainingAmount),
       dueDate: Value(dueDate),
       isPaid: Value(isPaid),
+      isOutgoing: Value(isOutgoing),
       accountId: Value(accountId),
       notes: notes == null && nullToAbsent
           ? const Value.absent()
@@ -1658,6 +1736,7 @@ class Loan extends DataClass implements Insertable<Loan> {
       remainingAmount: serializer.fromJson<double>(json['remainingAmount']),
       dueDate: serializer.fromJson<DateTime>(json['dueDate']),
       isPaid: serializer.fromJson<bool>(json['isPaid']),
+      isOutgoing: serializer.fromJson<bool>(json['isOutgoing']),
       accountId: serializer.fromJson<int>(json['accountId']),
       notes: serializer.fromJson<String?>(json['notes']),
     );
@@ -1672,6 +1751,7 @@ class Loan extends DataClass implements Insertable<Loan> {
       'remainingAmount': serializer.toJson<double>(remainingAmount),
       'dueDate': serializer.toJson<DateTime>(dueDate),
       'isPaid': serializer.toJson<bool>(isPaid),
+      'isOutgoing': serializer.toJson<bool>(isOutgoing),
       'accountId': serializer.toJson<int>(accountId),
       'notes': serializer.toJson<String?>(notes),
     };
@@ -1684,6 +1764,7 @@ class Loan extends DataClass implements Insertable<Loan> {
     double? remainingAmount,
     DateTime? dueDate,
     bool? isPaid,
+    bool? isOutgoing,
     int? accountId,
     Value<String?> notes = const Value.absent(),
   }) => Loan(
@@ -1693,6 +1774,7 @@ class Loan extends DataClass implements Insertable<Loan> {
     remainingAmount: remainingAmount ?? this.remainingAmount,
     dueDate: dueDate ?? this.dueDate,
     isPaid: isPaid ?? this.isPaid,
+    isOutgoing: isOutgoing ?? this.isOutgoing,
     accountId: accountId ?? this.accountId,
     notes: notes.present ? notes.value : this.notes,
   );
@@ -1708,6 +1790,9 @@ class Loan extends DataClass implements Insertable<Loan> {
           : this.remainingAmount,
       dueDate: data.dueDate.present ? data.dueDate.value : this.dueDate,
       isPaid: data.isPaid.present ? data.isPaid.value : this.isPaid,
+      isOutgoing: data.isOutgoing.present
+          ? data.isOutgoing.value
+          : this.isOutgoing,
       accountId: data.accountId.present ? data.accountId.value : this.accountId,
       notes: data.notes.present ? data.notes.value : this.notes,
     );
@@ -1722,6 +1807,7 @@ class Loan extends DataClass implements Insertable<Loan> {
           ..write('remainingAmount: $remainingAmount, ')
           ..write('dueDate: $dueDate, ')
           ..write('isPaid: $isPaid, ')
+          ..write('isOutgoing: $isOutgoing, ')
           ..write('accountId: $accountId, ')
           ..write('notes: $notes')
           ..write(')'))
@@ -1736,6 +1822,7 @@ class Loan extends DataClass implements Insertable<Loan> {
     remainingAmount,
     dueDate,
     isPaid,
+    isOutgoing,
     accountId,
     notes,
   );
@@ -1749,6 +1836,7 @@ class Loan extends DataClass implements Insertable<Loan> {
           other.remainingAmount == this.remainingAmount &&
           other.dueDate == this.dueDate &&
           other.isPaid == this.isPaid &&
+          other.isOutgoing == this.isOutgoing &&
           other.accountId == this.accountId &&
           other.notes == this.notes);
 }
@@ -1760,6 +1848,7 @@ class LoansCompanion extends UpdateCompanion<Loan> {
   final Value<double> remainingAmount;
   final Value<DateTime> dueDate;
   final Value<bool> isPaid;
+  final Value<bool> isOutgoing;
   final Value<int> accountId;
   final Value<String?> notes;
   const LoansCompanion({
@@ -1769,6 +1858,7 @@ class LoansCompanion extends UpdateCompanion<Loan> {
     this.remainingAmount = const Value.absent(),
     this.dueDate = const Value.absent(),
     this.isPaid = const Value.absent(),
+    this.isOutgoing = const Value.absent(),
     this.accountId = const Value.absent(),
     this.notes = const Value.absent(),
   });
@@ -1779,6 +1869,7 @@ class LoansCompanion extends UpdateCompanion<Loan> {
     required double remainingAmount,
     required DateTime dueDate,
     this.isPaid = const Value.absent(),
+    this.isOutgoing = const Value.absent(),
     required int accountId,
     this.notes = const Value.absent(),
   }) : creditorName = Value(creditorName),
@@ -1793,6 +1884,7 @@ class LoansCompanion extends UpdateCompanion<Loan> {
     Expression<double>? remainingAmount,
     Expression<DateTime>? dueDate,
     Expression<bool>? isPaid,
+    Expression<bool>? isOutgoing,
     Expression<int>? accountId,
     Expression<String>? notes,
   }) {
@@ -1803,6 +1895,7 @@ class LoansCompanion extends UpdateCompanion<Loan> {
       if (remainingAmount != null) 'remaining_amount': remainingAmount,
       if (dueDate != null) 'due_date': dueDate,
       if (isPaid != null) 'is_paid': isPaid,
+      if (isOutgoing != null) 'is_outgoing': isOutgoing,
       if (accountId != null) 'account_id': accountId,
       if (notes != null) 'notes': notes,
     });
@@ -1815,6 +1908,7 @@ class LoansCompanion extends UpdateCompanion<Loan> {
     Value<double>? remainingAmount,
     Value<DateTime>? dueDate,
     Value<bool>? isPaid,
+    Value<bool>? isOutgoing,
     Value<int>? accountId,
     Value<String?>? notes,
   }) {
@@ -1825,6 +1919,7 @@ class LoansCompanion extends UpdateCompanion<Loan> {
       remainingAmount: remainingAmount ?? this.remainingAmount,
       dueDate: dueDate ?? this.dueDate,
       isPaid: isPaid ?? this.isPaid,
+      isOutgoing: isOutgoing ?? this.isOutgoing,
       accountId: accountId ?? this.accountId,
       notes: notes ?? this.notes,
     );
@@ -1851,6 +1946,9 @@ class LoansCompanion extends UpdateCompanion<Loan> {
     if (isPaid.present) {
       map['is_paid'] = Variable<bool>(isPaid.value);
     }
+    if (isOutgoing.present) {
+      map['is_outgoing'] = Variable<bool>(isOutgoing.value);
+    }
     if (accountId.present) {
       map['account_id'] = Variable<int>(accountId.value);
     }
@@ -1869,6 +1967,7 @@ class LoansCompanion extends UpdateCompanion<Loan> {
           ..write('remainingAmount: $remainingAmount, ')
           ..write('dueDate: $dueDate, ')
           ..write('isPaid: $isPaid, ')
+          ..write('isOutgoing: $isOutgoing, ')
           ..write('accountId: $accountId, ')
           ..write('notes: $notes')
           ..write(')'))
@@ -2422,6 +2521,7 @@ typedef $$AccountsTableCreateCompanionBuilder =
       required int colorHex,
       Value<double> initialBalance,
       Value<double> currentBalance,
+      Value<double> minBalance,
     });
 typedef $$AccountsTableUpdateCompanionBuilder =
     AccountsCompanion Function({
@@ -2431,6 +2531,7 @@ typedef $$AccountsTableUpdateCompanionBuilder =
       Value<int> colorHex,
       Value<double> initialBalance,
       Value<double> currentBalance,
+      Value<double> minBalance,
     });
 
 class $$AccountsTableFilterComposer
@@ -2469,6 +2570,11 @@ class $$AccountsTableFilterComposer
 
   ColumnFilters<double> get currentBalance => $composableBuilder(
     column: $table.currentBalance,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<double> get minBalance => $composableBuilder(
+    column: $table.minBalance,
     builder: (column) => ColumnFilters(column),
   );
 }
@@ -2511,6 +2617,11 @@ class $$AccountsTableOrderingComposer
     column: $table.currentBalance,
     builder: (column) => ColumnOrderings(column),
   );
+
+  ColumnOrderings<double> get minBalance => $composableBuilder(
+    column: $table.minBalance,
+    builder: (column) => ColumnOrderings(column),
+  );
 }
 
 class $$AccountsTableAnnotationComposer
@@ -2543,6 +2654,11 @@ class $$AccountsTableAnnotationComposer
 
   GeneratedColumn<double> get currentBalance => $composableBuilder(
     column: $table.currentBalance,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<double> get minBalance => $composableBuilder(
+    column: $table.minBalance,
     builder: (column) => column,
   );
 }
@@ -2581,6 +2697,7 @@ class $$AccountsTableTableManager
                 Value<int> colorHex = const Value.absent(),
                 Value<double> initialBalance = const Value.absent(),
                 Value<double> currentBalance = const Value.absent(),
+                Value<double> minBalance = const Value.absent(),
               }) => AccountsCompanion(
                 id: id,
                 name: name,
@@ -2588,6 +2705,7 @@ class $$AccountsTableTableManager
                 colorHex: colorHex,
                 initialBalance: initialBalance,
                 currentBalance: currentBalance,
+                minBalance: minBalance,
               ),
           createCompanionCallback:
               ({
@@ -2597,6 +2715,7 @@ class $$AccountsTableTableManager
                 required int colorHex,
                 Value<double> initialBalance = const Value.absent(),
                 Value<double> currentBalance = const Value.absent(),
+                Value<double> minBalance = const Value.absent(),
               }) => AccountsCompanion.insert(
                 id: id,
                 name: name,
@@ -2604,6 +2723,7 @@ class $$AccountsTableTableManager
                 colorHex: colorHex,
                 initialBalance: initialBalance,
                 currentBalance: currentBalance,
+                minBalance: minBalance,
               ),
           withReferenceMapper: (p0) => p0
               .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
@@ -3115,6 +3235,7 @@ typedef $$LoansTableCreateCompanionBuilder =
       required double remainingAmount,
       required DateTime dueDate,
       Value<bool> isPaid,
+      Value<bool> isOutgoing,
       required int accountId,
       Value<String?> notes,
     });
@@ -3126,6 +3247,7 @@ typedef $$LoansTableUpdateCompanionBuilder =
       Value<double> remainingAmount,
       Value<DateTime> dueDate,
       Value<bool> isPaid,
+      Value<bool> isOutgoing,
       Value<int> accountId,
       Value<String?> notes,
     });
@@ -3166,6 +3288,11 @@ class $$LoansTableFilterComposer
 
   ColumnFilters<bool> get isPaid => $composableBuilder(
     column: $table.isPaid,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get isOutgoing => $composableBuilder(
+    column: $table.isOutgoing,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -3219,6 +3346,11 @@ class $$LoansTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<bool> get isOutgoing => $composableBuilder(
+    column: $table.isOutgoing,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<int> get accountId => $composableBuilder(
     column: $table.accountId,
     builder: (column) => ColumnOrderings(column),
@@ -3261,6 +3393,11 @@ class $$LoansTableAnnotationComposer
   GeneratedColumn<bool> get isPaid =>
       $composableBuilder(column: $table.isPaid, builder: (column) => column);
 
+  GeneratedColumn<bool> get isOutgoing => $composableBuilder(
+    column: $table.isOutgoing,
+    builder: (column) => column,
+  );
+
   GeneratedColumn<int> get accountId =>
       $composableBuilder(column: $table.accountId, builder: (column) => column);
 
@@ -3302,6 +3439,7 @@ class $$LoansTableTableManager
                 Value<double> remainingAmount = const Value.absent(),
                 Value<DateTime> dueDate = const Value.absent(),
                 Value<bool> isPaid = const Value.absent(),
+                Value<bool> isOutgoing = const Value.absent(),
                 Value<int> accountId = const Value.absent(),
                 Value<String?> notes = const Value.absent(),
               }) => LoansCompanion(
@@ -3311,6 +3449,7 @@ class $$LoansTableTableManager
                 remainingAmount: remainingAmount,
                 dueDate: dueDate,
                 isPaid: isPaid,
+                isOutgoing: isOutgoing,
                 accountId: accountId,
                 notes: notes,
               ),
@@ -3322,6 +3461,7 @@ class $$LoansTableTableManager
                 required double remainingAmount,
                 required DateTime dueDate,
                 Value<bool> isPaid = const Value.absent(),
+                Value<bool> isOutgoing = const Value.absent(),
                 required int accountId,
                 Value<String?> notes = const Value.absent(),
               }) => LoansCompanion.insert(
@@ -3331,6 +3471,7 @@ class $$LoansTableTableManager
                 remainingAmount: remainingAmount,
                 dueDate: dueDate,
                 isPaid: isPaid,
+                isOutgoing: isOutgoing,
                 accountId: accountId,
                 notes: notes,
               ),

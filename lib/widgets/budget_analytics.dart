@@ -77,80 +77,39 @@ class _BudgetAnalyticsState extends State<BudgetAnalytics> {
       children: [
         SizedBox(
           height: 250,
-          child: PageView.builder(
-            controller: _pageController,
-            itemBuilder: (context, index) {
-              final pageType = index % 3;
-              if (pageType == 0) {
-                // Donut chart comparing amount of money inside accounts
-                final sections = widget.accounts
-                    .map((a) {
-                      return PieChartSectionData(
-                        color: Color(a.colorHex),
-                        value: a.currentBalance > 0 ? a.currentBalance : 0.0,
-                        title:
-                            '${a.name}\n$currency${a.currentBalance.toStringAsFixed(0)}',
-                        radius: 50,
-                        titleStyle: const TextStyle(
-                          fontSize: 10,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.white,
-                        ),
-                      );
-                    })
-                    .where((s) => s.value > 0)
-                    .toList();
-
-                return Column(
-                  children: [
-                    Text(
-                      'Account Balances',
-                      style: theme.textTheme.titleMedium,
-                    ),
-                    const SizedBox(height: 16),
-                    Expanded(
-                      child: sections.isEmpty
-                          ? const Center(
-                              child: Text(
-                                'No positive account balances to display.',
-                              ),
-                            )
-                          : PieChart(
-                              PieChartData(
-                                sections: sections,
-                                centerSpaceRadius: 40,
-                              ),
+          child: Stack(
+            children: [
+              PageView.builder(
+                controller: _pageController,
+                physics: const NeverScrollableScrollPhysics(),
+                itemBuilder: (context, index) {
+                  final pageType = index % 3;
+                  if (pageType == 0) {
+                    // Donut chart comparing amount of money inside accounts
+                    final sections = widget.accounts
+                        .map((a) {
+                          return PieChartSectionData(
+                            color: Color(a.colorHex),
+                            value: a.currentBalance > 0
+                                ? a.currentBalance
+                                : 0.0,
+                            title:
+                                '${a.name}\n$currency${a.currentBalance.toStringAsFixed(0)}',
+                            radius: 50,
+                            titleStyle: const TextStyle(
+                              fontSize: 10,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.white,
                             ),
-                    ),
-                  ],
-                );
-              } else if (pageType == 1) {
-                // Donut chart showing expense categories
-                final sections = widget.categories
-                    .map((c) {
-                      final amount = widget.categoryExpenses[c.id] ?? 0.0;
-                      return PieChartSectionData(
-                        color: Color(c.colorHex),
-                        value: amount,
-                        title:
-                            '${c.name}\n$currency${amount.toStringAsFixed(0)}',
-                        radius: 50,
-                        titleStyle: const TextStyle(
-                          fontSize: 10,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.white,
-                        ),
-                      );
-                    })
-                    .where((s) => s.value > 0)
-                    .toList();
+                          );
+                        })
+                        .where((s) => s.value > 0)
+                        .toList();
 
-                return Stack(
-                  children: [
-                    Column(
+                    return Column(
                       children: [
                         Text(
-                          'Expense Categories',
+                          'Account Balances',
                           style: theme.textTheme.titleMedium,
                         ),
                         const SizedBox(height: 16),
@@ -158,7 +117,7 @@ class _BudgetAnalyticsState extends State<BudgetAnalytics> {
                           child: sections.isEmpty
                               ? const Center(
                                   child: Text(
-                                    'No expenses recorded in this period.',
+                                    'No positive account balances to display.',
                                   ),
                                 )
                               : PieChart(
@@ -169,120 +128,199 @@ class _BudgetAnalyticsState extends State<BudgetAnalytics> {
                                 ),
                         ),
                       ],
-                    ),
-                    Positioned(
-                      top: 0,
-                      right: 0,
-                      child: IconButton(
-                        icon: const Icon(Icons.fullscreen),
-                        onPressed: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (_) => FullScreenDonutChart(
-                                categories: widget.categories,
-                                categoryExpenses: widget.categoryExpenses,
-                              ),
+                    );
+                  } else if (pageType == 1) {
+                    // Donut chart showing expense categories
+                    final sections = widget.categories
+                        .map((c) {
+                          final amount = widget.categoryExpenses[c.id] ?? 0.0;
+                          return PieChartSectionData(
+                            color: Color(c.colorHex),
+                            value: amount,
+                            title:
+                                '${c.name}\n$currency${amount.toStringAsFixed(0)}',
+                            radius: 50,
+                            titleStyle: const TextStyle(
+                              fontSize: 10,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.white,
                             ),
                           );
-                        },
-                      ),
-                    ),
-                  ],
-                );
-              } else {
-                return Column(
-                  children: [
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
+                        })
+                        .where((s) => s.value > 0)
+                        .toList();
+
+                    return Stack(
                       children: [
-                        Text('Expenses: ', style: theme.textTheme.titleMedium),
-                        DropdownButtonHideUnderline(
-                          child: DropdownButton<String>(
-                            value: _selectedPeriod,
-                            isDense: true,
-                            items: ['Week', 'Month', 'Year']
-                                .map(
-                                  (p) => DropdownMenuItem(
-                                    value: p,
-                                    child: Text(p),
+                        Column(
+                          children: [
+                            Text(
+                              'Expense Categories',
+                              style: theme.textTheme.titleMedium,
+                            ),
+                            const SizedBox(height: 16),
+                            Expanded(
+                              child: sections.isEmpty
+                                  ? const Center(
+                                      child: Text(
+                                        'No expenses recorded in this period.',
+                                      ),
+                                    )
+                                  : PieChart(
+                                      PieChartData(
+                                        sections: sections,
+                                        centerSpaceRadius: 40,
+                                      ),
+                                    ),
+                            ),
+                          ],
+                        ),
+                        Positioned(
+                          top: 0,
+                          right: 0,
+                          child: IconButton(
+                            icon: const Icon(Icons.fullscreen),
+                            onPressed: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) => FullScreenDonutChart(
+                                    categories: widget.categories,
+                                    categoryExpenses: widget.categoryExpenses,
                                   ),
-                                )
-                                .toList(),
-                            onChanged: (v) {
-                              if (v != null) {
-                                setState(() => _selectedPeriod = v);
-                              }
+                                ),
+                              );
                             },
                           ),
                         ),
                       ],
-                    ),
-                    Expanded(
-                      child: Padding(
-                        padding: const EdgeInsets.only(right: 16.0, top: 16.0),
-                        child: LineChart(
-                          LineChartData(
-                            gridData: const FlGridData(show: false),
-                            titlesData: FlTitlesData(
-                              topTitles: const AxisTitles(
-                                sideTitles: SideTitles(showTitles: false),
-                              ),
-                              rightTitles: const AxisTitles(
-                                sideTitles: SideTitles(showTitles: false),
-                              ),
-                              bottomTitles: AxisTitles(
-                                sideTitles: SideTitles(
-                                  showTitles: true,
-                                  reservedSize: 22,
-                                  getTitlesWidget: (value, meta) {
-                                    if (_selectedPeriod == 'Month' &&
-                                        value % 5 != 0) {
-                                      return const SizedBox.shrink();
-                                    }
-                                    return Text(
-                                      value.toInt().toString(),
-                                      style: const TextStyle(fontSize: 10),
-                                    );
-                                  },
-                                ),
+                    );
+                  } else {
+                    return Column(
+                      children: [
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Text(
+                              'Expenses: ',
+                              style: theme.textTheme.titleMedium,
+                            ),
+                            DropdownButtonHideUnderline(
+                              child: DropdownButton<String>(
+                                value: _selectedPeriod,
+                                isDense: true,
+                                items: ['Week', 'Month', 'Year']
+                                    .map(
+                                      (p) => DropdownMenuItem(
+                                        value: p,
+                                        child: Text(p),
+                                      ),
+                                    )
+                                    .toList(),
+                                onChanged: (v) {
+                                  if (v != null) {
+                                    setState(() => _selectedPeriod = v);
+                                  }
+                                },
                               ),
                             ),
-                            borderData: FlBorderData(show: false),
-                            lineBarsData: [
-                              LineChartBarData(
-                                spots: _getSpots(),
-                                isCurved: false,
-                                color: theme.colorScheme.primary,
-                                barWidth: 3,
-                                isStrokeCapRound: true,
-                                dotData: const FlDotData(show: false),
-                                belowBarData: BarAreaData(
-                                  show: true,
-                                  color: theme.colorScheme.primary.withValues(
-                                    alpha: 0.2,
+                          ],
+                        ),
+                        Expanded(
+                          child: Padding(
+                            padding: const EdgeInsets.only(
+                              right: 16.0,
+                              top: 16.0,
+                            ),
+                            child: LineChart(
+                              LineChartData(
+                                gridData: const FlGridData(show: false),
+                                titlesData: FlTitlesData(
+                                  topTitles: const AxisTitles(
+                                    sideTitles: SideTitles(showTitles: false),
+                                  ),
+                                  rightTitles: const AxisTitles(
+                                    sideTitles: SideTitles(showTitles: false),
+                                  ),
+                                  bottomTitles: AxisTitles(
+                                    sideTitles: SideTitles(
+                                      showTitles: true,
+                                      reservedSize: 22,
+                                      getTitlesWidget: (value, meta) {
+                                        if (_selectedPeriod == 'Month' &&
+                                            value % 5 != 0) {
+                                          return const SizedBox.shrink();
+                                        }
+                                        return Text(
+                                          value.toInt().toString(),
+                                          style: const TextStyle(fontSize: 10),
+                                        );
+                                      },
+                                    ),
                                   ),
                                 ),
+                                borderData: FlBorderData(show: false),
+                                lineBarsData: [
+                                  LineChartBarData(
+                                    spots: _getSpots(),
+                                    isCurved: false,
+                                    color: theme.colorScheme.primary,
+                                    barWidth: 3,
+                                    isStrokeCapRound: true,
+                                    dotData: const FlDotData(show: false),
+                                    belowBarData: BarAreaData(
+                                      show: true,
+                                      color: theme.colorScheme.primary
+                                          .withValues(alpha: 0.2),
+                                    ),
+                                  ),
+                                ],
                               ),
-                            ],
+                            ),
                           ),
                         ),
-                      ),
+                      ],
+                    );
+                  }
+                },
+              ),
+              Row(
+                children: [
+                  Expanded(
+                    child: GestureDetector(
+                      behavior: HitTestBehavior.translucent,
+                      onTap: () {
+                        _pageController.previousPage(
+                          duration: const Duration(milliseconds: 300),
+                          curve: Curves.easeInOut,
+                        );
+                      },
                     ),
-                  ],
-                );
-              }
-            },
+                  ),
+                  Expanded(
+                    child: GestureDetector(
+                      behavior: HitTestBehavior.translucent,
+                      onTap: () {
+                        _pageController.nextPage(
+                          duration: const Duration(milliseconds: 300),
+                          curve: Curves.easeInOut,
+                        );
+                      },
+                    ),
+                  ),
+                ],
+              ),
+            ],
           ),
         ),
         const SizedBox(height: 8),
         Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Icon(Icons.swipe, size: 16, color: Colors.grey),
+            const Icon(Icons.touch_app, size: 16, color: Colors.grey),
             const SizedBox(width: 4),
             Text(
-              'Swipe to switch views',
+              'Tap left or right to switch views',
               style: TextStyle(color: Colors.grey.shade600, fontSize: 12),
             ),
           ],

@@ -16,6 +16,7 @@ class Accounts extends Table {
   IntColumn get colorHex => integer()();
   RealColumn get initialBalance => real().withDefault(const Constant(0.0))();
   RealColumn get currentBalance => real().withDefault(const Constant(0.0))();
+  RealColumn get minBalance => real().withDefault(const Constant(0.0))();
 }
 
 @DataClassName('BudgetCategory')
@@ -50,6 +51,7 @@ class Loans extends Table {
   RealColumn get remainingAmount => real()();
   DateTimeColumn get dueDate => dateTime()();
   BoolColumn get isPaid => boolean().withDefault(const Constant(false))();
+  BoolColumn get isOutgoing => boolean().withDefault(const Constant(false))();
   IntColumn get accountId => integer()();
   TextColumn get notes => text().nullable()();
 }
@@ -73,7 +75,7 @@ class BudgetDatabase extends _$BudgetDatabase {
   BudgetDatabase() : super(_openConnection());
 
   @override
-  int get schemaVersion => 2;
+  int get schemaVersion => 4;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -84,6 +86,12 @@ class BudgetDatabase extends _$BudgetDatabase {
       if (from < 2) {
         await m.createTable(loans);
         await m.createTable(subscriptions);
+      }
+      if (from < 3) {
+        await m.addColumn(accounts, accounts.minBalance);
+      }
+      if (from < 4) {
+        await m.addColumn(loans, loans.isOutgoing);
       }
     },
   );

@@ -9,6 +9,7 @@ import 'transaction_entry_screen.dart';
 import 'loans_and_subscriptions_tab.dart';
 import 'expenses_tab.dart';
 import 'package:flutter_colorpicker/flutter_colorpicker.dart';
+import '../utils/math_util.dart';
 
 class BudgetScreen extends StatelessWidget {
   const BudgetScreen({super.key});
@@ -17,6 +18,9 @@ class BudgetScreen extends StatelessWidget {
     final nameCtrl = TextEditingController(text: accountToEdit?.name ?? '');
     final balanceCtrl = TextEditingController(
       text: accountToEdit?.currentBalance.toString() ?? '',
+    );
+    final minBalanceCtrl = TextEditingController(
+      text: accountToEdit?.minBalance.toString() ?? '0.0',
     );
     int? selectedColorHex = accountToEdit?.colorHex;
 
@@ -46,6 +50,16 @@ class BudgetScreen extends StatelessWidget {
                       controller: balanceCtrl,
                       decoration: const InputDecoration(
                         labelText: 'Initial Balance',
+                      ),
+                      keyboardType: const TextInputType.numberWithOptions(
+                        decimal: true,
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    TextField(
+                      controller: minBalanceCtrl,
+                      decoration: const InputDecoration(
+                        labelText: 'Minimum Balance (Warning trigger)',
                       ),
                       keyboardType: const TextInputType.numberWithOptions(
                         decimal: true,
@@ -130,13 +144,15 @@ class BudgetScreen extends StatelessWidget {
                 FilledButton(
                   onPressed: () {
                     final name = nameCtrl.text.trim();
-                    final balance = double.tryParse(balanceCtrl.text) ?? 0.0;
+                    final balance = parseAmount(balanceCtrl.text);
+                    final minBalance = parseAmount(minBalanceCtrl.text);
                     if (name.isNotEmpty) {
                       if (accountToEdit == null) {
                         context.read<LedgerProvider>().addAccount(
                           name,
                           balance,
                           colorHex: currentColorHex,
+                          minBalance: minBalance,
                         );
                       } else {
                         context.read<LedgerProvider>().updateAccount(
@@ -144,6 +160,7 @@ class BudgetScreen extends StatelessWidget {
                           name,
                           balance,
                           colorHex: currentColorHex,
+                          minBalance: minBalance,
                         );
                       }
                       Navigator.pop(ctx);
@@ -311,7 +328,9 @@ class BudgetScreen extends StatelessWidget {
                 FilledButton(
                   onPressed: () {
                     final name = nameCtrl.text.trim();
-                    final limit = double.tryParse(limitCtrl.text);
+                    final limit = limitCtrl.text.isNotEmpty
+                        ? parseAmount(limitCtrl.text)
+                        : null;
                     if (name.isNotEmpty) {
                       if (categoryToEdit == null) {
                         context.read<LedgerProvider>().addCategory(
@@ -452,6 +471,13 @@ class BudgetScreen extends StatelessWidget {
                               color: accColor,
                             ),
                           ),
+                          avatar: acc.currentBalance < acc.minBalance
+                              ? const Icon(
+                                  Icons.error,
+                                  color: Colors.red,
+                                  size: 18,
+                                )
+                              : null,
                           backgroundColor: accColor.withValues(alpha: 0.08),
                           side: BorderSide(
                             color: accColor.withValues(alpha: 0.3),
