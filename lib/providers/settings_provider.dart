@@ -25,7 +25,7 @@ class SettingsProvider with ChangeNotifier {
   String _defaultMainScreen = 'Notes';
   String? _alarmSoundPath;
   String _alarmChannelId = 'task_alarms';
-  List<String> _categories = ['Work', 'Personal', 'Shopping', 'Health'];
+  List<String> _categories = ['Work', 'Personal', 'Shopping', 'Health', 'DTR'];
   List<String> _statuses = ['Not Started', 'Ongoing', 'Finished', 'Dropped'];
   Map<String, int> _statusColors = {
     'Not Started': Colors.grey.toARGB32(),
@@ -62,7 +62,10 @@ class SettingsProvider with ChangeNotifier {
     _defaultMainScreen = prefs.getString(_keyDefaultMainScreen) ?? 'Notes';
     _categories =
         prefs.getStringList(_keyCategories) ??
-        ['Work', 'Personal', 'Shopping', 'Health'];
+        ['Work', 'Personal', 'Shopping', 'Health', 'DTR'];
+    if (!_categories.contains('DTR')) {
+      _categories.add('DTR');
+    }
     _statuses =
         prefs.getStringList(_keyStatuses) ??
         ['Not Started', 'Ongoing', 'Finished', 'Dropped'];
@@ -154,6 +157,7 @@ class SettingsProvider with ChangeNotifier {
   }
 
   Future<void> removeCategory(String category) async {
+    if (category == 'DTR') return;
     _categories.remove(category);
     final prefs = await SharedPreferences.getInstance();
     await prefs.setStringList(_keyCategories, _categories);
@@ -209,7 +213,7 @@ class SettingsProvider with ChangeNotifier {
     _currency = '₱';
     _defaultMainScreen = 'Notes';
     _themeColor = null;
-    _categories = ['Work', 'Personal', 'Shopping', 'Health'];
+    _categories = ['Work', 'Personal', 'Shopping', 'Health', 'DTR'];
     _statuses = ['Not Started', 'Ongoing', 'Finished', 'Dropped'];
     _statusColors = {
       'Not Started': Colors.grey.toARGB32(),

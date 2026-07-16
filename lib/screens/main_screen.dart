@@ -2,8 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:tasker/screens/dashboard_screen.dart';
 import 'package:tasker/screens/settings_screen.dart';
 import 'package:tasker/screens/task_edit_screen.dart';
+import 'package:tasker/screens/dtr_screen.dart';
 import 'package:tasker/screens/heatmap_screen.dart';
 import 'package:tasker/screens/budget_screen.dart';
+import 'package:tasker/widgets/radial_menu_fab.dart';
 
 class MainScreen extends StatefulWidget {
   const MainScreen({super.key});
@@ -17,6 +19,13 @@ class _MainScreenState extends State<MainScreen> {
     Navigator.push(
       context,
       MaterialPageRoute(builder: (_) => const TaskEditScreen()),
+    );
+  }
+
+  void _openNewDtrTask() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => const DtrScreen()),
     );
   }
 
@@ -80,6 +89,7 @@ class _MainScreenState extends State<MainScreen> {
           _DesktopHeader(
             title: 'Tasks',
             onNewTask: _openNewTask,
+            onNewDtrTask: _openNewDtrTask,
             onOpenHeatmap: _openHeatmap,
             onOpenBudget: _openBudget,
             onOpenSettings: () {
@@ -101,29 +111,13 @@ class _MainScreenState extends State<MainScreen> {
       appBar: AppBar(
         title: const Text('Tasks'),
         centerTitle: true,
-        leadingWidth: 140, // accommodate 3 icons
-        leading: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            IconButton(
-              icon: Icon(
-                Icons.account_balance_wallet_rounded,
-                color: Theme.of(context).colorScheme.primary,
-              ),
-              onPressed: _openBudget,
-              tooltip: 'Wallet',
-            ),
-            IconButton(
-              icon: const Icon(Icons.grid_view_rounded),
-              onPressed: _openHeatmap,
-              tooltip: 'Web: Open Heatmap (Squeeze)',
-            ),
-            IconButton(
-              icon: const Icon(Icons.add_rounded),
-              onPressed: _openNewTask,
-              tooltip: 'New task',
-            ),
-          ],
+        leading: IconButton(
+          icon: Icon(
+            Icons.account_balance_wallet_rounded,
+            color: Theme.of(context).colorScheme.primary,
+          ),
+          onPressed: _openBudget,
+          tooltip: 'Wallet',
         ),
         actions: [
           IconButton(
@@ -139,6 +133,27 @@ class _MainScreenState extends State<MainScreen> {
         ],
       ),
       body: const DashboardScreen(),
+      floatingActionButton: RadialMenuFab(
+        mainIcon: Icons.add_rounded,
+        onMainTap: _openNewTask,
+        items: [
+          RadialMenuItem(
+            icon: Icons.grid_view_rounded,
+            onTap: _openHeatmap,
+            tooltip: 'Heatmap',
+          ),
+          RadialMenuItem(
+            icon: Icons.add_rounded,
+            onTap: _openNewTask,
+            tooltip: 'New Task',
+          ),
+          RadialMenuItem(
+            icon: Icons.timer_rounded,
+            onTap: _openNewDtrTask,
+            tooltip: 'New DTR',
+          ),
+        ],
+      ),
     );
   }
 }
@@ -146,6 +161,7 @@ class _MainScreenState extends State<MainScreen> {
 class _DesktopHeader extends StatelessWidget {
   final String title;
   final VoidCallback onNewTask;
+  final VoidCallback onNewDtrTask;
   final VoidCallback onOpenHeatmap;
   final VoidCallback onOpenBudget;
   final VoidCallback onOpenSettings;
@@ -153,6 +169,7 @@ class _DesktopHeader extends StatelessWidget {
   const _DesktopHeader({
     required this.title,
     required this.onNewTask,
+    required this.onNewDtrTask,
     required this.onOpenHeatmap,
     required this.onOpenBudget,
     required this.onOpenSettings,
@@ -189,6 +206,12 @@ class _DesktopHeader extends StatelessWidget {
             icon: const Icon(Icons.add_rounded, size: 16),
             label: const Text('New task'),
             onPressed: onNewTask,
+          ),
+          const SizedBox(width: 8),
+          FilledButton.tonalIcon(
+            icon: const Icon(Icons.timer_rounded, size: 16),
+            label: const Text('New DTR'),
+            onPressed: onNewDtrTask,
           ),
           const Spacer(),
           Text(title, style: theme.textTheme.titleLarge),

@@ -12,6 +12,7 @@ import 'package:flutter_colorpicker/flutter_colorpicker.dart';
 import '../utils/math_util.dart';
 import 'main_screen.dart';
 import 'settings_screen.dart';
+import '../widgets/transition_placeholder.dart';
 
 class BudgetScreen extends StatelessWidget {
   final bool isDefault;
@@ -456,248 +457,250 @@ class BudgetScreen extends StatelessWidget {
             ),
           ],
         ),
-        body: TabBarView(
-          children: [
-            SingleChildScrollView(
-              padding: const EdgeInsets.all(16.0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Row(
-                        children: [
-                          Text('Accounts', style: theme.textTheme.titleLarge),
-                          const SizedBox(width: 8),
-                          Text(
-                            '($currency${totalMoney.toStringAsFixed(2)})',
-                            style: theme.textTheme.titleMedium,
-                          ),
-                        ],
-                      ),
-                      IconButton(
-                        icon: const Icon(Icons.add),
-                        onPressed: () => _showAccountDialog(context),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 8),
-                  if (provider.accounts.isEmpty)
-                    const Text('No accounts yet. Add one to start tracking!')
-                  else
-                    Wrap(
-                      spacing: 8.0,
-                      runSpacing: 8.0,
-                      children: provider.accounts.map((acc) {
-                        final accColor = Color(acc.colorHex);
-                        return ActionChip(
-                          label: Text(
-                            '${acc.name}: $currency${acc.currentBalance.toStringAsFixed(2)}',
-                            style: TextStyle(
-                              fontWeight: FontWeight.bold,
-                              color: accColor,
+        body: TransitionPlaceholder(
+          child: TabBarView(
+            children: [
+              SingleChildScrollView(
+                padding: const EdgeInsets.all(16.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Row(
+                          children: [
+                            Text('Accounts', style: theme.textTheme.titleLarge),
+                            const SizedBox(width: 8),
+                            Text(
+                              '($currency${totalMoney.toStringAsFixed(2)})',
+                              style: theme.textTheme.titleMedium,
                             ),
-                          ),
-                          avatar: acc.currentBalance < acc.minBalance
-                              ? const Icon(
-                                  Icons.error,
-                                  color: Colors.red,
-                                  size: 18,
-                                )
-                              : null,
-                          backgroundColor: accColor.withValues(alpha: 0.08),
-                          side: BorderSide(
-                            color: accColor.withValues(alpha: 0.3),
-                          ),
-                          onPressed: () => _showAccountDialog(context, acc),
-                        );
-                      }).toList(),
+                          ],
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.add),
+                          onPressed: () => _showAccountDialog(context),
+                        ),
+                      ],
                     ),
-
-                  const SizedBox(height: 24),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text('Categories', style: theme.textTheme.titleLarge),
-                      IconButton(
-                        icon: const Icon(Icons.add),
-                        onPressed: () => _showCategoryDialog(context),
+                    const SizedBox(height: 8),
+                    if (provider.accounts.isEmpty)
+                      const Text('No accounts yet. Add one to start tracking!')
+                    else
+                      Wrap(
+                        spacing: 8.0,
+                        runSpacing: 8.0,
+                        children: provider.accounts.map((acc) {
+                          final accColor = Color(acc.colorHex);
+                          return ActionChip(
+                            label: Text(
+                              '${acc.name}: $currency${acc.currentBalance.toStringAsFixed(2)}',
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                color: accColor,
+                              ),
+                            ),
+                            avatar: acc.currentBalance < acc.minBalance
+                                ? const Icon(
+                                    Icons.error,
+                                    color: Colors.red,
+                                    size: 18,
+                                  )
+                                : null,
+                            backgroundColor: accColor.withValues(alpha: 0.08),
+                            side: BorderSide(
+                              color: accColor.withValues(alpha: 0.3),
+                            ),
+                            onPressed: () => _showAccountDialog(context, acc),
+                          );
+                        }).toList(),
                       ),
-                    ],
-                  ),
-                  const SizedBox(height: 8),
-                  if (provider.categories.isEmpty)
-                    const Text('No categories yet. Add one to start tracking!')
-                  else
-                    Wrap(
-                      spacing: 8.0,
-                      runSpacing: 8.0,
-                      children: provider.categories.map((cat) {
-                        final catColor = Color(cat.colorHex);
-                        return ActionChip(
-                          label: Text(
-                            '${cat.name} ${cat.monthlyBudgetLimit != null ? '($currency${cat.monthlyBudgetLimit!.toStringAsFixed(0)})' : ''}',
-                            style: TextStyle(
+
+                    const SizedBox(height: 24),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text('Categories', style: theme.textTheme.titleLarge),
+                        IconButton(
+                          icon: const Icon(Icons.add),
+                          onPressed: () => _showCategoryDialog(context),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    if (provider.categories.isEmpty)
+                      const Text('No categories yet. Add one to start tracking!')
+                    else
+                      Wrap(
+                        spacing: 8.0,
+                        runSpacing: 8.0,
+                        children: provider.categories.map((cat) {
+                          final catColor = Color(cat.colorHex);
+                          return ActionChip(
+                            label: Text(
+                              '${cat.name} ${cat.monthlyBudgetLimit != null ? '($currency${cat.monthlyBudgetLimit!.toStringAsFixed(0)})' : ''}',
+                              style: TextStyle(
+                                color: catColor,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            avatar: Icon(
+                              cat.isExpense
+                                  ? Icons.arrow_downward
+                                  : Icons.arrow_upward,
                               color: catColor,
-                              fontWeight: FontWeight.bold,
+                              size: 16,
                             ),
-                          ),
-                          avatar: Icon(
-                            cat.isExpense
-                                ? Icons.arrow_downward
-                                : Icons.arrow_upward,
-                            color: catColor,
-                            size: 16,
-                          ),
-                          backgroundColor: catColor.withValues(alpha: 0.08),
-                          side: BorderSide(
-                            color: catColor.withValues(alpha: 0.3),
-                          ),
-                          onPressed: () => _showCategoryDialog(context, cat),
-                        );
-                      }).toList(),
+                            backgroundColor: catColor.withValues(alpha: 0.08),
+                            side: BorderSide(
+                              color: catColor.withValues(alpha: 0.3),
+                            ),
+                            onPressed: () => _showCategoryDialog(context, cat),
+                          );
+                        }).toList(),
+                      ),
+
+                    const SizedBox(height: 24),
+                    Text(
+                      'Recent Transactions',
+                      style: theme.textTheme.titleLarge,
                     ),
+                    const SizedBox(height: 8),
 
-                  const SizedBox(height: 24),
-                  Text(
-                    'Recent Transactions',
-                    style: theme.textTheme.titleLarge,
-                  ),
-                  const SizedBox(height: 8),
+                    // Transactions List
+                    ListView.builder(
+                      shrinkWrap: true,
+                      physics: const NeverScrollableScrollPhysics(),
+                      itemCount: provider.recentTransactions.length,
+                      itemBuilder: (context, index) {
+                        final tx = provider.recentTransactions[index];
+                        final isInc =
+                            tx.transactionType == TransactionType.income.index;
+                        final isTransfer =
+                            tx.transactionType == TransactionType.transfer.index;
 
-                  // Transactions List
-                  ListView.builder(
-                    shrinkWrap: true,
-                    physics: const NeverScrollableScrollPhysics(),
-                    itemCount: provider.recentTransactions.length,
-                    itemBuilder: (context, index) {
-                      final tx = provider.recentTransactions[index];
-                      final isInc =
-                          tx.transactionType == TransactionType.income.index;
-                      final isTransfer =
-                          tx.transactionType == TransactionType.transfer.index;
-
-                      BudgetCategory? cat;
-                      if (tx.categoryId != null) {
-                        for (final c in provider.categories) {
-                          if (c.id == tx.categoryId) {
-                            cat = c;
-                            break;
+                        BudgetCategory? cat;
+                        if (tx.categoryId != null) {
+                          for (final c in provider.categories) {
+                            if (c.id == tx.categoryId) {
+                              cat = c;
+                              break;
+                            }
                           }
                         }
-                      }
-                      final catColor = cat != null ? Color(cat.colorHex) : null;
+                        final catColor = cat != null ? Color(cat.colorHex) : null;
 
-                      return Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 4),
-                        child: ListTile(
-                          onTap: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (_) => TransactionEntryScreen(
-                                  transactionToEdit: tx,
+                        return Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 4),
+                          child: ListTile(
+                            onTap: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) => TransactionEntryScreen(
+                                    transactionToEdit: tx,
+                                  ),
                                 ),
-                              ),
-                            );
-                          },
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          tileColor: catColor?.withValues(alpha: 0.08),
-                          leading: CircleAvatar(
-                            backgroundColor: isInc
-                                ? Colors.green.withValues(alpha: 0.2)
-                                : (isTransfer
-                                      ? Colors.blue.withValues(alpha: 0.2)
-                                      : Colors.red.withValues(alpha: 0.2)),
-                            child: Icon(
-                              isTransfer
-                                  ? Icons.swap_horiz
-                                  : (isInc
-                                        ? Icons.arrow_downward
-                                        : Icons.arrow_upward),
-                              color: isInc
-                                  ? Colors.green
-                                  : (isTransfer ? Colors.blue : Colors.red),
+                              );
+                            },
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
                             ),
-                          ),
-                          title: Row(
-                            children: [
-                              Expanded(
-                                child: Text(
-                                  tx.notes ??
-                                      (isTransfer
-                                          ? 'Transfer'
-                                          : (isInc ? 'Income' : 'Expense')),
-                                ),
+                            tileColor: catColor?.withValues(alpha: 0.08),
+                            leading: CircleAvatar(
+                              backgroundColor: isInc
+                                  ? Colors.green.withValues(alpha: 0.2)
+                                  : (isTransfer
+                                        ? Colors.blue.withValues(alpha: 0.2)
+                                        : Colors.red.withValues(alpha: 0.2)),
+                              child: Icon(
+                                isTransfer
+                                    ? Icons.swap_horiz
+                                    : (isInc
+                                          ? Icons.arrow_downward
+                                          : Icons.arrow_upward),
+                                color: isInc
+                                    ? Colors.green
+                                    : (isTransfer ? Colors.blue : Colors.red),
                               ),
-                              if (cat != null) ...[
-                                const SizedBox(width: 8),
-                                Container(
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 8,
-                                    vertical: 2,
-                                  ),
-                                  decoration: BoxDecoration(
-                                    color: catColor!.withValues(alpha: 0.15),
-                                    borderRadius: BorderRadius.circular(12),
-                                    border: Border.all(
-                                      color: catColor.withValues(alpha: 0.3),
-                                      width: 1,
-                                    ),
-                                  ),
+                            ),
+                            title: Row(
+                              children: [
+                                Expanded(
                                   child: Text(
-                                    cat.name,
-                                    style: TextStyle(
-                                      fontSize: 10,
-                                      fontWeight: FontWeight.bold,
-                                      color: catColor,
-                                    ),
+                                    tx.notes ??
+                                        (isTransfer
+                                            ? 'Transfer'
+                                            : (isInc ? 'Income' : 'Expense')),
                                   ),
                                 ),
+                                if (cat != null) ...[
+                                  const SizedBox(width: 8),
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 8,
+                                      vertical: 2,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: catColor!.withValues(alpha: 0.15),
+                                      borderRadius: BorderRadius.circular(12),
+                                      border: Border.all(
+                                        color: catColor.withValues(alpha: 0.3),
+                                        width: 1,
+                                      ),
+                                    ),
+                                    child: Text(
+                                      cat.name,
+                                      style: TextStyle(
+                                        fontSize: 10,
+                                        fontWeight: FontWeight.bold,
+                                        color: catColor,
+                                      ),
+                                    ),
+                                  ),
+                                ],
                               ],
-                            ],
-                          ),
-                          subtitle: Text(tx.date.toString().split('.')[0]),
-                          trailing: Text(
-                            '${isInc ? '+' : (isTransfer ? '' : '-')}$currency${tx.amount.toStringAsFixed(2)}',
-                            style: TextStyle(
-                              color: isInc
-                                  ? Colors.green
-                                  : (isTransfer ? Colors.blue : Colors.red),
-                              fontWeight: FontWeight.bold,
-                              fontSize: 16,
+                            ),
+                            subtitle: Text(tx.date.toString().split('.')[0]),
+                            trailing: Text(
+                              '${isInc ? '+' : (isTransfer ? '' : '-')}$currency${tx.amount.toStringAsFixed(2)}',
+                              style: TextStyle(
+                                color: isInc
+                                    ? Colors.green
+                                    : (isTransfer ? Colors.blue : Colors.red),
+                                fontWeight: FontWeight.bold,
+                                fontSize: 16,
+                              ),
                             ),
                           ),
-                        ),
-                      );
-                    },
-                  ),
-                  const SizedBox(height: 24),
-                  Container(
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: theme.colorScheme.errorContainer,
-                      borderRadius: BorderRadius.circular(12),
+                        );
+                      },
                     ),
-                    child: Center(
-                      child: Text(
-                        'Total Expenses: $currency${totalExpenses.toStringAsFixed(2)}',
-                        style: theme.textTheme.titleLarge?.copyWith(
-                          color: theme.colorScheme.onErrorContainer,
+                    const SizedBox(height: 24),
+                    Container(
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: theme.colorScheme.errorContainer,
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Center(
+                        child: Text(
+                          'Total Expenses: $currency${totalExpenses.toStringAsFixed(2)}',
+                          style: theme.textTheme.titleLarge?.copyWith(
+                            color: theme.colorScheme.onErrorContainer,
+                          ),
                         ),
                       ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
-            ),
-            const ExpensesTab(),
-            const LoansAndSubscriptionsTab(),
-            const BudgetAnalyticsTab(),
-          ],
+              const ExpensesTab(),
+              const LoansAndSubscriptionsTab(),
+              const BudgetAnalyticsTab(),
+            ],
+          ),
         ),
         floatingActionButton: FloatingActionButton.extended(
           backgroundColor: theme.colorScheme.primary,

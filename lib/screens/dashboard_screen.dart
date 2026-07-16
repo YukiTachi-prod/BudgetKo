@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/task_provider.dart';
 import '../widgets/task_list_view.dart';
+import '../widgets/transition_placeholder.dart';
 
 class DashboardScreen extends StatelessWidget {
   const DashboardScreen({super.key});
@@ -9,9 +10,11 @@ class DashboardScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final tasks = Provider.of<TaskProvider>(context).tasks;
-    return TaskListView(
-      tasks: tasks,
-      emptyMessage: 'No tasks yet — tap + to add one',
+    return TransitionPlaceholder(
+      child: TaskListView(
+        tasks: tasks,
+        emptyMessage: 'No tasks yet — tap + to add one',
+      ),
     );
   }
 }

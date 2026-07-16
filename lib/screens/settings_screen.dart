@@ -10,6 +10,7 @@ import 'package:file_picker/file_picker.dart';
 import '../services/platform/platform_file_service.dart';
 import '../services/notification/notification_service.dart';
 import 'package:flutter_colorpicker/flutter_colorpicker.dart';
+import '../widgets/transition_placeholder.dart';
 
 class SettingsScreen extends StatelessWidget {
   const SettingsScreen({super.key});
@@ -21,259 +22,261 @@ class SettingsScreen extends StatelessWidget {
 
     return Scaffold(
       appBar: AppBar(title: const Text('Settings'), centerTitle: true),
-      body: ListView(
-        children: [
-          _buildSectionHeader('Appearance'),
-          ListTile(
-            title: const Text('Default Main Screen'),
-            subtitle: const Text('Choose what opens when the app starts'),
-            trailing: DropdownButton<String>(
-              value: settings.defaultMainScreen,
-              onChanged: (val) {
-                if (val != null) {
-                  settings.setDefaultMainScreen(val);
-                }
-              },
-              items: const [
-                DropdownMenuItem(value: 'Notes', child: Text('Notes')),
-                DropdownMenuItem(value: 'Wallet', child: Text('Wallet')),
-              ],
+      body: TransitionPlaceholder(
+        child: ListView(
+          children: [
+            _buildSectionHeader('Appearance'),
+            ListTile(
+              title: const Text('Default Main Screen'),
+              subtitle: const Text('Choose what opens when the app starts'),
+              trailing: DropdownButton<String>(
+                value: settings.defaultMainScreen,
+                onChanged: (val) {
+                  if (val != null) {
+                    settings.setDefaultMainScreen(val);
+                  }
+                },
+                items: const [
+                  DropdownMenuItem(value: 'Notes', child: Text('Notes')),
+                  DropdownMenuItem(value: 'Wallet', child: Text('Wallet')),
+                ],
+              ),
             ),
-          ),
-          SwitchListTile(
-            title: const Text('Dark Mode'),
-            subtitle: const Text('Light: Creamy White, Dark: Dark Grey'),
-            value: settings.isDarkMode,
-            onChanged: (val) => settings.toggleDarkMode(val),
-          ),
-          SwitchListTile(
-            title: const Text('24-Hour Format'),
-            value: settings.isTime24h,
-            onChanged: (val) => settings.toggleTime24h(val),
-          ),
-          SwitchListTile(
-            title: const Text('Use Dial for Time Picker'),
-            subtitle: const Text('Default: Numeric/Keyboard input'),
-            value: settings.useDialTimePicker,
-            onChanged: (val) => settings.toggleUseDialTimePicker(val),
-          ),
-          ListTile(
-            title: const Text('Button Color Scheme'),
-            subtitle: const Text(
-              'Customize the accent/button color for the app',
+            SwitchListTile(
+              title: const Text('Dark Mode'),
+              subtitle: const Text('Light: Creamy White, Dark: Dark Grey'),
+              value: settings.isDarkMode,
+              onChanged: (val) => settings.toggleDarkMode(val),
             ),
-            trailing: GestureDetector(
-              onTap: () {
-                showDialog(
-                  context: context,
-                  builder: (ctx) {
-                    Color selectedColor = settings.themeColor != null
+            SwitchListTile(
+              title: const Text('24-Hour Format'),
+              value: settings.isTime24h,
+              onChanged: (val) => settings.toggleTime24h(val),
+            ),
+            SwitchListTile(
+              title: const Text('Use Dial for Time Picker'),
+              subtitle: const Text('Default: Numeric/Keyboard input'),
+              value: settings.useDialTimePicker,
+              onChanged: (val) => settings.toggleUseDialTimePicker(val),
+            ),
+            ListTile(
+              title: const Text('Button Color Scheme'),
+              subtitle: const Text(
+                'Customize the accent/button color for the app',
+              ),
+              trailing: GestureDetector(
+                onTap: () {
+                  showDialog(
+                    context: context,
+                    builder: (ctx) {
+                      Color selectedColor = settings.themeColor != null
+                          ? Color(settings.themeColor!)
+                          : const Color(0xFF7C3AED); // default violet
+                      return AlertDialog(
+                        title: const Text('Choose Color Scheme'),
+                        content: SingleChildScrollView(
+                          child: ColorPicker(
+                            pickerColor: selectedColor,
+                            onColorChanged: (c) => selectedColor = c,
+                            pickerAreaHeightPercent: 0.8,
+                          ),
+                        ),
+                        actions: [
+                          TextButton(
+                            onPressed: () {
+                              settings.setThemeColor(null);
+                              Navigator.pop(ctx);
+                            },
+                            child: const Text('Reset Default'),
+                          ),
+                          TextButton(
+                            onPressed: () => Navigator.pop(ctx),
+                            child: const Text('Cancel'),
+                          ),
+                          TextButton(
+                            onPressed: () {
+                              settings.setThemeColor(selectedColor.toARGB32());
+                              Navigator.pop(ctx);
+                            },
+                            child: const Text('Select'),
+                          ),
+                        ],
+                      );
+                    },
+                  );
+                },
+                child: Container(
+                  width: 48,
+                  height: 32,
+                  decoration: BoxDecoration(
+                    color: settings.themeColor != null
                         ? Color(settings.themeColor!)
-                        : const Color(0xFF7C3AED); // default violet
-                    return AlertDialog(
-                      title: const Text('Choose Color Scheme'),
-                      content: SingleChildScrollView(
-                        child: ColorPicker(
-                          pickerColor: selectedColor,
-                          onColorChanged: (c) => selectedColor = c,
-                          pickerAreaHeightPercent: 0.8,
-                        ),
-                      ),
-                      actions: [
-                        TextButton(
-                          onPressed: () {
-                            settings.setThemeColor(null);
-                            Navigator.pop(ctx);
-                          },
-                          child: const Text('Reset Default'),
-                        ),
-                        TextButton(
-                          onPressed: () => Navigator.pop(ctx),
-                          child: const Text('Cancel'),
-                        ),
-                        TextButton(
-                          onPressed: () {
-                            settings.setThemeColor(selectedColor.toARGB32());
-                            Navigator.pop(ctx);
-                          },
-                          child: const Text('Select'),
-                        ),
-                      ],
-                    );
-                  },
-                );
-              },
-              child: Container(
-                width: 48,
-                height: 32,
-                decoration: BoxDecoration(
-                  color: settings.themeColor != null
-                      ? Color(settings.themeColor!)
-                      : const Color(0xFF7C3AED),
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: Colors.grey.shade400),
+                        : const Color(0xFF7C3AED),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: Colors.grey.shade400),
+                  ),
                 ),
               ),
             ),
-          ),
-          const Divider(),
-          _buildSectionHeader('Analytics'),
-          ListTile(
-            leading: const Icon(Icons.analytics_outlined),
-            title: const Text('View Analytics'),
-            subtitle: const Text('Task status and category statistics'),
-            trailing: const Icon(Icons.chevron_right),
-            onTap: () => Navigator.push(
-              context,
-              MaterialPageRoute(builder: (context) => const AnalyticsScreen()),
+            const Divider(),
+            _buildSectionHeader('Analytics'),
+            ListTile(
+              leading: const Icon(Icons.analytics_outlined),
+              title: const Text('View Analytics'),
+              subtitle: const Text('Task status and category statistics'),
+              trailing: const Icon(Icons.chevron_right),
+              onTap: () => Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const AnalyticsScreen()),
+              ),
             ),
-          ),
-          const Divider(),
-          _buildSectionHeader('Data Management'),
-          ListTile(
-            leading: const Icon(Icons.download),
-            title: const Text('Import Tasks'),
-            subtitle: const Text('Import from ZIP file'),
-            onTap: () => _handleImport(context, taskProvider, settings),
-          ),
-          ListTile(
-            leading: const Icon(Icons.upload),
-            title: const Text('Export Tasks'),
-            subtitle: const Text('Export to ZIP file'),
-            onTap: () => _handleExport(context, taskProvider),
-          ),
-          ListTile(
-            leading: const Icon(Icons.share),
-            title: const Text('Share Tasks'),
-            subtitle: const Text('Send tasks via Messenger or other apps'),
-            onTap: () => _handleShare(context, taskProvider),
-          ),
-          const Divider(),
-          _buildSectionHeader('Categories'),
-          Container(
-            constraints: const BoxConstraints(maxHeight: 56.0 * 4),
-            child: ListView(
-              shrinkWrap: true,
-              children: settings.categories
-                  .map(
-                    (c) => ListTile(
-                      title: Text(c),
-                      trailing: IconButton(
-                        icon: const Icon(Icons.delete, color: Colors.red),
-                        onPressed: () => settings.removeCategory(c),
+            const Divider(),
+            _buildSectionHeader('Data Management'),
+            ListTile(
+              leading: const Icon(Icons.download),
+              title: const Text('Import Tasks'),
+              subtitle: const Text('Import from ZIP file'),
+              onTap: () => _handleImport(context, taskProvider, settings),
+            ),
+            ListTile(
+              leading: const Icon(Icons.upload),
+              title: const Text('Export Tasks'),
+              subtitle: const Text('Export to ZIP file'),
+              onTap: () => _handleExport(context, taskProvider),
+            ),
+            ListTile(
+              leading: const Icon(Icons.share),
+              title: const Text('Share Tasks'),
+              subtitle: const Text('Send tasks via Messenger or other apps'),
+              onTap: () => _handleShare(context, taskProvider),
+            ),
+            const Divider(),
+            _buildSectionHeader('Categories'),
+            Container(
+              constraints: const BoxConstraints(maxHeight: 56.0 * 4),
+              child: ListView(
+                shrinkWrap: true,
+                children: settings.categories
+                    .map(
+                      (c) => ListTile(
+                        title: Text(c),
+                        trailing: IconButton(
+                          icon: const Icon(Icons.delete, color: Colors.red),
+                          onPressed: () => settings.removeCategory(c),
+                        ),
                       ),
-                    ),
-                  )
-                  .toList(),
+                    )
+                    .toList(),
+              ),
             ),
-          ),
-          ListTile(
-            leading: const Icon(Icons.add),
-            title: const Text('Add Category'),
-            onTap: () =>
-                _showAddDialog(context, 'Category', settings.addCategory),
-          ),
-          const Divider(),
-          _buildSectionHeader('Statuses'),
-          Container(
-            constraints: const BoxConstraints(maxHeight: 56.0 * 4),
-            child: ListView(
-              shrinkWrap: true,
-              children: settings.statuses
-                  .map(
-                    (p) => ListTile(
-                      leading: GestureDetector(
-                        onTap: () => _showColorPicker(context, settings, p),
-                        child: Container(
-                          width: 24,
-                          height: 24,
-                          decoration: BoxDecoration(
-                            color: Color(
-                              settings.statusColors[p] ??
-                                  Colors.grey.toARGB32(),
+            ListTile(
+              leading: const Icon(Icons.add),
+              title: const Text('Add Category'),
+              onTap: () =>
+                  _showAddDialog(context, 'Category', settings.addCategory),
+            ),
+            const Divider(),
+            _buildSectionHeader('Statuses'),
+            Container(
+              constraints: const BoxConstraints(maxHeight: 56.0 * 4),
+              child: ListView(
+                shrinkWrap: true,
+                children: settings.statuses
+                    .map(
+                      (p) => ListTile(
+                        leading: GestureDetector(
+                          onTap: () => _showColorPicker(context, settings, p),
+                          child: Container(
+                            width: 24,
+                            height: 24,
+                            decoration: BoxDecoration(
+                              color: Color(
+                                settings.statusColors[p] ??
+                                    Colors.grey.toARGB32(),
+                              ),
+                              shape: BoxShape.circle,
                             ),
-                            shape: BoxShape.circle,
+                          ),
+                        ),
+                        title: Text(p),
+                        trailing: IconButton(
+                          icon: const Icon(Icons.delete, color: Colors.red),
+                          onPressed: () => _showDeleteConfirmation(
+                            context,
+                            'Status',
+                            p,
+                            () => settings.removeStatus(p),
                           ),
                         ),
                       ),
-                      title: Text(p),
-                      trailing: IconButton(
-                        icon: const Icon(Icons.delete, color: Colors.red),
-                        onPressed: () => _showDeleteConfirmation(
-                          context,
-                          'Status',
-                          p,
-                          () => settings.removeStatus(p),
-                        ),
-                      ),
-                    ),
-                  )
-                  .toList(),
+                    )
+                    .toList(),
+              ),
             ),
-          ),
-          ListTile(
-            leading: const Icon(Icons.add),
-            title: const Text('Add Status'),
-            onTap: () => _showAddDialog(context, 'Status', settings.addStatus),
-          ),
-          const Divider(),
-          _buildSectionHeader('Notifications'),
-          ListTile(
-            leading: const Icon(Icons.music_note, color: Colors.blue),
-            title: const Text('Custom Alarm Sound'),
-            subtitle: Text(
-              settings.alarmSoundPath == null
-                  ? 'Default sound\n(Note: Accepts .wav only. Custom sounds are not included in data export.)'
-                  : 'Custom: ${settings.alarmSoundPath!.split('/').last}\n(Note: Accepts .wav only. Custom sounds are not included in data export.)',
+            ListTile(
+              leading: const Icon(Icons.add),
+              title: const Text('Add Status'),
+              onTap: () => _showAddDialog(context, 'Status', settings.addStatus),
             ),
-            onTap: () async {
-              final result = await FilePicker.pickFiles(
-                type: FileType.custom,
-                allowedExtensions: ['wav'],
-              );
-              if (result != null && result.files.single.path != null) {
-                final fileService = PlatformFileService();
-                final fileName = result.files.single.name;
-                final savedFilePath = await fileService.copyFileToAppStorage(
-                  result.files.single.path!,
-                  fileName,
+            const Divider(),
+            _buildSectionHeader('Notifications'),
+            ListTile(
+              leading: const Icon(Icons.music_note, color: Colors.blue),
+              title: const Text('Custom Alarm Sound'),
+              subtitle: Text(
+                settings.alarmSoundPath == null
+                    ? 'Default sound\n(Note: Accepts .wav only. Custom sounds are not included in data export.)'
+                    : 'Custom: ${settings.alarmSoundPath!.split('/').last}\n(Note: Accepts .wav only. Custom sounds are not included in data export.)',
+              ),
+              onTap: () async {
+                final result = await FilePicker.pickFiles(
+                  type: FileType.custom,
+                  allowedExtensions: ['wav'],
                 );
-                await settings.setAlarmSoundPath(savedFilePath);
-                if (context.mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Alarm sound updated!')),
+                if (result != null && result.files.single.path != null) {
+                  final fileService = PlatformFileService();
+                  final fileName = result.files.single.name;
+                  final savedFilePath = await fileService.copyFileToAppStorage(
+                    result.files.single.path!,
+                    fileName,
                   );
+                  await settings.setAlarmSoundPath(savedFilePath);
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Alarm sound updated!')),
+                    );
+                  }
                 }
-              }
-            },
-            trailing: settings.alarmSoundPath != null
-                ? IconButton(
-                    icon: const Icon(Icons.clear, color: Colors.red),
-                    onPressed: () {
-                      settings.setAlarmSoundPath(null);
-                    },
-                  )
-                : null,
-          ),
-          const Divider(),
-          _buildSectionHeader('Developer Settings'),
-          ListTile(
-            leading: const Icon(Icons.admin_panel_settings, color: Colors.blue),
-            title: const Text('Developer Options'),
-            onTap: () => _showDeveloperPasswordDialog(context),
-          ),
-          const Divider(),
-          _buildSectionHeader('Danger Zone'),
-          ListTile(
-            leading: const Icon(Icons.delete_forever, color: Colors.red),
-            title: const Text(
-              'Delete All Data',
-              style: TextStyle(color: Colors.red),
+              },
+              trailing: settings.alarmSoundPath != null
+                  ? IconButton(
+                      icon: const Icon(Icons.clear, color: Colors.red),
+                      onPressed: () {
+                        settings.setAlarmSoundPath(null);
+                      },
+                    )
+                  : null,
             ),
-            onTap: () => _showDeleteAllDialog(context, settings, taskProvider),
-          ),
-          const SizedBox(height: 32),
-        ],
+            const Divider(),
+            _buildSectionHeader('Developer Settings'),
+            ListTile(
+              leading: const Icon(Icons.admin_panel_settings, color: Colors.blue),
+              title: const Text('Developer Options'),
+              onTap: () => _showDeveloperPasswordDialog(context),
+            ),
+            const Divider(),
+            _buildSectionHeader('Danger Zone'),
+            ListTile(
+              leading: const Icon(Icons.delete_forever, color: Colors.red),
+              title: const Text(
+                'Delete All Data',
+                style: TextStyle(color: Colors.red),
+              ),
+              onTap: () => _showDeleteAllDialog(context, settings, taskProvider),
+            ),
+            const SizedBox(height: 32),
+          ],
+        ),
       ),
     );
   }
