@@ -92,6 +92,17 @@ class $AccountsTable extends Accounts with TableInfo<$AccountsTable, Account> {
     requiredDuringInsert: false,
     defaultValue: const Constant(0.0),
   );
+  static const VerificationMeta _backgroundImagePathMeta =
+      const VerificationMeta('backgroundImagePath');
+  @override
+  late final GeneratedColumn<String> backgroundImagePath =
+      GeneratedColumn<String>(
+        'background_image_path',
+        aliasedName,
+        true,
+        type: DriftSqlType.string,
+        requiredDuringInsert: false,
+      );
   @override
   List<GeneratedColumn> get $columns => [
     id,
@@ -101,6 +112,7 @@ class $AccountsTable extends Accounts with TableInfo<$AccountsTable, Account> {
     initialBalance,
     currentBalance,
     minBalance,
+    backgroundImagePath,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -168,6 +180,15 @@ class $AccountsTable extends Accounts with TableInfo<$AccountsTable, Account> {
         minBalance.isAcceptableOrUnknown(data['min_balance']!, _minBalanceMeta),
       );
     }
+    if (data.containsKey('background_image_path')) {
+      context.handle(
+        _backgroundImagePathMeta,
+        backgroundImagePath.isAcceptableOrUnknown(
+          data['background_image_path']!,
+          _backgroundImagePathMeta,
+        ),
+      );
+    }
     return context;
   }
 
@@ -205,6 +226,10 @@ class $AccountsTable extends Accounts with TableInfo<$AccountsTable, Account> {
         DriftSqlType.double,
         data['${effectivePrefix}min_balance'],
       )!,
+      backgroundImagePath: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}background_image_path'],
+      ),
     );
   }
 
@@ -222,6 +247,7 @@ class Account extends DataClass implements Insertable<Account> {
   final double initialBalance;
   final double currentBalance;
   final double minBalance;
+  final String? backgroundImagePath;
   const Account({
     required this.id,
     required this.name,
@@ -230,6 +256,7 @@ class Account extends DataClass implements Insertable<Account> {
     required this.initialBalance,
     required this.currentBalance,
     required this.minBalance,
+    this.backgroundImagePath,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -241,6 +268,9 @@ class Account extends DataClass implements Insertable<Account> {
     map['initial_balance'] = Variable<double>(initialBalance);
     map['current_balance'] = Variable<double>(currentBalance);
     map['min_balance'] = Variable<double>(minBalance);
+    if (!nullToAbsent || backgroundImagePath != null) {
+      map['background_image_path'] = Variable<String>(backgroundImagePath);
+    }
     return map;
   }
 
@@ -253,6 +283,9 @@ class Account extends DataClass implements Insertable<Account> {
       initialBalance: Value(initialBalance),
       currentBalance: Value(currentBalance),
       minBalance: Value(minBalance),
+      backgroundImagePath: backgroundImagePath == null && nullToAbsent
+          ? const Value.absent()
+          : Value(backgroundImagePath),
     );
   }
 
@@ -269,6 +302,9 @@ class Account extends DataClass implements Insertable<Account> {
       initialBalance: serializer.fromJson<double>(json['initialBalance']),
       currentBalance: serializer.fromJson<double>(json['currentBalance']),
       minBalance: serializer.fromJson<double>(json['minBalance']),
+      backgroundImagePath: serializer.fromJson<String?>(
+        json['backgroundImagePath'],
+      ),
     );
   }
   @override
@@ -282,6 +318,7 @@ class Account extends DataClass implements Insertable<Account> {
       'initialBalance': serializer.toJson<double>(initialBalance),
       'currentBalance': serializer.toJson<double>(currentBalance),
       'minBalance': serializer.toJson<double>(minBalance),
+      'backgroundImagePath': serializer.toJson<String?>(backgroundImagePath),
     };
   }
 
@@ -293,6 +330,7 @@ class Account extends DataClass implements Insertable<Account> {
     double? initialBalance,
     double? currentBalance,
     double? minBalance,
+    Value<String?> backgroundImagePath = const Value.absent(),
   }) => Account(
     id: id ?? this.id,
     name: name ?? this.name,
@@ -301,6 +339,9 @@ class Account extends DataClass implements Insertable<Account> {
     initialBalance: initialBalance ?? this.initialBalance,
     currentBalance: currentBalance ?? this.currentBalance,
     minBalance: minBalance ?? this.minBalance,
+    backgroundImagePath: backgroundImagePath.present
+        ? backgroundImagePath.value
+        : this.backgroundImagePath,
   );
   Account copyWithCompanion(AccountsCompanion data) {
     return Account(
@@ -319,6 +360,9 @@ class Account extends DataClass implements Insertable<Account> {
       minBalance: data.minBalance.present
           ? data.minBalance.value
           : this.minBalance,
+      backgroundImagePath: data.backgroundImagePath.present
+          ? data.backgroundImagePath.value
+          : this.backgroundImagePath,
     );
   }
 
@@ -331,7 +375,8 @@ class Account extends DataClass implements Insertable<Account> {
           ..write('colorHex: $colorHex, ')
           ..write('initialBalance: $initialBalance, ')
           ..write('currentBalance: $currentBalance, ')
-          ..write('minBalance: $minBalance')
+          ..write('minBalance: $minBalance, ')
+          ..write('backgroundImagePath: $backgroundImagePath')
           ..write(')'))
         .toString();
   }
@@ -345,6 +390,7 @@ class Account extends DataClass implements Insertable<Account> {
     initialBalance,
     currentBalance,
     minBalance,
+    backgroundImagePath,
   );
   @override
   bool operator ==(Object other) =>
@@ -356,7 +402,8 @@ class Account extends DataClass implements Insertable<Account> {
           other.colorHex == this.colorHex &&
           other.initialBalance == this.initialBalance &&
           other.currentBalance == this.currentBalance &&
-          other.minBalance == this.minBalance);
+          other.minBalance == this.minBalance &&
+          other.backgroundImagePath == this.backgroundImagePath);
 }
 
 class AccountsCompanion extends UpdateCompanion<Account> {
@@ -367,6 +414,7 @@ class AccountsCompanion extends UpdateCompanion<Account> {
   final Value<double> initialBalance;
   final Value<double> currentBalance;
   final Value<double> minBalance;
+  final Value<String?> backgroundImagePath;
   const AccountsCompanion({
     this.id = const Value.absent(),
     this.name = const Value.absent(),
@@ -375,6 +423,7 @@ class AccountsCompanion extends UpdateCompanion<Account> {
     this.initialBalance = const Value.absent(),
     this.currentBalance = const Value.absent(),
     this.minBalance = const Value.absent(),
+    this.backgroundImagePath = const Value.absent(),
   });
   AccountsCompanion.insert({
     this.id = const Value.absent(),
@@ -384,6 +433,7 @@ class AccountsCompanion extends UpdateCompanion<Account> {
     this.initialBalance = const Value.absent(),
     this.currentBalance = const Value.absent(),
     this.minBalance = const Value.absent(),
+    this.backgroundImagePath = const Value.absent(),
   }) : name = Value(name),
        iconCodePoint = Value(iconCodePoint),
        colorHex = Value(colorHex);
@@ -395,6 +445,7 @@ class AccountsCompanion extends UpdateCompanion<Account> {
     Expression<double>? initialBalance,
     Expression<double>? currentBalance,
     Expression<double>? minBalance,
+    Expression<String>? backgroundImagePath,
   }) {
     return RawValuesInsertable({
       if (id != null) 'id': id,
@@ -404,6 +455,8 @@ class AccountsCompanion extends UpdateCompanion<Account> {
       if (initialBalance != null) 'initial_balance': initialBalance,
       if (currentBalance != null) 'current_balance': currentBalance,
       if (minBalance != null) 'min_balance': minBalance,
+      if (backgroundImagePath != null)
+        'background_image_path': backgroundImagePath,
     });
   }
 
@@ -415,6 +468,7 @@ class AccountsCompanion extends UpdateCompanion<Account> {
     Value<double>? initialBalance,
     Value<double>? currentBalance,
     Value<double>? minBalance,
+    Value<String?>? backgroundImagePath,
   }) {
     return AccountsCompanion(
       id: id ?? this.id,
@@ -424,6 +478,7 @@ class AccountsCompanion extends UpdateCompanion<Account> {
       initialBalance: initialBalance ?? this.initialBalance,
       currentBalance: currentBalance ?? this.currentBalance,
       minBalance: minBalance ?? this.minBalance,
+      backgroundImagePath: backgroundImagePath ?? this.backgroundImagePath,
     );
   }
 
@@ -451,6 +506,11 @@ class AccountsCompanion extends UpdateCompanion<Account> {
     if (minBalance.present) {
       map['min_balance'] = Variable<double>(minBalance.value);
     }
+    if (backgroundImagePath.present) {
+      map['background_image_path'] = Variable<String>(
+        backgroundImagePath.value,
+      );
+    }
     return map;
   }
 
@@ -463,7 +523,8 @@ class AccountsCompanion extends UpdateCompanion<Account> {
           ..write('colorHex: $colorHex, ')
           ..write('initialBalance: $initialBalance, ')
           ..write('currentBalance: $currentBalance, ')
-          ..write('minBalance: $minBalance')
+          ..write('minBalance: $minBalance, ')
+          ..write('backgroundImagePath: $backgroundImagePath')
           ..write(')'))
         .toString();
   }
@@ -2522,6 +2583,7 @@ typedef $$AccountsTableCreateCompanionBuilder =
       Value<double> initialBalance,
       Value<double> currentBalance,
       Value<double> minBalance,
+      Value<String?> backgroundImagePath,
     });
 typedef $$AccountsTableUpdateCompanionBuilder =
     AccountsCompanion Function({
@@ -2532,6 +2594,7 @@ typedef $$AccountsTableUpdateCompanionBuilder =
       Value<double> initialBalance,
       Value<double> currentBalance,
       Value<double> minBalance,
+      Value<String?> backgroundImagePath,
     });
 
 class $$AccountsTableFilterComposer
@@ -2575,6 +2638,11 @@ class $$AccountsTableFilterComposer
 
   ColumnFilters<double> get minBalance => $composableBuilder(
     column: $table.minBalance,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get backgroundImagePath => $composableBuilder(
+    column: $table.backgroundImagePath,
     builder: (column) => ColumnFilters(column),
   );
 }
@@ -2622,6 +2690,11 @@ class $$AccountsTableOrderingComposer
     column: $table.minBalance,
     builder: (column) => ColumnOrderings(column),
   );
+
+  ColumnOrderings<String> get backgroundImagePath => $composableBuilder(
+    column: $table.backgroundImagePath,
+    builder: (column) => ColumnOrderings(column),
+  );
 }
 
 class $$AccountsTableAnnotationComposer
@@ -2661,6 +2734,11 @@ class $$AccountsTableAnnotationComposer
     column: $table.minBalance,
     builder: (column) => column,
   );
+
+  GeneratedColumn<String> get backgroundImagePath => $composableBuilder(
+    column: $table.backgroundImagePath,
+    builder: (column) => column,
+  );
 }
 
 class $$AccountsTableTableManager
@@ -2698,6 +2776,7 @@ class $$AccountsTableTableManager
                 Value<double> initialBalance = const Value.absent(),
                 Value<double> currentBalance = const Value.absent(),
                 Value<double> minBalance = const Value.absent(),
+                Value<String?> backgroundImagePath = const Value.absent(),
               }) => AccountsCompanion(
                 id: id,
                 name: name,
@@ -2706,6 +2785,7 @@ class $$AccountsTableTableManager
                 initialBalance: initialBalance,
                 currentBalance: currentBalance,
                 minBalance: minBalance,
+                backgroundImagePath: backgroundImagePath,
               ),
           createCompanionCallback:
               ({
@@ -2716,6 +2796,7 @@ class $$AccountsTableTableManager
                 Value<double> initialBalance = const Value.absent(),
                 Value<double> currentBalance = const Value.absent(),
                 Value<double> minBalance = const Value.absent(),
+                Value<String?> backgroundImagePath = const Value.absent(),
               }) => AccountsCompanion.insert(
                 id: id,
                 name: name,
@@ -2724,6 +2805,7 @@ class $$AccountsTableTableManager
                 initialBalance: initialBalance,
                 currentBalance: currentBalance,
                 minBalance: minBalance,
+                backgroundImagePath: backgroundImagePath,
               ),
           withReferenceMapper: (p0) => p0
               .map((e) => (e.readTable(table), BaseReferences(db, table, e)))

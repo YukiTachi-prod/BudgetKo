@@ -57,4 +57,17 @@ class PlatformFileService {
       ShareParams(files: [XFile(filePath)], text: 'Sharing TASKo data'),
     );
   }
+
+  Future<void> shareFile(
+    Uint8List bytes,
+    String filename, {
+    String text = 'File from TASKo',
+  }) async {
+    final tempDir = await getTemporaryDirectory();
+    final filePath = p.join(tempDir.path, filename);
+    await File(filePath).writeAsBytes(bytes);
+    await SharePlus.instance.share(
+      ShareParams(files: [XFile(filePath)], text: text),
+    );
+  }
 }

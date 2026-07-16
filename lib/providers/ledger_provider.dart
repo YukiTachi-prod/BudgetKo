@@ -75,6 +75,7 @@ class LedgerProvider extends ChangeNotifier {
     double initialBalance, {
     int? colorHex,
     double minBalance = 0.0,
+    String? backgroundImagePath,
   }) async {
     await _db
         .into(_db.accounts)
@@ -86,6 +87,7 @@ class LedgerProvider extends ChangeNotifier {
             initialBalance: Value(initialBalance),
             currentBalance: Value(initialBalance),
             minBalance: Value(minBalance),
+            backgroundImagePath: Value(backgroundImagePath),
           ),
         );
     await refreshData();
@@ -123,6 +125,8 @@ class LedgerProvider extends ChangeNotifier {
     double balance, {
     int? colorHex,
     double? minBalance,
+    String? backgroundImagePath,
+    bool clearBackgroundImage = false,
   }) async {
     await (_db.update(
       _db.accounts,
@@ -134,6 +138,11 @@ class LedgerProvider extends ChangeNotifier {
         minBalance: minBalance != null
             ? Value(minBalance)
             : const Value.absent(),
+        backgroundImagePath: clearBackgroundImage
+            ? const Value(null)
+            : (backgroundImagePath != null
+                  ? Value(backgroundImagePath)
+                  : const Value.absent()),
       ),
     );
     await refreshData();
@@ -519,56 +528,75 @@ class LedgerProvider extends ChangeNotifier {
   Future<void> insertMockAnalytics() async {
     if (accounts.isEmpty) return;
     final fromAccountId = accounts.first.id;
-    final categoryId = categories.isNotEmpty 
-        ? categories.firstWhere((c) => c.isExpense, orElse: () => categories.first).id 
+    final categoryId = categories.isNotEmpty
+        ? categories
+              .firstWhere((c) => c.isExpense, orElse: () => categories.first)
+              .id
         : null;
-    
+
     final now = DateTime.now();
     double totalAmount = 0;
-    
+
     await _db.transaction(() async {
       final random = Random();
       for (int i = 0; i < 30; i++) {
         final amount = 250.0 + random.nextDouble() * 750.0;
         totalAmount += amount;
-        await _db.into(_db.transactions).insert(
-          TransactionsCompanion.insert(
-            amount: amount,
-            date: now.subtract(Duration(days: i)),
-            transactionType: TransactionType.expense.index,
-            fromAccountId: fromAccountId,
-            categoryId: Value(categoryId),
-            notes: const Value('Mock Analytics'),
-          ),
-        );
+        await _db
+            .into(_db.transactions)
+            .insert(
+              TransactionsCompanion.insert(
+                amount: amount,
+                date: now.subtract(Duration(days: i)),
+                transactionType: TransactionType.expense.index,
+                fromAccountId: fromAccountId,
+                categoryId: Value(categoryId),
+                notes: const Value('Mock Analytics'),
+              ),
+            );
       }
-      final acc = await (_db.select(_db.accounts)..where((a) => a.id.equals(fromAccountId))).getSingle();
-      await _updateAccountBalance(fromAccountId, acc.currentBalance - totalAmount);
+      final acc = await (_db.select(
+        _db.accounts,
+      )..where((a) => a.id.equals(fromAccountId))).getSingle();
+      await _updateAccountBalance(
+        fromAccountId,
+        acc.currentBalance - totalAmount,
+      );
     });
-    
+
     await refreshData();
   }
 
   Future<void> removeMockAnalytics() async {
-    final mockTxs = await (_db.select(_db.transactions)..where((t) => t.notes.equals('Mock Analytics'))).get();
+    final mockTxs = await (_db.select(
+      _db.transactions,
+    )..where((t) => t.notes.equals('Mock Analytics'))).get();
     if (mockTxs.isEmpty) return;
-    
+
     await _db.transaction(() async {
       final Map<int, double> refundMap = {};
       for (var tx in mockTxs) {
         if (tx.transactionType == TransactionType.expense.index) {
-          refundMap[tx.fromAccountId] = (refundMap[tx.fromAccountId] ?? 0) + tx.amount;
+          refundMap[tx.fromAccountId] =
+              (refundMap[tx.fromAccountId] ?? 0) + tx.amount;
         }
       }
-      
+
       for (var entry in refundMap.entries) {
-        final acc = await (_db.select(_db.accounts)..where((a) => a.id.equals(entry.key))).getSingle();
-        await _updateAccountBalance(entry.key, acc.currentBalance + entry.value);
+        final acc = await (_db.select(
+          _db.accounts,
+        )..where((a) => a.id.equals(entry.key))).getSingle();
+        await _updateAccountBalance(
+          entry.key,
+          acc.currentBalance + entry.value,
+        );
       }
-      
-      await (_db.delete(_db.transactions)..where((t) => t.notes.equals('Mock Analytics'))).go();
+
+      await (_db.delete(
+        _db.transactions,
+      )..where((t) => t.notes.equals('Mock Analytics'))).go();
     });
-    
+
     await refreshData();
   }
 }

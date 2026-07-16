@@ -12,6 +12,10 @@ import 'package:flutter_colorpicker/flutter_colorpicker.dart';
 import '../utils/math_util.dart';
 import 'main_screen.dart';
 import 'settings_screen.dart';
+import 'dart:io';
+import 'dart:ui' as ui;
+import 'package:file_picker/file_picker.dart';
+import '../services/platform/platform_file_service.dart';
 import '../widgets/transition_placeholder.dart';
 
 class BudgetScreen extends StatelessWidget {
@@ -27,6 +31,8 @@ class BudgetScreen extends StatelessWidget {
       text: accountToEdit?.minBalance.toString() ?? '0.0',
     );
     int? selectedColorHex = accountToEdit?.colorHex;
+    String? currentBgPath = accountToEdit?.backgroundImagePath;
+    bool clearBg = false;
 
     showDialog(
       context: context,
@@ -124,6 +130,112 @@ class BudgetScreen extends StatelessWidget {
                         ),
                       ],
                     ),
+                    const SizedBox(height: 20),
+                    const Align(
+                      alignment: Alignment.centerLeft,
+                      child: Text(
+                        'Custom Background (1000x300 PNG Only)',
+                        style: TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    if (currentBgPath != null && !clearBg)
+                      Container(
+                        height: 60,
+                        width: double.infinity,
+                        decoration: BoxDecoration(
+                          image: DecorationImage(
+                            image: FileImage(File(currentBgPath!)),
+                            fit: BoxFit.cover,
+                          ),
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: Colors.grey),
+                        ),
+                        child: Align(
+                          alignment: Alignment.topRight,
+                          child: IconButton(
+                            icon: const Icon(Icons.close, color: Colors.white),
+                            onPressed: () => setState(() => clearBg = true),
+                          ),
+                        ),
+                      )
+                    else
+                      Row(
+                        children: [
+                          Expanded(
+                            child: OutlinedButton(
+                              onPressed: () async {
+                                final recorder = ui.PictureRecorder();
+                                final canvas = Canvas(recorder);
+                                final paint = Paint()..color = Colors.white;
+                                canvas.drawRect(
+                                  const Rect.fromLTWH(0, 0, 1000, 300),
+                                  paint,
+                                );
+                                final picture = recorder.endRecording();
+                                final img = await picture.toImage(1000, 300);
+                                final byteData = await img.toByteData(
+                                  format: ui.ImageByteFormat.png,
+                                );
+                                if (byteData != null) {
+                                  await PlatformFileService().shareFile(
+                                    byteData.buffer.asUint8List(),
+                                    'Format.png',
+                                    text:
+                                        'Edit this 1000x300 PNG for your account background!',
+                                  );
+                                }
+                              },
+                              child: const Text('Export Format'),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: OutlinedButton(
+                              onPressed: () async {
+                                final res = await FilePicker.pickFiles(
+                                  type: FileType.custom,
+                                  allowedExtensions: ['png'],
+                                );
+                                if (res != null &&
+                                    res.files.single.path != null) {
+                                  final path = res.files.single.path!;
+                                  final bytes = await File(path).readAsBytes();
+                                  final codec = await ui.instantiateImageCodec(
+                                    bytes,
+                                  );
+                                  final frame = await codec.getNextFrame();
+                                  if (frame.image.width == 1000 &&
+                                      frame.image.height == 300) {
+                                    final savedPath = await PlatformFileService()
+                                        .copyFileToAppStorage(
+                                          path,
+                                          'bg_${DateTime.now().millisecondsSinceEpoch}.png',
+                                        );
+                                    setState(() {
+                                      currentBgPath = savedPath;
+                                      clearBg = false;
+                                    });
+                                  } else {
+                                    if (context.mounted) {
+                                      ScaffoldMessenger.of(
+                                        context,
+                                      ).showSnackBar(
+                                        const SnackBar(
+                                          content: Text(
+                                            'Image must be exactly 1000x300 pixels!',
+                                          ),
+                                        ),
+                                      );
+                                    }
+                                  }
+                                }
+                              },
+                              child: const Text('Import'),
+                            ),
+                          ),
+                        ],
+                      ),
                   ],
                 ),
               ),
@@ -157,6 +269,7 @@ class BudgetScreen extends StatelessWidget {
                           balance,
                           colorHex: currentColorHex,
                           minBalance: minBalance,
+                          backgroundImagePath: clearBg ? null : currentBgPath,
                         );
                       } else {
                         context.read<LedgerProvider>().updateAccount(
@@ -165,6 +278,8 @@ class BudgetScreen extends StatelessWidget {
                           balance,
                           colorHex: currentColorHex,
                           minBalance: minBalance,
+                          backgroundImagePath: currentBgPath,
+                          clearBackgroundImage: clearBg,
                         );
                       }
                       Navigator.pop(ctx);
@@ -488,31 +603,98 @@ class BudgetScreen extends StatelessWidget {
                     if (provider.accounts.isEmpty)
                       const Text('No accounts yet. Add one to start tracking!')
                     else
-                      Wrap(
-                        spacing: 8.0,
-                        runSpacing: 8.0,
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: provider.accounts.map((acc) {
                           final accColor = Color(acc.colorHex);
-                          return ActionChip(
-                            label: Text(
-                              '${acc.name}: $currency${acc.currentBalance.toStringAsFixed(2)}',
-                              style: TextStyle(
-                                fontWeight: FontWeight.bold,
-                                color: accColor,
+                          return Padding(
+                            padding: const EdgeInsets.only(bottom: 8.0),
+                            child: InkWell(
+                              onTap: () => _showAccountDialog(context, acc),
+                              borderRadius: BorderRadius.circular(12),
+                              child: Container(
+                                height: 80,
+                                decoration: BoxDecoration(
+                                  color: acc.backgroundImagePath == null
+                                      ? accColor.withValues(alpha: 0.08)
+                                      : null,
+                                  image: acc.backgroundImagePath != null
+                                      ? DecorationImage(
+                                          image: FileImage(
+                                            File(acc.backgroundImagePath!),
+                                          ),
+                                          fit: BoxFit.cover,
+                                        )
+                                      : null,
+                                  borderRadius: BorderRadius.circular(12),
+                                  border: Border.all(
+                                    color: accColor.withValues(alpha: 0.3),
+                                  ),
+                                ),
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 16,
+                                  vertical: 12,
+                                ),
+                                child: Row(
+                                  mainAxisAlignment:
+                                      MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    Row(
+                                      children: [
+                                        if (acc.currentBalance < acc.minBalance)
+                                          const Padding(
+                                            padding: EdgeInsets.only(
+                                              right: 8.0,
+                                            ),
+                                            child: Icon(
+                                              Icons.error,
+                                              color: Colors.red,
+                                            ),
+                                          ),
+                                        Text(
+                                          acc.name,
+                                          style: TextStyle(
+                                            fontWeight: FontWeight.bold,
+                                            fontSize: 18,
+                                            color:
+                                                acc.backgroundImagePath != null
+                                                ? Colors.white
+                                                : accColor,
+                                            shadows:
+                                                acc.backgroundImagePath != null
+                                                ? [
+                                                    const Shadow(
+                                                      color: Colors.black,
+                                                      blurRadius: 4,
+                                                    ),
+                                                  ]
+                                                : null,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                    Text(
+                                      '$currency${acc.currentBalance.toStringAsFixed(2)}',
+                                      style: TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 20,
+                                        color: acc.backgroundImagePath != null
+                                            ? Colors.white
+                                            : accColor,
+                                        shadows: acc.backgroundImagePath != null
+                                            ? [
+                                                const Shadow(
+                                                  color: Colors.black,
+                                                  blurRadius: 4,
+                                                ),
+                                              ]
+                                            : null,
+                                      ),
+                                    ),
+                                  ],
+                                ),
                               ),
                             ),
-                            avatar: acc.currentBalance < acc.minBalance
-                                ? const Icon(
-                                    Icons.error,
-                                    color: Colors.red,
-                                    size: 18,
-                                  )
-                                : null,
-                            backgroundColor: accColor.withValues(alpha: 0.08),
-                            side: BorderSide(
-                              color: accColor.withValues(alpha: 0.3),
-                            ),
-                            onPressed: () => _showAccountDialog(context, acc),
                           );
                         }).toList(),
                       ),
@@ -530,7 +712,9 @@ class BudgetScreen extends StatelessWidget {
                     ),
                     const SizedBox(height: 8),
                     if (provider.categories.isEmpty)
-                      const Text('No categories yet. Add one to start tracking!')
+                      const Text(
+                        'No categories yet. Add one to start tracking!',
+                      )
                     else
                       Wrap(
                         spacing: 8.0,
@@ -572,13 +756,16 @@ class BudgetScreen extends StatelessWidget {
                     ListView.builder(
                       shrinkWrap: true,
                       physics: const NeverScrollableScrollPhysics(),
-                      itemCount: provider.recentTransactions.length,
+                      itemCount: provider.recentTransactions.length > 5
+                          ? 5
+                          : provider.recentTransactions.length,
                       itemBuilder: (context, index) {
                         final tx = provider.recentTransactions[index];
                         final isInc =
                             tx.transactionType == TransactionType.income.index;
                         final isTransfer =
-                            tx.transactionType == TransactionType.transfer.index;
+                            tx.transactionType ==
+                            TransactionType.transfer.index;
 
                         BudgetCategory? cat;
                         if (tx.categoryId != null) {
@@ -589,7 +776,9 @@ class BudgetScreen extends StatelessWidget {
                             }
                           }
                         }
-                        final catColor = cat != null ? Color(cat.colorHex) : null;
+                        final catColor = cat != null
+                            ? Color(cat.colorHex)
+                            : null;
 
                         return Padding(
                           padding: const EdgeInsets.symmetric(vertical: 4),

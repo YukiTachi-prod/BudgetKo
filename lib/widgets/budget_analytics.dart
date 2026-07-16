@@ -229,7 +229,8 @@ class _BudgetAnalyticsState extends State<BudgetAnalytics> {
                                   show: true,
                                   drawVerticalLine: false,
                                   getDrawingHorizontalLine: (value) => FlLine(
-                                    color: theme.colorScheme.onSurface.withValues(alpha: 0.2),
+                                    color: theme.colorScheme.onSurface
+                                        .withValues(alpha: 0.2),
                                     strokeWidth: 1.5,
                                     dashArray: [4, 4],
                                   ),
@@ -340,7 +341,8 @@ class _BudgetAnalyticsState extends State<BudgetAnalytics> {
                                   show: true,
                                   drawVerticalLine: false,
                                   getDrawingHorizontalLine: (value) => FlLine(
-                                    color: theme.colorScheme.onSurface.withValues(alpha: 0.2),
+                                    color: theme.colorScheme.onSurface
+                                        .withValues(alpha: 0.2),
                                     strokeWidth: 1.5,
                                     dashArray: [4, 4],
                                   ),
@@ -379,16 +381,26 @@ class _BudgetAnalyticsState extends State<BudgetAnalytics> {
                                         final now = DateTime.now();
                                         String text = '';
                                         if (_selectedPeriod == 'Week') {
-                                          final date = now.subtract(Duration(days: 6 - i));
+                                          final date = now.subtract(
+                                            Duration(days: 6 - i),
+                                          );
                                           text = DateFormat('EEE').format(date);
                                         } else if (_selectedPeriod == 'Month') {
                                           if (i % 5 != 0 && i != 29) {
                                             return const SizedBox.shrink();
                                           }
-                                          final date = now.subtract(Duration(days: 29 - i));
-                                          text = DateFormat('dd/MM').format(date);
+                                          final date = now.subtract(
+                                            Duration(days: 29 - i),
+                                          );
+                                          text = DateFormat(
+                                            'dd/MM',
+                                          ).format(date);
                                         } else if (_selectedPeriod == 'Year') {
-                                          final date = DateTime(now.year, now.month - (11 - i), 1);
+                                          final date = DateTime(
+                                            now.year,
+                                            now.month - (11 - i),
+                                            1,
+                                          );
                                           text = DateFormat('MMM').format(date);
                                         }
                                         return Text(
@@ -402,17 +414,26 @@ class _BudgetAnalyticsState extends State<BudgetAnalytics> {
                                 borderData: FlBorderData(show: false),
                                 barGroups: () {
                                   final spots = _getSpots();
-                                  return spots.map((spot) => BarChartGroupData(
-                                    x: spot.x.toInt(),
-                                    barRods: [
-                                      BarChartRodData(
-                                        toY: spot.y,
-                                        color: theme.colorScheme.primary,
-                                        width: _selectedPeriod == 'Month' ? 4 : 16,
-                                        borderRadius: const BorderRadius.vertical(top: Radius.circular(4)),
-                                      ),
-                                    ],
-                                  )).toList();
+                                  return spots
+                                      .map(
+                                        (spot) => BarChartGroupData(
+                                          x: spot.x.toInt(),
+                                          barRods: [
+                                            BarChartRodData(
+                                              toY: spot.y,
+                                              color: theme.colorScheme.primary,
+                                              width: _selectedPeriod == 'Month'
+                                                  ? 4
+                                                  : 16,
+                                              borderRadius:
+                                                  const BorderRadius.vertical(
+                                                    top: Radius.circular(4),
+                                                  ),
+                                            ),
+                                          ],
+                                        ),
+                                      )
+                                      .toList();
                                 }(),
                               ),
                             ),

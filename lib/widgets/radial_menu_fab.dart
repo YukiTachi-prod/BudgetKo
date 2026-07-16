@@ -48,7 +48,9 @@ class _RadialMenuFabState extends State<RadialMenuFab> {
 
     _isOverlayOpen = true;
     final renderBox = context.findRenderObject() as RenderBox;
-    final fabPosition = renderBox.localToGlobal(renderBox.size.center(Offset.zero));
+    final fabPosition = renderBox.localToGlobal(
+      renderBox.size.center(Offset.zero),
+    );
 
     _overlayEntry = OverlayEntry(
       builder: (context) {
@@ -104,10 +106,12 @@ class _RadialMenuOverlayWidget extends StatefulWidget {
   });
 
   @override
-  State<_RadialMenuOverlayWidget> createState() => _RadialMenuOverlayWidgetState();
+  State<_RadialMenuOverlayWidget> createState() =>
+      _RadialMenuOverlayWidgetState();
 }
 
-class _RadialMenuOverlayWidgetState extends State<_RadialMenuOverlayWidget> with SingleTickerProviderStateMixin {
+class _RadialMenuOverlayWidgetState extends State<_RadialMenuOverlayWidget>
+    with SingleTickerProviderStateMixin {
   late AnimationController _controller;
   late Animation<double> _animation;
 
@@ -118,7 +122,10 @@ class _RadialMenuOverlayWidgetState extends State<_RadialMenuOverlayWidget> with
       vsync: this,
       duration: const Duration(milliseconds: 250),
     );
-    _animation = CurvedAnimation(parent: _controller, curve: Curves.easeOutCubic);
+    _animation = CurvedAnimation(
+      parent: _controller,
+      curve: Curves.easeOutCubic,
+    );
     _controller.forward();
   }
 
@@ -151,32 +158,43 @@ class _RadialMenuOverlayWidgetState extends State<_RadialMenuOverlayWidget> with
                   ...List.generate(widget.items.length, (index) {
                     double startAngle = -math.pi; // Left
                     double endAngle = -math.pi / 2; // Top
-                    
+
                     double angle;
                     if (widget.items.length == 1) {
                       angle = -math.pi * 3 / 4;
                     } else {
-                      angle = startAngle + (endAngle - startAngle) * (index / (widget.items.length - 1));
+                      angle =
+                          startAngle +
+                          (endAngle - startAngle) *
+                              (index / (widget.items.length - 1));
                     }
-                    
+
                     // Interpolate position from fab center to target
                     final targetPos = Offset(
                       widget.fabPosition.dx + widget.radius * math.cos(angle),
                       widget.fabPosition.dy + widget.radius * math.sin(angle),
                     );
-                    
-                    final currentPos = Offset.lerp(widget.fabPosition, targetPos, _animation.value)!;
-                    
+
+                    final currentPos = Offset.lerp(
+                      widget.fabPosition,
+                      targetPos,
+                      _animation.value,
+                    )!;
+
                     return Positioned(
-                      left: currentPos.dx - 28, 
+                      left: currentPos.dx - 28,
                       top: currentPos.dy - 28,
                       child: Transform.scale(
                         scale: _animation.value,
                         child: FloatingActionButton(
                           heroTag: 'radial_$index',
                           elevation: 4,
-                          backgroundColor: widget.items[index].color ?? Theme.of(context).colorScheme.primary,
-                          foregroundColor: widget.items[index].iconColor ?? Theme.of(context).colorScheme.onPrimary,
+                          backgroundColor:
+                              widget.items[index].color ??
+                              Theme.of(context).colorScheme.primary,
+                          foregroundColor:
+                              widget.items[index].iconColor ??
+                              Theme.of(context).colorScheme.onPrimary,
                           onPressed: () {
                             closeMenu(widget.items[index].onTap);
                           },
@@ -185,21 +203,27 @@ class _RadialMenuOverlayWidgetState extends State<_RadialMenuOverlayWidget> with
                       ),
                     );
                   }),
-                  
+
                   // Tooltips
                   ...List.generate(widget.items.length, (index) {
                     double startAngle = -math.pi;
                     double endAngle = -math.pi / 2;
                     double angle = widget.items.length == 1
                         ? -math.pi * 3 / 4
-                        : startAngle + (endAngle - startAngle) * (index / (widget.items.length - 1));
-                        
+                        : startAngle +
+                              (endAngle - startAngle) *
+                                  (index / (widget.items.length - 1));
+
                     final targetPos = Offset(
                       widget.fabPosition.dx + widget.radius * math.cos(angle),
                       widget.fabPosition.dy + widget.radius * math.sin(angle),
                     );
-                    
-                    final currentPos = Offset.lerp(widget.fabPosition, targetPos, _animation.value)!;
+
+                    final currentPos = Offset.lerp(
+                      widget.fabPosition,
+                      targetPos,
+                      _animation.value,
+                    )!;
 
                     return Positioned(
                       left: currentPos.dx - 40,
@@ -211,7 +235,10 @@ class _RadialMenuOverlayWidgetState extends State<_RadialMenuOverlayWidget> with
                           child: Material(
                             color: Colors.transparent,
                             child: Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 6,
+                                vertical: 2,
+                              ),
                               decoration: BoxDecoration(
                                 color: Theme.of(context).colorScheme.surface,
                                 borderRadius: BorderRadius.circular(8),
@@ -219,8 +246,8 @@ class _RadialMenuOverlayWidgetState extends State<_RadialMenuOverlayWidget> with
                                   BoxShadow(
                                     color: Colors.black.withValues(alpha: 0.3),
                                     blurRadius: 4,
-                                  )
-                                ]
+                                  ),
+                                ],
                               ),
                               child: Text(
                                 widget.items[index].tooltip,
@@ -239,16 +266,17 @@ class _RadialMenuOverlayWidgetState extends State<_RadialMenuOverlayWidget> with
                     left: widget.fabPosition.dx - 28,
                     top: widget.fabPosition.dy - 28,
                     child: Transform.rotate(
-                      angle: _animation.value * math.pi / 4, // rotates to form an X if it was a +
+                      angle:
+                          _animation.value *
+                          math.pi /
+                          4, // rotates to form an X if it was a +
                       child: FloatingActionButton(
                         heroTag: 'radial_main_active',
                         elevation: 6,
-                        backgroundColor: Theme.of(context).colorScheme.primary.withValues(
-                          alpha: 1.0 - (0.6 * _animation.value),
-                        ),
-                        foregroundColor: Theme.of(context).colorScheme.onPrimary.withValues(
-                          alpha: 1.0 - (0.3 * _animation.value),
-                        ),
+                        backgroundColor: Theme.of(context).colorScheme.primary
+                            .withValues(alpha: 1.0 - (0.6 * _animation.value)),
+                        foregroundColor: Theme.of(context).colorScheme.onPrimary
+                            .withValues(alpha: 1.0 - (0.3 * _animation.value)),
                         onPressed: () => closeMenu(),
                         child: Icon(widget.mainIcon),
                       ),

@@ -127,7 +127,9 @@ class SettingsScreen extends StatelessWidget {
               trailing: const Icon(Icons.chevron_right),
               onTap: () => Navigator.push(
                 context,
-                MaterialPageRoute(builder: (context) => const AnalyticsScreen()),
+                MaterialPageRoute(
+                  builder: (context) => const AnalyticsScreen(),
+                ),
               ),
             ),
             const Divider(),
@@ -216,7 +218,8 @@ class SettingsScreen extends StatelessWidget {
             ListTile(
               leading: const Icon(Icons.add),
               title: const Text('Add Status'),
-              onTap: () => _showAddDialog(context, 'Status', settings.addStatus),
+              onTap: () =>
+                  _showAddDialog(context, 'Status', settings.addStatus),
             ),
             const Divider(),
             _buildSectionHeader('Notifications'),
@@ -260,7 +263,10 @@ class SettingsScreen extends StatelessWidget {
             const Divider(),
             _buildSectionHeader('Developer Settings'),
             ListTile(
-              leading: const Icon(Icons.admin_panel_settings, color: Colors.blue),
+              leading: const Icon(
+                Icons.admin_panel_settings,
+                color: Colors.blue,
+              ),
               title: const Text('Developer Options'),
               onTap: () => _showDeveloperPasswordDialog(context),
             ),
@@ -272,7 +278,8 @@ class SettingsScreen extends StatelessWidget {
                 'Delete All Data',
                 style: TextStyle(color: Colors.red),
               ),
-              onTap: () => _showDeleteAllDialog(context, settings, taskProvider),
+              onTap: () =>
+                  _showDeleteAllDialog(context, settings, taskProvider),
             ),
             const SizedBox(height: 32),
           ],

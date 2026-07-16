@@ -146,7 +146,31 @@ class _ExpensesTabState extends State<ExpensesTab> {
                       DataCell(
                         Text('$currency${tx.amount.toStringAsFixed(2)}'),
                       ),
-                      DataCell(Text(tx.date.toString().split(' ')[0])),
+                      DataCell(
+                        Text(tx.date.toString().split(' ')[0]),
+                        showEditIcon: true,
+                        onTap: () async {
+                          final newDate = await showDatePicker(
+                            context: context,
+                            initialDate: tx.date,
+                            firstDate: DateTime(2000),
+                            lastDate: DateTime(2100),
+                          );
+                          if (newDate != null && newDate != tx.date) {
+                            if (!context.mounted) return;
+                            context.read<LedgerProvider>().updateTransaction(
+                              transactionId: tx.id,
+                              amount: tx.amount,
+                              date: newDate,
+                              type: TransactionType.values[tx.transactionType],
+                              fromAccountId: tx.fromAccountId,
+                              toAccountId: tx.toAccountId,
+                              categoryId: tx.categoryId,
+                              notes: tx.notes,
+                            );
+                          }
+                        },
+                      ),
                     ],
                   );
                 }).toList(),

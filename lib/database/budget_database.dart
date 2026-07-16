@@ -17,6 +17,7 @@ class Accounts extends Table {
   RealColumn get initialBalance => real().withDefault(const Constant(0.0))();
   RealColumn get currentBalance => real().withDefault(const Constant(0.0))();
   RealColumn get minBalance => real().withDefault(const Constant(0.0))();
+  TextColumn get backgroundImagePath => text().nullable()();
 }
 
 @DataClassName('BudgetCategory')
@@ -75,7 +76,7 @@ class BudgetDatabase extends _$BudgetDatabase {
   BudgetDatabase() : super(_openConnection());
 
   @override
-  int get schemaVersion => 4;
+  int get schemaVersion => 5;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -92,6 +93,9 @@ class BudgetDatabase extends _$BudgetDatabase {
       }
       if (from < 4) {
         await m.addColumn(loans, loans.isOutgoing);
+      }
+      if (from < 5) {
+        await m.addColumn(accounts, accounts.backgroundImagePath);
       }
     },
   );

@@ -26,8 +26,10 @@ class _DtrScreenState extends State<DtrScreen> {
   @override
   Widget build(BuildContext context) {
     final provider = context.watch<TaskProvider>();
-    final dtrTasks = provider.allTasks.where((t) => t.category == 'DTR').toList();
-    
+    final dtrTasks = provider.allTasks
+        .where((t) => t.category == 'DTR')
+        .toList();
+
     // Sort descending by date
     dtrTasks.sort((a, b) => b.startDate.compareTo(a.startDate));
 
@@ -56,9 +58,11 @@ class _DtrScreenState extends State<DtrScreen> {
         actions: [
           DropdownButton<String>(
             value: _filter,
-            items: ['All', 'Weekly', 'Monthly']
-                .map((f) => DropdownMenuItem(value: f, child: Text(f)))
-                .toList(),
+            items: [
+              'All',
+              'Weekly',
+              'Monthly',
+            ].map((f) => DropdownMenuItem(value: f, child: Text(f))).toList(),
             onChanged: (v) {
               if (v != null) setState(() => _filter = v);
             },
@@ -98,12 +102,16 @@ class _DtrScreenState extends State<DtrScreen> {
                       itemCount: filteredTasks.length,
                       itemBuilder: (context, index) {
                         final task = filteredTasks[index];
-                        final duration = task.endDate.difference(task.startDate);
+                        final duration = task.endDate.difference(
+                          task.startDate,
+                        );
                         final hours = duration.inMinutes / 60.0;
-  
+
                         return ExpansionTile(
                           title: Text(task.title), // Entry #1
-                          subtitle: Text(DateFormat('MMM d, yyyy').format(task.startDate)),
+                          subtitle: Text(
+                            DateFormat('MMM d, yyyy').format(task.startDate),
+                          ),
                           children: [
                             Padding(
                               padding: const EdgeInsets.all(16.0),
@@ -111,22 +119,37 @@ class _DtrScreenState extends State<DtrScreen> {
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   Row(
-                                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                    mainAxisAlignment:
+                                        MainAxisAlignment.spaceBetween,
                                     children: [
-                                      Text('Time In: ${DateFormat('hh:mm a').format(task.startDate)}'),
-                                      Text('Time Out: ${DateFormat('hh:mm a').format(task.endDate)}'),
+                                      Text(
+                                        'Time In: ${DateFormat('hh:mm a').format(task.startDate)}',
+                                      ),
+                                      Text(
+                                        'Time Out: ${DateFormat('hh:mm a').format(task.endDate)}',
+                                      ),
                                     ],
                                   ),
                                   const SizedBox(height: 8),
-                                  Text('Total Hours: ${hours.toStringAsFixed(2)}'),
+                                  Text(
+                                    'Total Hours: ${hours.toStringAsFixed(2)}',
+                                  ),
                                   const SizedBox(height: 8),
-                                  Text('Remarks: ${task.description.isEmpty ? "None" : task.description}'),
+                                  Text(
+                                    'Remarks: ${task.description.isEmpty ? "None" : task.description}',
+                                  ),
                                   const SizedBox(height: 12),
                                   Align(
                                     alignment: Alignment.centerRight,
                                     child: TextButton.icon(
-                                      icon: const Icon(Icons.delete, color: Colors.red),
-                                      label: const Text('Delete', style: TextStyle(color: Colors.red)),
+                                      icon: const Icon(
+                                        Icons.delete,
+                                        color: Colors.red,
+                                      ),
+                                      label: const Text(
+                                        'Delete',
+                                        style: TextStyle(color: Colors.red),
+                                      ),
                                       onPressed: () {
                                         provider.deleteTask(task.id);
                                       },
@@ -182,8 +205,11 @@ class _AddDtrEntryDialogState extends State<_AddDtrEntryDialog> {
     );
     if (t != null) {
       setState(() {
-        if (isIn) _timeIn = t;
-        else _timeOut = t;
+        if (isIn) {
+          _timeIn = t;
+        } else {
+          _timeOut = t;
+        }
       });
     }
   }
@@ -193,8 +219,20 @@ class _AddDtrEntryDialogState extends State<_AddDtrEntryDialog> {
     final dtrCount = provider.allTasks.where((t) => t.category == 'DTR').length;
     final title = 'Entry #${dtrCount + 1}';
 
-    final start = DateTime(_date.year, _date.month, _date.day, _timeIn.hour, _timeIn.minute);
-    var end = DateTime(_date.year, _date.month, _date.day, _timeOut.hour, _timeOut.minute);
+    final start = DateTime(
+      _date.year,
+      _date.month,
+      _date.day,
+      _timeIn.hour,
+      _timeIn.minute,
+    );
+    var end = DateTime(
+      _date.year,
+      _date.month,
+      _date.day,
+      _timeOut.hour,
+      _timeOut.minute,
+    );
     if (end.isBefore(start)) {
       end = end.add(const Duration(days: 1)); // Handle overnight shift
     }
@@ -225,31 +263,47 @@ class _AddDtrEntryDialogState extends State<_AddDtrEntryDialog> {
             Row(
               children: [
                 Expanded(
-                  child: Text('Date: ${DateFormat('MMM d, yyyy').format(_date)}'),
+                  child: Text(
+                    'Date: ${DateFormat('MMM d, yyyy').format(_date)}',
+                  ),
                 ),
-                FilledButton.tonal(onPressed: () => setState(() => _date = DateTime.now()), child: const Text('Today')),
+                FilledButton.tonal(
+                  onPressed: () => setState(() => _date = DateTime.now()),
+                  child: const Text('Today'),
+                ),
                 const SizedBox(width: 8),
-                IconButton.filledTonal(icon: const Icon(Icons.edit, size: 18), onPressed: _pickDate),
+                IconButton.filledTonal(
+                  icon: const Icon(Icons.edit, size: 18),
+                  onPressed: _pickDate,
+                ),
               ],
             ),
             Row(
               children: [
-                Expanded(
-                  child: Text('Time In: ${_timeIn.format(context)}'),
+                Expanded(child: Text('Time In: ${_timeIn.format(context)}')),
+                FilledButton.tonal(
+                  onPressed: () => setState(() => _timeIn = TimeOfDay.now()),
+                  child: const Text('Now'),
                 ),
-                FilledButton.tonal(onPressed: () => setState(() => _timeIn = TimeOfDay.now()), child: const Text('Now')),
                 const SizedBox(width: 8),
-                IconButton.filledTonal(icon: const Icon(Icons.edit, size: 18), onPressed: () => _pickTime(true)),
+                IconButton.filledTonal(
+                  icon: const Icon(Icons.edit, size: 18),
+                  onPressed: () => _pickTime(true),
+                ),
               ],
             ),
             Row(
               children: [
-                Expanded(
-                  child: Text('Time Out: ${_timeOut.format(context)}'),
+                Expanded(child: Text('Time Out: ${_timeOut.format(context)}')),
+                FilledButton.tonal(
+                  onPressed: () => setState(() => _timeOut = TimeOfDay.now()),
+                  child: const Text('Now'),
                 ),
-                FilledButton.tonal(onPressed: () => setState(() => _timeOut = TimeOfDay.now()), child: const Text('Now')),
                 const SizedBox(width: 8),
-                IconButton.filledTonal(icon: const Icon(Icons.edit, size: 18), onPressed: () => _pickTime(false)),
+                IconButton.filledTonal(
+                  icon: const Icon(Icons.edit, size: 18),
+                  onPressed: () => _pickTime(false),
+                ),
               ],
             ),
             const SizedBox(height: 16),
@@ -265,7 +319,10 @@ class _AddDtrEntryDialogState extends State<_AddDtrEntryDialog> {
         ),
       ),
       actions: [
-        TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Cancel'),
+        ),
         FilledButton(onPressed: _save, child: const Text('Save')),
       ],
     );
