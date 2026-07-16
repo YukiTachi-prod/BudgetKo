@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:fl_chart/fl_chart.dart';
+import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import '../providers/settings_provider.dart';
 import '../database/budget_database.dart';
@@ -10,6 +11,7 @@ class BudgetAnalytics extends StatefulWidget {
   final List<BudgetCategory> categories;
   final Map<int, double> categoryExpenses;
   final List<LedgerTransaction> recentTransactions;
+  final String dateFilter;
 
   const BudgetAnalytics({
     super.key,
@@ -17,6 +19,7 @@ class BudgetAnalytics extends StatefulWidget {
     required this.categories,
     required this.categoryExpenses,
     required this.recentTransactions,
+    required this.dateFilter,
   });
 
   @override
@@ -25,7 +28,19 @@ class BudgetAnalytics extends StatefulWidget {
 
 class _BudgetAnalyticsState extends State<BudgetAnalytics> {
   final PageController _pageController = PageController(initialPage: 1002);
-  String _selectedPeriod = 'Week';
+
+  String get _selectedPeriod {
+    switch (widget.dateFilter) {
+      case 'This Week':
+        return 'Week';
+      case 'This Month':
+        return 'Month';
+      case 'This Year':
+      case 'All Time':
+      default:
+        return 'Year';
+    }
+  }
 
   @override
   void dispose() {
@@ -83,7 +98,7 @@ class _BudgetAnalyticsState extends State<BudgetAnalytics> {
                 controller: _pageController,
                 physics: const NeverScrollableScrollPhysics(),
                 itemBuilder: (context, index) {
-                  final pageType = index % 3;
+                  final pageType = index % 4;
                   if (pageType == 0) {
                     // Donut chart comparing amount of money inside accounts
                     final sections = widget.accounts
@@ -195,36 +210,12 @@ class _BudgetAnalyticsState extends State<BudgetAnalytics> {
                         ),
                       ],
                     );
-                  } else {
+                  } else if (pageType == 2) {
                     return Column(
                       children: [
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Text(
-                              'Expenses: ',
-                              style: theme.textTheme.titleMedium,
-                            ),
-                            DropdownButtonHideUnderline(
-                              child: DropdownButton<String>(
-                                value: _selectedPeriod,
-                                isDense: true,
-                                items: ['Week', 'Month', 'Year']
-                                    .map(
-                                      (p) => DropdownMenuItem(
-                                        value: p,
-                                        child: Text(p),
-                                      ),
-                                    )
-                                    .toList(),
-                                onChanged: (v) {
-                                  if (v != null) {
-                                    setState(() => _selectedPeriod = v);
-                                  }
-                                },
-                              ),
-                            ),
-                          ],
+                        Text(
+                          'Expenses (${widget.dateFilter})',
+                          style: theme.textTheme.titleMedium,
                         ),
                         Expanded(
                           child: Padding(
@@ -234,7 +225,15 @@ class _BudgetAnalyticsState extends State<BudgetAnalytics> {
                             ),
                             child: LineChart(
                               LineChartData(
-                                gridData: const FlGridData(show: false),
+                                gridData: FlGridData(
+                                  show: true,
+                                  drawVerticalLine: false,
+                                  getDrawingHorizontalLine: (value) => FlLine(
+                                    color: theme.colorScheme.onSurface.withValues(alpha: 0.2),
+                                    strokeWidth: 1.5,
+                                    dashArray: [4, 4],
+                                  ),
+                                ),
                                 titlesData: FlTitlesData(
                                   topTitles: const AxisTitles(
                                     sideTitles: SideTitles(showTitles: false),
@@ -242,17 +241,57 @@ class _BudgetAnalyticsState extends State<BudgetAnalytics> {
                                   rightTitles: const AxisTitles(
                                     sideTitles: SideTitles(showTitles: false),
                                   ),
+                                  leftTitles: AxisTitles(
+                                    sideTitles: SideTitles(
+                                      showTitles: true,
+                                      reservedSize: 36,
+                                      getTitlesWidget: (value, meta) {
+                                        if (value != value.toInt()) {
+                                          return const SizedBox.shrink();
+                                        }
+                                        return Text(
+                                          value.toInt().toString(),
+                                          style: const TextStyle(fontSize: 10),
+                                        );
+                                      },
+                                    ),
+                                  ),
                                   bottomTitles: AxisTitles(
                                     sideTitles: SideTitles(
                                       showTitles: true,
                                       reservedSize: 22,
                                       getTitlesWidget: (value, meta) {
-                                        if (_selectedPeriod == 'Month' &&
-                                            value % 5 != 0) {
+                                        if (value != value.toInt()) {
                                           return const SizedBox.shrink();
                                         }
+                                        final int i = value.toInt();
+                                        final now = DateTime.now();
+                                        String text = '';
+                                        if (_selectedPeriod == 'Week') {
+                                          final date = now.subtract(
+                                            Duration(days: 6 - i),
+                                          );
+                                          text = DateFormat('EEE').format(date);
+                                        } else if (_selectedPeriod == 'Month') {
+                                          if (i % 5 != 0 && i != 29) {
+                                            return const SizedBox.shrink();
+                                          }
+                                          final date = now.subtract(
+                                            Duration(days: 29 - i),
+                                          );
+                                          text = DateFormat(
+                                            'dd/MM',
+                                          ).format(date);
+                                        } else if (_selectedPeriod == 'Year') {
+                                          final date = DateTime(
+                                            now.year,
+                                            now.month - (11 - i),
+                                            1,
+                                          );
+                                          text = DateFormat('MMM').format(date);
+                                        }
                                         return Text(
-                                          value.toInt().toString(),
+                                          text,
                                           style: const TextStyle(fontSize: 10),
                                         );
                                       },
@@ -275,6 +314,106 @@ class _BudgetAnalyticsState extends State<BudgetAnalytics> {
                                     ),
                                   ),
                                 ],
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    );
+                  } else {
+                    return Column(
+                      children: [
+                        Text(
+                          'Expenses (Bar - ${widget.dateFilter})',
+                          style: theme.textTheme.titleMedium,
+                        ),
+                        const SizedBox(height: 16),
+                        Expanded(
+                          child: Padding(
+                            padding: const EdgeInsets.only(
+                              right: 16.0,
+                              top: 16.0,
+                            ),
+                            child: BarChart(
+                              BarChartData(
+                                gridData: FlGridData(
+                                  show: true,
+                                  drawVerticalLine: false,
+                                  getDrawingHorizontalLine: (value) => FlLine(
+                                    color: theme.colorScheme.onSurface.withValues(alpha: 0.2),
+                                    strokeWidth: 1.5,
+                                    dashArray: [4, 4],
+                                  ),
+                                ),
+                                titlesData: FlTitlesData(
+                                  topTitles: const AxisTitles(
+                                    sideTitles: SideTitles(showTitles: false),
+                                  ),
+                                  rightTitles: const AxisTitles(
+                                    sideTitles: SideTitles(showTitles: false),
+                                  ),
+                                  leftTitles: AxisTitles(
+                                    sideTitles: SideTitles(
+                                      showTitles: true,
+                                      reservedSize: 36,
+                                      getTitlesWidget: (value, meta) {
+                                        if (value != value.toInt()) {
+                                          return const SizedBox.shrink();
+                                        }
+                                        return Text(
+                                          value.toInt().toString(),
+                                          style: const TextStyle(fontSize: 10),
+                                        );
+                                      },
+                                    ),
+                                  ),
+                                  bottomTitles: AxisTitles(
+                                    sideTitles: SideTitles(
+                                      showTitles: true,
+                                      reservedSize: 22,
+                                      getTitlesWidget: (value, meta) {
+                                        if (value != value.toInt()) {
+                                          return const SizedBox.shrink();
+                                        }
+                                        final int i = value.toInt();
+                                        final now = DateTime.now();
+                                        String text = '';
+                                        if (_selectedPeriod == 'Week') {
+                                          final date = now.subtract(Duration(days: 6 - i));
+                                          text = DateFormat('EEE').format(date);
+                                        } else if (_selectedPeriod == 'Month') {
+                                          if (i % 5 != 0 && i != 29) {
+                                            return const SizedBox.shrink();
+                                          }
+                                          final date = now.subtract(Duration(days: 29 - i));
+                                          text = DateFormat('dd/MM').format(date);
+                                        } else if (_selectedPeriod == 'Year') {
+                                          final date = DateTime(now.year, now.month - (11 - i), 1);
+                                          text = DateFormat('MMM').format(date);
+                                        }
+                                        return Text(
+                                          text,
+                                          style: const TextStyle(fontSize: 10),
+                                        );
+                                      },
+                                    ),
+                                  ),
+                                ),
+                                borderData: FlBorderData(show: false),
+                                barGroups: () {
+                                  final spots = _getSpots();
+                                  return spots.map((spot) => BarChartGroupData(
+                                    x: spot.x.toInt(),
+                                    barRods: [
+                                      BarChartRodData(
+                                        toY: spot.y,
+                                        color: theme.colorScheme.primary,
+                                        width: _selectedPeriod == 'Month' ? 4 : 16,
+                                        borderRadius: const BorderRadius.vertical(top: Radius.circular(4)),
+                                      ),
+                                    ],
+                                  )).toList();
+                                }(),
                               ),
                             ),
                           ),

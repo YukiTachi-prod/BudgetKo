@@ -116,6 +116,7 @@ class _BudgetAnalyticsTabState extends State<BudgetAnalyticsTab> {
                   categories: provider.categories,
                   categoryExpenses: categoryExpenses,
                   recentTransactions: filteredTransactions,
+                  dateFilter: _dateFilter,
                 ),
               ),
             )

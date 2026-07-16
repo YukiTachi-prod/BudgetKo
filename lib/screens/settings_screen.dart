@@ -4,6 +4,7 @@ import '../providers/settings_provider.dart';
 import '../providers/task_provider.dart';
 import '../utils/test_data_script.dart';
 import '../services/import_export_service.dart';
+import '../providers/ledger_provider.dart';
 import 'analytics_screen.dart';
 import 'package:file_picker/file_picker.dart';
 import '../services/platform/platform_file_service.dart';
@@ -644,6 +645,7 @@ class DeveloperOptionsScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final settings = Provider.of<SettingsProvider>(context, listen: false);
     final taskProvider = Provider.of<TaskProvider>(context, listen: false);
+    final ledgerProvider = Provider.of<LedgerProvider>(context, listen: false);
 
     return Scaffold(
       appBar: AppBar(title: const Text('Developer Options')),
@@ -731,6 +733,30 @@ class DeveloperOptionsScreen extends StatelessWidget {
               ScaffoldMessenger.of(context).showSnackBar(
                 const SnackBar(content: Text('50 test tasks generated!')),
               );
+            },
+          ),
+          ListTile(
+            leading: const Icon(Icons.analytics, color: Colors.blue),
+            title: const Text('Insert Mock Analytics'),
+            onTap: () async {
+              await ledgerProvider.insertMockAnalytics();
+              if (context.mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Mock analytics inserted!')),
+                );
+              }
+            },
+          ),
+          ListTile(
+            leading: const Icon(Icons.delete_sweep, color: Colors.red),
+            title: const Text('Remove Mock Analytics'),
+            onTap: () async {
+              await ledgerProvider.removeMockAnalytics();
+              if (context.mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Mock analytics removed!')),
+                );
+              }
             },
           ),
         ],
