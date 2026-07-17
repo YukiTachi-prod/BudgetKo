@@ -37,6 +37,9 @@ We are continuously improving TASKo to enhance your experience:
     - **Analytics**: Displays a combined positive Account Balances Donut Chart, Category Expenses Donut Chart, Monthly limit progress indicators (styled in category colors), and summary statistics for Loans (total borrowed/remaining, payoff progress bar) and Subscriptions (active count, est. monthly cost, upcoming bill alerts).
 - **Android Focus**: Streamlined codebase prioritizing Android, removing previous web-specific support to focus on mobile perfection.
 - **Enhanced Stability**: Critical bug fixes address `TaskEditScreen` loading failures with empty categories/statuses, now gracefully handling defaults.
+- **Wallet Backgrounds Management**: Added a dedicated `Saved Backgrounds` gallery in Settings to view, select, and safely batch-delete custom account backgrounds without leaving orphaned files. Importing background packages now intelligently warns against overwriting existing files.
+- **Refined Wallet UI**: Account cards now feature a precise 30%-width right-aligned sub-container for account names and amounts. Amounts use standard font weights for a cleaner look, matching a newly bundled `Format.png` export template.
+- **Expenses Zoom Controls**: The "All Expenses" table now includes dedicated manual Zoom-In and Zoom-Out floating buttons, allowing you to comfortably pan and scale your transaction history.
 - **Safe Deletions**: Confirmation dialogs added for deleting Categories and Statuses in `SettingsScreen` to prevent accidental data loss.
 - **Flexible Status System**: Replaced the 'Priority' system with a more versatile 'Status' system (Not Started, Ongoing, Finished, Dropped).
 - **Toggleable Task Dates**: Tasks can now optionally omit Start/End dates, creating simple to-do items without scheduling urgency or alarms.

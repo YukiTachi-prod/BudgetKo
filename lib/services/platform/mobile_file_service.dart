@@ -35,12 +35,35 @@ class PlatformFileService {
     return destPath;
   }
 
+  Future<String> saveBytesToAppStorage(Uint8List bytes, String fileName) async {
+    final docsDir = await getApplicationDocumentsDirectory();
+    final destPath = p.join(docsDir.path, fileName);
+    await File(destPath).writeAsBytes(bytes);
+    return destPath;
+  }
+
   void deletePdfFile(String path) {
     final file = File(path);
     if (file.existsSync()) file.deleteSync();
   }
 
   bool pdfFileExists(String path) => File(path).existsSync();
+
+  Future<bool> fileExistsInAppStorage(String fileName) async {
+    final docsDir = await getApplicationDocumentsDirectory();
+    final destPath = p.join(docsDir.path, fileName);
+    return File(destPath).existsSync();
+  }
+
+  Future<List<String>> getSavedBackgrounds() async {
+    final docsDir = await getApplicationDocumentsDirectory();
+    return docsDir
+        .listSync()
+        .whereType<File>()
+        .where((file) => file.path.toLowerCase().endsWith('.png'))
+        .map((file) => file.path)
+        .toList();
+  }
 
   Future<String> saveExportZip(Uint8List bytes, String filename) async {
     final docsDir = await getApplicationDocumentsDirectory();

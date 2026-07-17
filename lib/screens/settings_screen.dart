@@ -6,11 +6,16 @@ import '../utils/test_data_script.dart';
 import '../services/import_export_service.dart';
 import '../providers/ledger_provider.dart';
 import 'analytics_screen.dart';
+import 'saved_backgrounds_screen.dart';
 import 'package:file_picker/file_picker.dart';
 import '../services/platform/platform_file_service.dart';
 import '../services/notification/notification_service.dart';
 import 'package:flutter_colorpicker/flutter_colorpicker.dart';
 import '../widgets/transition_placeholder.dart';
+import 'dart:ui' as ui;
+import 'package:archive/archive.dart';
+import 'dart:typed_data';
+import 'dart:io';
 
 class SettingsScreen extends StatelessWidget {
   const SettingsScreen({super.key});
@@ -139,6 +144,23 @@ class SettingsScreen extends StatelessWidget {
               title: const Text('Import Tasks'),
               subtitle: const Text('Import from ZIP file'),
               onTap: () => _handleImport(context, taskProvider, settings),
+            ),
+            ListTile(
+              leading: const Icon(Icons.image),
+              title: const Text('Import Account Packages'),
+              subtitle: const Text('Import custom backgrounds from ZIP'),
+              onTap: () => _handleImportAccountPackage(context),
+            ),
+            ListTile(
+              leading: const Icon(Icons.wallpaper),
+              title: const Text('Saved Backgrounds'),
+              subtitle: const Text('Manage your custom account backgrounds'),
+              onTap: () => Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const SavedBackgroundsScreen(),
+                ),
+              ),
             ),
             ListTile(
               leading: const Icon(Icons.upload),
@@ -544,6 +566,71 @@ class SettingsScreen extends StatelessWidget {
             context,
           ).showSnackBar(SnackBar(content: Text('Import failed: $e')));
         }
+      }
+    }
+  }
+
+  Future<void> _handleImportAccountPackage(BuildContext context) async {
+    final ledgerProvider = context.read<LedgerProvider>();
+    final result = await FilePicker.pickFiles(
+      type: FileType.custom,
+      allowedExtensions: ['zip'],
+    );
+
+    if (result != null && result.files.single.path != null) {
+      final bytes = await File(result.files.single.path!).readAsBytes();
+      final archive = ZipDecoder().decodeBytes(bytes);
+      int updatedAccountsCount = 0;
+      final fileService = PlatformFileService();
+
+      for (final file in archive) {
+        if (file.isFile && file.name.toLowerCase().endsWith('.png')) {
+          // file.name may contain paths like "folder/GCash.png", we just want the base name
+          final baseName = file.name.split('/').last;
+          final accountName = baseName.substring(
+            0,
+            baseName.length - 4,
+          ); // Remove .png
+
+          final account = ledgerProvider.accounts
+              .where((a) => a.name == accountName)
+              .firstOrNull;
+
+          if (account != null) {
+            final Uint8List fileBytes = file.content;
+            final codec = await ui.instantiateImageCodec(fileBytes);
+            final frame = await codec.getNextFrame();
+
+            if (frame.image.width == 1000 && frame.image.height == 300) {
+              final savedPath = await fileService.saveBytesToAppStorage(
+                fileBytes,
+                'bg_${account.id}_${DateTime.now().millisecondsSinceEpoch}.png',
+              );
+              ledgerProvider.updateAccount(
+                account.id,
+                account.name,
+                account.currentBalance,
+                colorHex: account.colorHex,
+                minBalance: account.minBalance,
+                backgroundImagePath: savedPath,
+                clearBackgroundImage: false,
+              );
+              updatedAccountsCount++;
+            }
+          }
+        }
+      }
+
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              updatedAccountsCount > 0
+                  ? 'Successfully imported $updatedAccountsCount account backgrounds!'
+                  : 'No valid matching backgrounds found in the zip.',
+            ),
+          ),
+        );
       }
     }
   }

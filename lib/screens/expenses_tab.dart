@@ -12,7 +12,9 @@ class ExpensesTab extends StatefulWidget {
 }
 
 class _ExpensesTabState extends State<ExpensesTab> {
-  String _dateFilter = 'All Time';
+  String _dateFilter = 'This Week';
+  final TransformationController _transformController =
+      TransformationController();
 
   bool _isWithinFilter(DateTime date) {
     final now = DateTime.now();
@@ -29,6 +31,30 @@ class _ExpensesTabState extends State<ExpensesTab> {
     }
   }
 
+  void _zoomIn() {
+    final currentScale = _transformController.value.getMaxScaleOnAxis();
+    if (currentScale < 4.0) {
+      final matrix = _transformController.value.clone();
+      matrix.scaleByDouble(1.2, 1.2, 1.2, 1.0);
+      _transformController.value = matrix;
+    }
+  }
+
+  void _zoomOut() {
+    final currentScale = _transformController.value.getMaxScaleOnAxis();
+    if (currentScale > 0.2) {
+      final matrix = _transformController.value.clone();
+      matrix.scaleByDouble(1 / 1.2, 1 / 1.2, 1 / 1.2, 1.0);
+      _transformController.value = matrix;
+    }
+  }
+
+  @override
+  void dispose() {
+    _transformController.dispose();
+    super.dispose();
+  }
+
   @override
   Widget build(BuildContext context) {
     final provider = context.watch<LedgerProvider>();
@@ -42,142 +68,177 @@ class _ExpensesTabState extends State<ExpensesTab> {
         )
         .toList();
 
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(16.0),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+    return Stack(
+      children: [
+        SingleChildScrollView(
+          padding: const EdgeInsets.all(16.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              Text(
-                'All Expenses',
-                style: Theme.of(context).textTheme.titleLarge,
-              ),
-              DropdownButton<String>(
-                value: _dateFilter,
-                items: const [
-                  DropdownMenuItem(value: 'All Time', child: Text('All Time')),
-                  DropdownMenuItem(
-                    value: 'This Week',
-                    child: Text('This Week'),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    'All Expenses',
+                    style: Theme.of(context).textTheme.titleLarge,
                   ),
-                  DropdownMenuItem(
-                    value: 'This Month',
-                    child: Text('This Month'),
-                  ),
-                  DropdownMenuItem(
-                    value: 'This Year',
-                    child: Text('This Year'),
-                  ),
-                ],
-                onChanged: (val) {
-                  if (val != null) {
-                    setState(() => _dateFilter = val);
-                  }
-                },
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          if (expenses.isEmpty)
-            const Padding(
-              padding: EdgeInsets.symmetric(vertical: 32.0),
-              child: Text(
-                'No expenses found for this period.',
-                textAlign: TextAlign.center,
-                style: TextStyle(color: Colors.grey),
-              ),
-            )
-          else
-            SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              child: DataTable(
-                columns: const [
-                  DataColumn(label: Text('Account')),
-                  DataColumn(label: Text('Category')),
-                  DataColumn(label: Text('Expense')),
-                  DataColumn(label: Text('Date')),
-                ],
-                rows: expenses.map((tx) {
-                  final catList = provider.categories
-                      .where((c) => c.id == tx.categoryId)
-                      .toList();
-                  final cat = catList.isNotEmpty ? catList.first : null;
-                  final catName = cat?.name ?? 'Unknown';
-                  final catColor = cat != null ? Color(cat.colorHex) : null;
-
-                  final accList = provider.accounts
-                      .where((a) => a.id == tx.fromAccountId)
-                      .toList();
-                  final acc = accList.isNotEmpty ? accList.first : null;
-                  final accName = acc?.name ?? 'Unknown';
-                  final accColor = acc != null ? Color(acc.colorHex) : null;
-
-                  return DataRow(
-                    color: catColor != null
-                        ? WidgetStateProperty.all(
-                            catColor.withValues(alpha: 0.08),
-                          )
-                        : null,
-                    cells: [
-                      DataCell(
-                        Text(
-                          accName,
-                          style: TextStyle(
-                            color: accColor,
-                            fontWeight: accColor != null
-                                ? FontWeight.bold
-                                : null,
-                          ),
-                        ),
+                  DropdownButton<String>(
+                    value: _dateFilter,
+                    items: const [
+                      DropdownMenuItem(
+                        value: 'All Time',
+                        child: Text('All Time'),
                       ),
-                      DataCell(
-                        Text(
-                          catName,
-                          style: TextStyle(
-                            color: catColor,
-                            fontWeight: catColor != null
-                                ? FontWeight.bold
-                                : null,
-                          ),
-                        ),
+                      DropdownMenuItem(
+                        value: 'This Week',
+                        child: Text('This Week'),
                       ),
-                      DataCell(
-                        Text('$currency${tx.amount.toStringAsFixed(2)}'),
+                      DropdownMenuItem(
+                        value: 'This Month',
+                        child: Text('This Month'),
                       ),
-                      DataCell(
-                        Text(tx.date.toString().split(' ')[0]),
-                        showEditIcon: true,
-                        onTap: () async {
-                          final newDate = await showDatePicker(
-                            context: context,
-                            initialDate: tx.date,
-                            firstDate: DateTime(2000),
-                            lastDate: DateTime(2100),
-                          );
-                          if (newDate != null && newDate != tx.date) {
-                            if (!context.mounted) return;
-                            context.read<LedgerProvider>().updateTransaction(
-                              transactionId: tx.id,
-                              amount: tx.amount,
-                              date: newDate,
-                              type: TransactionType.values[tx.transactionType],
-                              fromAccountId: tx.fromAccountId,
-                              toAccountId: tx.toAccountId,
-                              categoryId: tx.categoryId,
-                              notes: tx.notes,
-                            );
-                          }
-                        },
+                      DropdownMenuItem(
+                        value: 'This Year',
+                        child: Text('This Year'),
                       ),
                     ],
-                  );
-                }).toList(),
+                    onChanged: (val) {
+                      if (val != null) {
+                        setState(() => _dateFilter = val);
+                      }
+                    },
+                  ),
+                ],
               ),
+              const SizedBox(height: 12),
+              if (expenses.isEmpty)
+                const Padding(
+                  padding: EdgeInsets.symmetric(vertical: 32.0),
+                  child: Text(
+                    'No expenses found for this period.',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(color: Colors.grey),
+                  ),
+                )
+              else
+                InteractiveViewer(
+                  transformationController: _transformController,
+                  scaleEnabled: false,
+                  constrained: false,
+                  minScale: 0.2,
+                  maxScale: 4.0,
+                  child: DataTable(
+                    columns: const [
+                      DataColumn(label: Text('Account')),
+                      DataColumn(label: Text('Category')),
+                      DataColumn(label: Text('Expense')),
+                      DataColumn(label: Text('Date')),
+                    ],
+                    rows: expenses.map((tx) {
+                      final catList = provider.categories
+                          .where((c) => c.id == tx.categoryId)
+                          .toList();
+                      final cat = catList.isNotEmpty ? catList.first : null;
+                      final catName = cat?.name ?? 'Unknown';
+                      final catColor = cat != null ? Color(cat.colorHex) : null;
+
+                      final accList = provider.accounts
+                          .where((a) => a.id == tx.fromAccountId)
+                          .toList();
+                      final acc = accList.isNotEmpty ? accList.first : null;
+                      final accName = acc?.name ?? 'Unknown';
+                      final accColor = acc != null ? Color(acc.colorHex) : null;
+
+                      return DataRow(
+                        color: catColor != null
+                            ? WidgetStateProperty.all(
+                                catColor.withValues(alpha: 0.08),
+                              )
+                            : null,
+                        cells: [
+                          DataCell(
+                            Text(
+                              accName,
+                              style: TextStyle(
+                                color: accColor,
+                                fontWeight: accColor != null
+                                    ? FontWeight.bold
+                                    : null,
+                              ),
+                            ),
+                          ),
+                          DataCell(
+                            Text(
+                              catName,
+                              style: TextStyle(
+                                color: catColor,
+                                fontWeight: catColor != null
+                                    ? FontWeight.bold
+                                    : null,
+                              ),
+                            ),
+                          ),
+                          DataCell(
+                            Text('$currency${tx.amount.toStringAsFixed(2)}'),
+                          ),
+                          DataCell(
+                            Text(tx.date.toString().split(' ')[0]),
+                            showEditIcon: true,
+                            onTap: () async {
+                              final newDate = await showDatePicker(
+                                context: context,
+                                initialDate: tx.date,
+                                firstDate: DateTime(2000),
+                                lastDate: DateTime(2100),
+                              );
+                              if (newDate != null && newDate != tx.date) {
+                                if (!context.mounted) return;
+                                context
+                                    .read<LedgerProvider>()
+                                    .updateTransaction(
+                                      transactionId: tx.id,
+                                      amount: tx.amount,
+                                      date: newDate,
+                                      type: TransactionType
+                                          .values[tx.transactionType],
+                                      fromAccountId: tx.fromAccountId,
+                                      toAccountId: tx.toAccountId,
+                                      categoryId: tx.categoryId,
+                                      notes: tx.notes,
+                                    );
+                              }
+                            },
+                          ),
+                        ],
+                      );
+                    }).toList(),
+                  ),
+                ),
+            ],
+          ),
+        ),
+        if (expenses.isNotEmpty)
+          Positioned(
+            bottom: 80,
+            right: 16,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                FloatingActionButton.small(
+                  heroTag: 'zoomInExpenses',
+                  onPressed: _zoomIn,
+                  child: const Icon(Icons.zoom_in),
+                ),
+                const SizedBox(height: 8),
+                FloatingActionButton.small(
+                  heroTag: 'zoomOutExpenses',
+                  onPressed: _zoomOut,
+                  child: const Icon(Icons.zoom_out),
+                ),
+              ],
             ),
-        ],
-      ),
+          ),
+      ],
     );
   }
 }

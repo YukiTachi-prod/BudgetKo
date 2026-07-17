@@ -13,7 +13,7 @@ class BudgetAnalyticsTab extends StatefulWidget {
 }
 
 class _BudgetAnalyticsTabState extends State<BudgetAnalyticsTab> {
-  String _dateFilter = 'All Time';
+  String _dateFilter = 'This Week';
 
   bool _isWithinFilter(DateTime date) {
     final now = DateTime.now();

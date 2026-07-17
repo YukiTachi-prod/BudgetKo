@@ -17,10 +17,18 @@ import 'dart:ui' as ui;
 import 'package:file_picker/file_picker.dart';
 import '../services/platform/platform_file_service.dart';
 import '../widgets/transition_placeholder.dart';
+import 'package:flutter/services.dart' show rootBundle;
 
-class BudgetScreen extends StatelessWidget {
+class BudgetScreen extends StatefulWidget {
   final bool isDefault;
   const BudgetScreen({super.key, this.isDefault = false});
+
+  @override
+  State<BudgetScreen> createState() => _BudgetScreenState();
+}
+
+class _BudgetScreenState extends State<BudgetScreen> {
+  bool _showAllCategories = false;
 
   void _showAccountDialog(BuildContext context, [Account? accountToEdit]) {
     final nameCtrl = TextEditingController(text: accountToEdit?.name ?? '');
@@ -165,25 +173,26 @@ class BudgetScreen extends StatelessWidget {
                           Expanded(
                             child: OutlinedButton(
                               onPressed: () async {
-                                final recorder = ui.PictureRecorder();
-                                final canvas = Canvas(recorder);
-                                final paint = Paint()..color = Colors.white;
-                                canvas.drawRect(
-                                  const Rect.fromLTWH(0, 0, 1000, 300),
-                                  paint,
-                                );
-                                final picture = recorder.endRecording();
-                                final img = await picture.toImage(1000, 300);
-                                final byteData = await img.toByteData(
-                                  format: ui.ImageByteFormat.png,
-                                );
-                                if (byteData != null) {
+                                try {
+                                  final byteData = await rootBundle.load(
+                                    'lib/assets/Format.png',
+                                  );
                                   await PlatformFileService().shareFile(
                                     byteData.buffer.asUint8List(),
                                     'Format.png',
                                     text:
                                         'Edit this 1000x300 PNG for your account background!',
                                   );
+                                } catch (e) {
+                                  if (context.mounted) {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      const SnackBar(
+                                        content: Text(
+                                          'Failed to load format file.',
+                                        ),
+                                      ),
+                                    );
+                                  }
                                 }
                               },
                               child: const Text('Export Format'),
@@ -200,6 +209,42 @@ class BudgetScreen extends StatelessWidget {
                                 if (res != null &&
                                     res.files.single.path != null) {
                                   final path = res.files.single.path!;
+                                  final fileName = res.files.single.name;
+
+                                  final fileExists = await PlatformFileService()
+                                      .fileExistsInAppStorage(fileName);
+                                  if (fileExists && context.mounted) {
+                                    final confirm = await showDialog<bool>(
+                                      context: context,
+                                      builder: (ctx) => AlertDialog(
+                                        title: const Text(
+                                          'Overwrite Background?',
+                                        ),
+                                        content: Text(
+                                          'A background named "$fileName" already exists. Do you want to overwrite it?',
+                                        ),
+                                        actions: [
+                                          TextButton(
+                                            onPressed: () =>
+                                                Navigator.pop(ctx, false),
+                                            child: const Text('Cancel'),
+                                          ),
+                                          TextButton(
+                                            onPressed: () =>
+                                                Navigator.pop(ctx, true),
+                                            child: const Text(
+                                              'Overwrite',
+                                              style: TextStyle(
+                                                color: Colors.red,
+                                              ),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    );
+                                    if (confirm != true) return;
+                                  }
+
                                   final bytes = await File(path).readAsBytes();
                                   final codec = await ui.instantiateImageCodec(
                                     bytes,
@@ -207,11 +252,12 @@ class BudgetScreen extends StatelessWidget {
                                   final frame = await codec.getNextFrame();
                                   if (frame.image.width == 1000 &&
                                       frame.image.height == 300) {
-                                    final savedPath = await PlatformFileService()
-                                        .copyFileToAppStorage(
-                                          path,
-                                          'bg_${DateTime.now().millisecondsSinceEpoch}.png',
-                                        );
+                                    final savedPath =
+                                        await PlatformFileService()
+                                            .copyFileToAppStorage(
+                                              path,
+                                              fileName,
+                                            );
                                     setState(() {
                                       currentBgPath = savedPath;
                                       clearBg = false;
@@ -511,7 +557,7 @@ class BudgetScreen extends StatelessWidget {
                   color: Theme.of(context).colorScheme.primary,
                 ),
                 onPressed: () {
-                  if (isDefault) {
+                  if (widget.isDefault) {
                     Navigator.pushReplacement(
                       context,
                       MaterialPageRoute(builder: (_) => const MainScreen()),
@@ -631,64 +677,90 @@ class BudgetScreen extends StatelessWidget {
                                     color: accColor.withValues(alpha: 0.3),
                                   ),
                                 ),
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 16,
-                                  vertical: 12,
-                                ),
                                 child: Row(
-                                  mainAxisAlignment:
-                                      MainAxisAlignment.spaceBetween,
                                   children: [
-                                    Row(
-                                      children: [
-                                        if (acc.currentBalance < acc.minBalance)
-                                          const Padding(
-                                            padding: EdgeInsets.only(
-                                              right: 8.0,
-                                            ),
-                                            child: Icon(
-                                              Icons.error,
-                                              color: Colors.red,
-                                            ),
-                                          ),
-                                        Text(
-                                          acc.name,
-                                          style: TextStyle(
-                                            fontWeight: FontWeight.bold,
-                                            fontSize: 18,
-                                            color:
-                                                acc.backgroundImagePath != null
-                                                ? Colors.white
-                                                : accColor,
-                                            shadows:
-                                                acc.backgroundImagePath != null
-                                                ? [
-                                                    const Shadow(
-                                                      color: Colors.black,
-                                                      blurRadius: 4,
-                                                    ),
-                                                  ]
-                                                : null,
+                                    const Spacer(flex: 7),
+                                    Expanded(
+                                      flex: 3,
+                                      child: Container(
+                                        height: double.infinity,
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 12,
+                                        ),
+                                        decoration: BoxDecoration(
+                                          color:
+                                              theme.brightness ==
+                                                  Brightness.dark
+                                              ? Colors.black87
+                                              : Colors.white.withValues(
+                                                  alpha: 0.9,
+                                                ),
+                                          borderRadius: const BorderRadius.only(
+                                            topRight: Radius.circular(12),
+                                            bottomRight: Radius.circular(12),
                                           ),
                                         ),
-                                      ],
-                                    ),
-                                    Text(
-                                      '$currency${acc.currentBalance.toStringAsFixed(2)}',
-                                      style: TextStyle(
-                                        fontWeight: FontWeight.bold,
-                                        fontSize: 20,
-                                        color: acc.backgroundImagePath != null
-                                            ? Colors.white
-                                            : accColor,
-                                        shadows: acc.backgroundImagePath != null
-                                            ? [
-                                                const Shadow(
-                                                  color: Colors.black,
-                                                  blurRadius: 4,
+                                        child: Column(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.end,
+                                          mainAxisAlignment:
+                                              MainAxisAlignment.center,
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            Row(
+                                              mainAxisSize: MainAxisSize.min,
+                                              mainAxisAlignment:
+                                                  MainAxisAlignment.end,
+                                              children: [
+                                                if (acc.currentBalance <
+                                                    acc.minBalance)
+                                                  const Padding(
+                                                    padding: EdgeInsets.only(
+                                                      right: 8.0,
+                                                    ),
+                                                    child: Icon(
+                                                      Icons.error,
+                                                      color: Colors.red,
+                                                      size: 16,
+                                                    ),
+                                                  ),
+                                                Flexible(
+                                                  child: Text(
+                                                    acc.name,
+                                                    style: TextStyle(
+                                                      fontWeight:
+                                                          FontWeight.bold,
+                                                      fontSize: 14,
+                                                      color:
+                                                          theme.brightness ==
+                                                              Brightness.dark
+                                                          ? Colors.white
+                                                          : Colors.black,
+                                                    ),
+                                                    overflow:
+                                                        TextOverflow.ellipsis,
+                                                  ),
                                                 ),
-                                              ]
-                                            : null,
+                                              ],
+                                            ),
+                                            const SizedBox(height: 2),
+                                            Flexible(
+                                              child: Text(
+                                                '$currency${acc.currentBalance.toStringAsFixed(2)}',
+                                                style: TextStyle(
+                                                  fontWeight: FontWeight.normal,
+                                                  fontSize: 20,
+                                                  color:
+                                                      theme.brightness ==
+                                                          Brightness.dark
+                                                      ? Colors.white
+                                                      : Colors.black,
+                                                ),
+                                                overflow: TextOverflow.ellipsis,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
                                       ),
                                     ),
                                   ],
@@ -719,30 +791,63 @@ class BudgetScreen extends StatelessWidget {
                       Wrap(
                         spacing: 8.0,
                         runSpacing: 8.0,
-                        children: provider.categories.map((cat) {
-                          final catColor = Color(cat.colorHex);
-                          return ActionChip(
-                            label: Text(
-                              '${cat.name} ${cat.monthlyBudgetLimit != null ? '($currency${cat.monthlyBudgetLimit!.toStringAsFixed(0)})' : ''}',
-                              style: TextStyle(
-                                color: catColor,
-                                fontWeight: FontWeight.bold,
+                        children: [
+                          ...(_showAllCategories ||
+                                      provider.categories.length <= 4
+                                  ? provider.categories
+                                  : provider.categories.take(4))
+                              .map((cat) {
+                                final catColor = Color(cat.colorHex);
+                                return ActionChip(
+                                  label: Text(
+                                    '${cat.name} ${cat.monthlyBudgetLimit != null ? '($currency${cat.monthlyBudgetLimit!.toStringAsFixed(0)})' : ''}',
+                                    style: TextStyle(
+                                      color: catColor,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                  avatar: Icon(
+                                    cat.isExpense
+                                        ? Icons.arrow_downward
+                                        : Icons.arrow_upward,
+                                    color: catColor,
+                                    size: 16,
+                                  ),
+                                  backgroundColor: catColor.withValues(
+                                    alpha: 0.08,
+                                  ),
+                                  side: BorderSide(
+                                    color: catColor.withValues(alpha: 0.3),
+                                  ),
+                                  onPressed: () =>
+                                      _showCategoryDialog(context, cat),
+                                );
+                              }),
+                          if (!_showAllCategories &&
+                              provider.categories.length > 4)
+                            ActionChip(
+                              label: const Text('Show More'),
+                              backgroundColor:
+                                  theme.colorScheme.surfaceContainerHighest,
+                              side: BorderSide(
+                                color: theme.colorScheme.outlineVariant,
                               ),
+                              onPressed: () =>
+                                  setState(() => _showAllCategories = true),
                             ),
-                            avatar: Icon(
-                              cat.isExpense
-                                  ? Icons.arrow_downward
-                                  : Icons.arrow_upward,
-                              color: catColor,
-                              size: 16,
+                          if (_showAllCategories &&
+                              provider.categories.length > 4)
+                            ActionChip(
+                              label: const Text('Show Less'),
+                              backgroundColor:
+                                  theme.colorScheme.surfaceContainerHighest,
+                              side: BorderSide(
+                                color: theme.colorScheme.outlineVariant,
+                              ),
+                              onPressed: () =>
+                                  setState(() => _showAllCategories = false),
                             ),
-                            backgroundColor: catColor.withValues(alpha: 0.08),
-                            side: BorderSide(
-                              color: catColor.withValues(alpha: 0.3),
-                            ),
-                            onPressed: () => _showCategoryDialog(context, cat),
-                          );
-                        }).toList(),
+                        ],
                       ),
 
                     const SizedBox(height: 24),
@@ -807,8 +912,8 @@ class BudgetScreen extends StatelessWidget {
                                 isTransfer
                                     ? Icons.swap_horiz
                                     : (isInc
-                                          ? Icons.arrow_downward
-                                          : Icons.arrow_upward),
+                                          ? Icons.arrow_upward
+                                          : Icons.arrow_downward),
                                 color: isInc
                                     ? Colors.green
                                     : (isTransfer ? Colors.blue : Colors.red),

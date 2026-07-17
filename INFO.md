@@ -18,6 +18,7 @@
 - **Dark/Light Mode**: Fully integrated theme switcher. Light mode uses a soft lavender background with a deep purple sidebar; dark mode uses dark violet tones.
 - **Heatmap View**: Visual grid displaying tasks by day/week, accessible via a pinch/squeeze gesture or the header button, with inner-cell sorting options.
 - **Custom Status Colors**: Allows users to dynamically select specific display colors for their task statuses from the Settings menu.
+- **Wallet Background Management**: Import custom account backgrounds (1000x300 PNG). A dedicated "Saved Backgrounds" screen in settings allows gallery viewing, multi-selection, and batch deletion. Overwrite warnings prevent accidental data loss during imports.
 - **Developer Options**: A locked section in Settings (password: `jaceywashere`) for testing immediate and scheduled notifications/alarms and bulk-generating dummy data.
 
 ### Technical Architecture
