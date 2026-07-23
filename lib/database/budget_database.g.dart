@@ -609,6 +609,29 @@ class $CategoriesTable extends Categories
         type: DriftSqlType.double,
         requiredDuringInsert: false,
       );
+  static const VerificationMeta _dailyBudgetLimitMeta = const VerificationMeta(
+    'dailyBudgetLimit',
+  );
+  @override
+  late final GeneratedColumn<double> dailyBudgetLimit = GeneratedColumn<double>(
+    'daily_budget_limit',
+    aliasedName,
+    true,
+    type: DriftSqlType.double,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _weeklyBudgetLimitMeta = const VerificationMeta(
+    'weeklyBudgetLimit',
+  );
+  @override
+  late final GeneratedColumn<double> weeklyBudgetLimit =
+      GeneratedColumn<double>(
+        'weekly_budget_limit',
+        aliasedName,
+        true,
+        type: DriftSqlType.double,
+        requiredDuringInsert: false,
+      );
   @override
   List<GeneratedColumn> get $columns => [
     id,
@@ -617,6 +640,8 @@ class $CategoriesTable extends Categories
     colorHex,
     isExpense,
     monthlyBudgetLimit,
+    dailyBudgetLimit,
+    weeklyBudgetLimit,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -677,6 +702,24 @@ class $CategoriesTable extends Categories
         ),
       );
     }
+    if (data.containsKey('daily_budget_limit')) {
+      context.handle(
+        _dailyBudgetLimitMeta,
+        dailyBudgetLimit.isAcceptableOrUnknown(
+          data['daily_budget_limit']!,
+          _dailyBudgetLimitMeta,
+        ),
+      );
+    }
+    if (data.containsKey('weekly_budget_limit')) {
+      context.handle(
+        _weeklyBudgetLimitMeta,
+        weeklyBudgetLimit.isAcceptableOrUnknown(
+          data['weekly_budget_limit']!,
+          _weeklyBudgetLimitMeta,
+        ),
+      );
+    }
     return context;
   }
 
@@ -710,6 +753,14 @@ class $CategoriesTable extends Categories
         DriftSqlType.double,
         data['${effectivePrefix}monthly_budget_limit'],
       ),
+      dailyBudgetLimit: attachedDatabase.typeMapping.read(
+        DriftSqlType.double,
+        data['${effectivePrefix}daily_budget_limit'],
+      ),
+      weeklyBudgetLimit: attachedDatabase.typeMapping.read(
+        DriftSqlType.double,
+        data['${effectivePrefix}weekly_budget_limit'],
+      ),
     );
   }
 
@@ -726,6 +777,8 @@ class BudgetCategory extends DataClass implements Insertable<BudgetCategory> {
   final int colorHex;
   final bool isExpense;
   final double? monthlyBudgetLimit;
+  final double? dailyBudgetLimit;
+  final double? weeklyBudgetLimit;
   const BudgetCategory({
     required this.id,
     required this.name,
@@ -733,6 +786,8 @@ class BudgetCategory extends DataClass implements Insertable<BudgetCategory> {
     required this.colorHex,
     required this.isExpense,
     this.monthlyBudgetLimit,
+    this.dailyBudgetLimit,
+    this.weeklyBudgetLimit,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -744,6 +799,12 @@ class BudgetCategory extends DataClass implements Insertable<BudgetCategory> {
     map['is_expense'] = Variable<bool>(isExpense);
     if (!nullToAbsent || monthlyBudgetLimit != null) {
       map['monthly_budget_limit'] = Variable<double>(monthlyBudgetLimit);
+    }
+    if (!nullToAbsent || dailyBudgetLimit != null) {
+      map['daily_budget_limit'] = Variable<double>(dailyBudgetLimit);
+    }
+    if (!nullToAbsent || weeklyBudgetLimit != null) {
+      map['weekly_budget_limit'] = Variable<double>(weeklyBudgetLimit);
     }
     return map;
   }
@@ -758,6 +819,12 @@ class BudgetCategory extends DataClass implements Insertable<BudgetCategory> {
       monthlyBudgetLimit: monthlyBudgetLimit == null && nullToAbsent
           ? const Value.absent()
           : Value(monthlyBudgetLimit),
+      dailyBudgetLimit: dailyBudgetLimit == null && nullToAbsent
+          ? const Value.absent()
+          : Value(dailyBudgetLimit),
+      weeklyBudgetLimit: weeklyBudgetLimit == null && nullToAbsent
+          ? const Value.absent()
+          : Value(weeklyBudgetLimit),
     );
   }
 
@@ -775,6 +842,10 @@ class BudgetCategory extends DataClass implements Insertable<BudgetCategory> {
       monthlyBudgetLimit: serializer.fromJson<double?>(
         json['monthlyBudgetLimit'],
       ),
+      dailyBudgetLimit: serializer.fromJson<double?>(json['dailyBudgetLimit']),
+      weeklyBudgetLimit: serializer.fromJson<double?>(
+        json['weeklyBudgetLimit'],
+      ),
     );
   }
   @override
@@ -787,6 +858,8 @@ class BudgetCategory extends DataClass implements Insertable<BudgetCategory> {
       'colorHex': serializer.toJson<int>(colorHex),
       'isExpense': serializer.toJson<bool>(isExpense),
       'monthlyBudgetLimit': serializer.toJson<double?>(monthlyBudgetLimit),
+      'dailyBudgetLimit': serializer.toJson<double?>(dailyBudgetLimit),
+      'weeklyBudgetLimit': serializer.toJson<double?>(weeklyBudgetLimit),
     };
   }
 
@@ -797,6 +870,8 @@ class BudgetCategory extends DataClass implements Insertable<BudgetCategory> {
     int? colorHex,
     bool? isExpense,
     Value<double?> monthlyBudgetLimit = const Value.absent(),
+    Value<double?> dailyBudgetLimit = const Value.absent(),
+    Value<double?> weeklyBudgetLimit = const Value.absent(),
   }) => BudgetCategory(
     id: id ?? this.id,
     name: name ?? this.name,
@@ -806,6 +881,12 @@ class BudgetCategory extends DataClass implements Insertable<BudgetCategory> {
     monthlyBudgetLimit: monthlyBudgetLimit.present
         ? monthlyBudgetLimit.value
         : this.monthlyBudgetLimit,
+    dailyBudgetLimit: dailyBudgetLimit.present
+        ? dailyBudgetLimit.value
+        : this.dailyBudgetLimit,
+    weeklyBudgetLimit: weeklyBudgetLimit.present
+        ? weeklyBudgetLimit.value
+        : this.weeklyBudgetLimit,
   );
   BudgetCategory copyWithCompanion(CategoriesCompanion data) {
     return BudgetCategory(
@@ -819,6 +900,12 @@ class BudgetCategory extends DataClass implements Insertable<BudgetCategory> {
       monthlyBudgetLimit: data.monthlyBudgetLimit.present
           ? data.monthlyBudgetLimit.value
           : this.monthlyBudgetLimit,
+      dailyBudgetLimit: data.dailyBudgetLimit.present
+          ? data.dailyBudgetLimit.value
+          : this.dailyBudgetLimit,
+      weeklyBudgetLimit: data.weeklyBudgetLimit.present
+          ? data.weeklyBudgetLimit.value
+          : this.weeklyBudgetLimit,
     );
   }
 
@@ -830,7 +917,9 @@ class BudgetCategory extends DataClass implements Insertable<BudgetCategory> {
           ..write('iconCodePoint: $iconCodePoint, ')
           ..write('colorHex: $colorHex, ')
           ..write('isExpense: $isExpense, ')
-          ..write('monthlyBudgetLimit: $monthlyBudgetLimit')
+          ..write('monthlyBudgetLimit: $monthlyBudgetLimit, ')
+          ..write('dailyBudgetLimit: $dailyBudgetLimit, ')
+          ..write('weeklyBudgetLimit: $weeklyBudgetLimit')
           ..write(')'))
         .toString();
   }
@@ -843,6 +932,8 @@ class BudgetCategory extends DataClass implements Insertable<BudgetCategory> {
     colorHex,
     isExpense,
     monthlyBudgetLimit,
+    dailyBudgetLimit,
+    weeklyBudgetLimit,
   );
   @override
   bool operator ==(Object other) =>
@@ -853,7 +944,9 @@ class BudgetCategory extends DataClass implements Insertable<BudgetCategory> {
           other.iconCodePoint == this.iconCodePoint &&
           other.colorHex == this.colorHex &&
           other.isExpense == this.isExpense &&
-          other.monthlyBudgetLimit == this.monthlyBudgetLimit);
+          other.monthlyBudgetLimit == this.monthlyBudgetLimit &&
+          other.dailyBudgetLimit == this.dailyBudgetLimit &&
+          other.weeklyBudgetLimit == this.weeklyBudgetLimit);
 }
 
 class CategoriesCompanion extends UpdateCompanion<BudgetCategory> {
@@ -863,6 +956,8 @@ class CategoriesCompanion extends UpdateCompanion<BudgetCategory> {
   final Value<int> colorHex;
   final Value<bool> isExpense;
   final Value<double?> monthlyBudgetLimit;
+  final Value<double?> dailyBudgetLimit;
+  final Value<double?> weeklyBudgetLimit;
   const CategoriesCompanion({
     this.id = const Value.absent(),
     this.name = const Value.absent(),
@@ -870,6 +965,8 @@ class CategoriesCompanion extends UpdateCompanion<BudgetCategory> {
     this.colorHex = const Value.absent(),
     this.isExpense = const Value.absent(),
     this.monthlyBudgetLimit = const Value.absent(),
+    this.dailyBudgetLimit = const Value.absent(),
+    this.weeklyBudgetLimit = const Value.absent(),
   });
   CategoriesCompanion.insert({
     this.id = const Value.absent(),
@@ -878,6 +975,8 @@ class CategoriesCompanion extends UpdateCompanion<BudgetCategory> {
     required int colorHex,
     required bool isExpense,
     this.monthlyBudgetLimit = const Value.absent(),
+    this.dailyBudgetLimit = const Value.absent(),
+    this.weeklyBudgetLimit = const Value.absent(),
   }) : name = Value(name),
        iconCodePoint = Value(iconCodePoint),
        colorHex = Value(colorHex),
@@ -889,6 +988,8 @@ class CategoriesCompanion extends UpdateCompanion<BudgetCategory> {
     Expression<int>? colorHex,
     Expression<bool>? isExpense,
     Expression<double>? monthlyBudgetLimit,
+    Expression<double>? dailyBudgetLimit,
+    Expression<double>? weeklyBudgetLimit,
   }) {
     return RawValuesInsertable({
       if (id != null) 'id': id,
@@ -898,6 +999,8 @@ class CategoriesCompanion extends UpdateCompanion<BudgetCategory> {
       if (isExpense != null) 'is_expense': isExpense,
       if (monthlyBudgetLimit != null)
         'monthly_budget_limit': monthlyBudgetLimit,
+      if (dailyBudgetLimit != null) 'daily_budget_limit': dailyBudgetLimit,
+      if (weeklyBudgetLimit != null) 'weekly_budget_limit': weeklyBudgetLimit,
     });
   }
 
@@ -908,6 +1011,8 @@ class CategoriesCompanion extends UpdateCompanion<BudgetCategory> {
     Value<int>? colorHex,
     Value<bool>? isExpense,
     Value<double?>? monthlyBudgetLimit,
+    Value<double?>? dailyBudgetLimit,
+    Value<double?>? weeklyBudgetLimit,
   }) {
     return CategoriesCompanion(
       id: id ?? this.id,
@@ -916,6 +1021,8 @@ class CategoriesCompanion extends UpdateCompanion<BudgetCategory> {
       colorHex: colorHex ?? this.colorHex,
       isExpense: isExpense ?? this.isExpense,
       monthlyBudgetLimit: monthlyBudgetLimit ?? this.monthlyBudgetLimit,
+      dailyBudgetLimit: dailyBudgetLimit ?? this.dailyBudgetLimit,
+      weeklyBudgetLimit: weeklyBudgetLimit ?? this.weeklyBudgetLimit,
     );
   }
 
@@ -940,6 +1047,12 @@ class CategoriesCompanion extends UpdateCompanion<BudgetCategory> {
     if (monthlyBudgetLimit.present) {
       map['monthly_budget_limit'] = Variable<double>(monthlyBudgetLimit.value);
     }
+    if (dailyBudgetLimit.present) {
+      map['daily_budget_limit'] = Variable<double>(dailyBudgetLimit.value);
+    }
+    if (weeklyBudgetLimit.present) {
+      map['weekly_budget_limit'] = Variable<double>(weeklyBudgetLimit.value);
+    }
     return map;
   }
 
@@ -951,7 +1064,9 @@ class CategoriesCompanion extends UpdateCompanion<BudgetCategory> {
           ..write('iconCodePoint: $iconCodePoint, ')
           ..write('colorHex: $colorHex, ')
           ..write('isExpense: $isExpense, ')
-          ..write('monthlyBudgetLimit: $monthlyBudgetLimit')
+          ..write('monthlyBudgetLimit: $monthlyBudgetLimit, ')
+          ..write('dailyBudgetLimit: $dailyBudgetLimit, ')
+          ..write('weeklyBudgetLimit: $weeklyBudgetLimit')
           ..write(')'))
         .toString();
   }
@@ -2837,6 +2952,8 @@ typedef $$CategoriesTableCreateCompanionBuilder =
       required int colorHex,
       required bool isExpense,
       Value<double?> monthlyBudgetLimit,
+      Value<double?> dailyBudgetLimit,
+      Value<double?> weeklyBudgetLimit,
     });
 typedef $$CategoriesTableUpdateCompanionBuilder =
     CategoriesCompanion Function({
@@ -2846,6 +2963,8 @@ typedef $$CategoriesTableUpdateCompanionBuilder =
       Value<int> colorHex,
       Value<bool> isExpense,
       Value<double?> monthlyBudgetLimit,
+      Value<double?> dailyBudgetLimit,
+      Value<double?> weeklyBudgetLimit,
     });
 
 class $$CategoriesTableFilterComposer
@@ -2884,6 +3003,16 @@ class $$CategoriesTableFilterComposer
 
   ColumnFilters<double> get monthlyBudgetLimit => $composableBuilder(
     column: $table.monthlyBudgetLimit,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<double> get dailyBudgetLimit => $composableBuilder(
+    column: $table.dailyBudgetLimit,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<double> get weeklyBudgetLimit => $composableBuilder(
+    column: $table.weeklyBudgetLimit,
     builder: (column) => ColumnFilters(column),
   );
 }
@@ -2926,6 +3055,16 @@ class $$CategoriesTableOrderingComposer
     column: $table.monthlyBudgetLimit,
     builder: (column) => ColumnOrderings(column),
   );
+
+  ColumnOrderings<double> get dailyBudgetLimit => $composableBuilder(
+    column: $table.dailyBudgetLimit,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<double> get weeklyBudgetLimit => $composableBuilder(
+    column: $table.weeklyBudgetLimit,
+    builder: (column) => ColumnOrderings(column),
+  );
 }
 
 class $$CategoriesTableAnnotationComposer
@@ -2956,6 +3095,16 @@ class $$CategoriesTableAnnotationComposer
 
   GeneratedColumn<double> get monthlyBudgetLimit => $composableBuilder(
     column: $table.monthlyBudgetLimit,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<double> get dailyBudgetLimit => $composableBuilder(
+    column: $table.dailyBudgetLimit,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<double> get weeklyBudgetLimit => $composableBuilder(
+    column: $table.weeklyBudgetLimit,
     builder: (column) => column,
   );
 }
@@ -2997,6 +3146,8 @@ class $$CategoriesTableTableManager
                 Value<int> colorHex = const Value.absent(),
                 Value<bool> isExpense = const Value.absent(),
                 Value<double?> monthlyBudgetLimit = const Value.absent(),
+                Value<double?> dailyBudgetLimit = const Value.absent(),
+                Value<double?> weeklyBudgetLimit = const Value.absent(),
               }) => CategoriesCompanion(
                 id: id,
                 name: name,
@@ -3004,6 +3155,8 @@ class $$CategoriesTableTableManager
                 colorHex: colorHex,
                 isExpense: isExpense,
                 monthlyBudgetLimit: monthlyBudgetLimit,
+                dailyBudgetLimit: dailyBudgetLimit,
+                weeklyBudgetLimit: weeklyBudgetLimit,
               ),
           createCompanionCallback:
               ({
@@ -3013,6 +3166,8 @@ class $$CategoriesTableTableManager
                 required int colorHex,
                 required bool isExpense,
                 Value<double?> monthlyBudgetLimit = const Value.absent(),
+                Value<double?> dailyBudgetLimit = const Value.absent(),
+                Value<double?> weeklyBudgetLimit = const Value.absent(),
               }) => CategoriesCompanion.insert(
                 id: id,
                 name: name,
@@ -3020,6 +3175,8 @@ class $$CategoriesTableTableManager
                 colorHex: colorHex,
                 isExpense: isExpense,
                 monthlyBudgetLimit: monthlyBudgetLimit,
+                dailyBudgetLimit: dailyBudgetLimit,
+                weeklyBudgetLimit: weeklyBudgetLimit,
               ),
           withReferenceMapper: (p0) => p0
               .map((e) => (e.readTable(table), BaseReferences(db, table, e)))

@@ -18,6 +18,8 @@ import 'package:file_picker/file_picker.dart';
 import '../services/platform/platform_file_service.dart';
 import '../widgets/transition_placeholder.dart';
 import 'package:flutter/services.dart' show rootBundle;
+import '../widgets/notification_bell.dart';
+import '../widgets/notification_drawer.dart';
 
 class BudgetScreen extends StatefulWidget {
   final bool isDefault;
@@ -346,9 +348,23 @@ class _BudgetScreenState extends State<BudgetScreen> {
     BudgetCategory? categoryToEdit,
   ]) {
     final nameCtrl = TextEditingController(text: categoryToEdit?.name ?? '');
-    final limitCtrl = TextEditingController(
-      text: categoryToEdit?.monthlyBudgetLimit?.toString() ?? '',
-    );
+
+    String selectedPeriod = 'Monthly';
+    String limitText = '';
+    if (categoryToEdit != null) {
+      if (categoryToEdit.dailyBudgetLimit != null) {
+        selectedPeriod = 'Daily';
+        limitText = categoryToEdit.dailyBudgetLimit.toString();
+      } else if (categoryToEdit.weeklyBudgetLimit != null) {
+        selectedPeriod = 'Weekly';
+        limitText = categoryToEdit.weeklyBudgetLimit.toString();
+      } else if (categoryToEdit.monthlyBudgetLimit != null) {
+        selectedPeriod = 'Monthly';
+        limitText = categoryToEdit.monthlyBudgetLimit.toString();
+      }
+    }
+
+    final limitCtrl = TextEditingController(text: limitText);
     bool isExpense = categoryToEdit?.isExpense ?? true;
     int? selectedColorHex = categoryToEdit?.colorHex;
 
@@ -405,14 +421,51 @@ class _BudgetScreenState extends State<BudgetScreen> {
                     ),
                     if (isExpense) const SizedBox(height: 12),
                     if (isExpense)
-                      TextField(
-                        controller: limitCtrl,
-                        decoration: const InputDecoration(
-                          labelText: 'Monthly Budget Limit (Optional)',
-                        ),
-                        keyboardType: const TextInputType.numberWithOptions(
-                          decimal: true,
-                        ),
+                      Row(
+                        children: [
+                          Expanded(
+                            flex: 1,
+                            child: DropdownButton<String>(
+                              value: selectedPeriod,
+                              isExpanded: true,
+                              underline: Container(
+                                height: 1,
+                                color: Theme.of(
+                                  context,
+                                ).colorScheme.onSurface.withValues(alpha: 0.5),
+                              ),
+                              items: ['Daily', 'Weekly', 'Monthly']
+                                  .map(
+                                    (p) => DropdownMenuItem(
+                                      value: p,
+                                      child: Text(p),
+                                    ),
+                                  )
+                                  .toList(),
+                              onChanged: (val) {
+                                if (val != null) {
+                                  setState(() {
+                                    selectedPeriod = val;
+                                  });
+                                }
+                              },
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            flex: 2,
+                            child: TextField(
+                              controller: limitCtrl,
+                              decoration: const InputDecoration(
+                                labelText: 'Budget Limit (Optional)',
+                              ),
+                              keyboardType:
+                                  const TextInputType.numberWithOptions(
+                                    decimal: true,
+                                  ),
+                            ),
+                          ),
+                        ],
                       ),
                     const SizedBox(height: 16),
                     Row(
@@ -496,12 +549,29 @@ class _BudgetScreenState extends State<BudgetScreen> {
                     final limit = limitCtrl.text.isNotEmpty
                         ? parseAmount(limitCtrl.text)
                         : null;
+
+                    double? dailyLimit;
+                    double? weeklyLimit;
+                    double? monthlyLimit;
+
+                    if (limit != null) {
+                      if (selectedPeriod == 'Daily') {
+                        dailyLimit = limit;
+                      } else if (selectedPeriod == 'Weekly') {
+                        weeklyLimit = limit;
+                      } else {
+                        monthlyLimit = limit;
+                      }
+                    }
+
                     if (name.isNotEmpty) {
                       if (categoryToEdit == null) {
                         context.read<LedgerProvider>().addCategory(
                           name,
                           isExpense,
-                          limit,
+                          monthlyLimit,
+                          dailyLimit: dailyLimit,
+                          weeklyLimit: weeklyLimit,
                           colorHex: currentColorHex,
                         );
                       } else {
@@ -509,7 +579,9 @@ class _BudgetScreenState extends State<BudgetScreen> {
                           categoryToEdit.id,
                           name,
                           isExpense,
-                          limit,
+                          monthlyLimit,
+                          dailyLimit: dailyLimit,
+                          weeklyLimit: weeklyLimit,
                           colorHex: currentColorHex,
                         );
                       }
@@ -606,6 +678,7 @@ class _BudgetScreenState extends State<BudgetScreen> {
             ],
           ),
           actions: [
+            const NotificationBell(),
             IconButton(
               icon: const Icon(Icons.settings_rounded),
               onPressed: () {
@@ -618,6 +691,7 @@ class _BudgetScreenState extends State<BudgetScreen> {
             ),
           ],
         ),
+        endDrawer: const NotificationDrawer(),
         body: TransitionPlaceholder(
           child: TabBarView(
             children: [
@@ -800,7 +874,13 @@ class _BudgetScreenState extends State<BudgetScreen> {
                                 final catColor = Color(cat.colorHex);
                                 return ActionChip(
                                   label: Text(
-                                    '${cat.name} ${cat.monthlyBudgetLimit != null ? '($currency${cat.monthlyBudgetLimit!.toStringAsFixed(0)})' : ''}',
+                                    '${cat.name} ${cat.dailyBudgetLimit != null
+                                        ? '($currency${cat.dailyBudgetLimit!.toStringAsFixed(0)}/d)'
+                                        : cat.weeklyBudgetLimit != null
+                                        ? '($currency${cat.weeklyBudgetLimit!.toStringAsFixed(0)}/w)'
+                                        : cat.monthlyBudgetLimit != null
+                                        ? '($currency${cat.monthlyBudgetLimit!.toStringAsFixed(0)}/m)'
+                                        : ''}',
                                     style: TextStyle(
                                       color: catColor,
                                       fontWeight: FontWeight.bold,

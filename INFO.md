@@ -13,6 +13,9 @@
 - **Unique Title Enforcement**: Prevents organization clutter by ensuring no two tasks share the same title.
 - **Dynamic Filtering**: Filter tasks by status (chip row), category (popup), or date.
 - **Local Notifications & Alarms**: Integrated reminders for upcoming task deadlines (Android/iOS). Pick a custom `.wav` alarm sound in settings. Linux uses libnotify via `flutter_local_notifications` v18 (fire-and-forget only — scheduled reminders not supported on Linux).
+- **In-App Notification Center**: A dedicated notification bell and sliding drawer for tracking and managing app alerts seamlessly.
+- **Granular Budgeting**: Categories support explicit **Daily and Weekly Budget Limits** to augment existing monthly constraints.
+- **Precise Expense Tracking**: The expenses tab displays exact transaction times when recorded, defaulting to just the date for time-less entries.
 - **Flexible Time Picking**: Users can choose between a circular dial or a numeric/keyboard input (default) for time selection.
 - **Import/Export**: Markdown-based import/export system via ZIP files.
 - **Dark/Light Mode**: Fully integrated theme switcher. Light mode uses a soft lavender background with a deep purple sidebar; dark mode uses dark violet tones.

@@ -28,6 +28,8 @@ class Categories extends Table {
   IntColumn get colorHex => integer()();
   BoolColumn get isExpense => boolean()();
   RealColumn get monthlyBudgetLimit => real().nullable()();
+  RealColumn get dailyBudgetLimit => real().nullable()();
+  RealColumn get weeklyBudgetLimit => real().nullable()();
 }
 
 @DataClassName('LedgerTransaction')
@@ -76,7 +78,7 @@ class BudgetDatabase extends _$BudgetDatabase {
   BudgetDatabase() : super(_openConnection());
 
   @override
-  int get schemaVersion => 5;
+  int get schemaVersion => 6;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -96,6 +98,10 @@ class BudgetDatabase extends _$BudgetDatabase {
       }
       if (from < 5) {
         await m.addColumn(accounts, accounts.backgroundImagePath);
+      }
+      if (from < 6) {
+        await m.addColumn(categories, categories.dailyBudgetLimit);
+        await m.addColumn(categories, categories.weeklyBudgetLimit);
       }
     },
   );

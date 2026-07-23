@@ -4,6 +4,8 @@ import 'package:tasker/screens/settings_screen.dart';
 import 'package:tasker/screens/task_edit_screen.dart';
 import 'package:tasker/screens/dtr_screen.dart';
 import 'package:tasker/screens/heatmap_screen.dart';
+import 'package:tasker/widgets/notification_bell.dart';
+import 'package:tasker/widgets/notification_drawer.dart';
 import 'package:tasker/screens/budget_screen.dart';
 import 'package:tasker/widgets/radial_menu_fab.dart';
 
@@ -120,6 +122,7 @@ class _MainScreenState extends State<MainScreen> {
           tooltip: 'Wallet',
         ),
         actions: [
+          const NotificationBell(),
           IconButton(
             icon: const Icon(Icons.settings_rounded),
             onPressed: () {
@@ -132,6 +135,7 @@ class _MainScreenState extends State<MainScreen> {
           ),
         ],
       ),
+      endDrawer: const NotificationDrawer(),
       body: const DashboardScreen(),
       floatingActionButton: RadialMenuFab(
         mainIcon: Icons.add_rounded,

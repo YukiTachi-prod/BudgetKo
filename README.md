@@ -27,6 +27,9 @@ Built with a modern Flutter architecture, TASKo leverages the **Provider** packa
 
 We are continuously improving TASKo to enhance your experience:
 
+- **In-App Notification Center**: A brand-new notification bell and sliding drawer accessible from the top app bar for seamless tracking and management of app alerts.
+- **Granular Budgeting**: Categories now support **Daily** and **Weekly Budget Limits** in addition to monthly limits, empowering you with precise control over your spending.
+- **Precise Expense Timestamps**: The expenses tab now displays exact transaction times, intelligently falling back to just the date for time-less entries.
 - **App Theme Customization & Centered Layouts**: Centered the top app bar titles for the main screens and Wallet view. The back button inside the Wallet screen now displays the Notes/Tasks description icon in the user's chosen primary color. Additionally, a new **Button Color Scheme** picker in Settings allows full app-wide custom button color customization.
 - **Fully Customizable Color Pickers**: Installed `flutter_colorpicker`, replacing simple color chips with an interactive color wheel, HSV/RGB sliders, and Hex code editor across Statuses, Wallet Accounts, and Categories.
 - **Negative Balance Protection**: The app now prevents any transaction (expense or transfer) from dropping an account balance below zero, warning the user and blocking saving if triggered.
@@ -39,7 +42,7 @@ We are continuously improving TASKo to enhance your experience:
 - **Enhanced Stability**: Critical bug fixes address `TaskEditScreen` loading failures with empty categories/statuses, now gracefully handling defaults.
 - **Wallet Backgrounds Management**: Added a dedicated `Saved Backgrounds` gallery in Settings to view, select, and safely batch-delete custom account backgrounds without leaving orphaned files. Importing background packages now intelligently warns against overwriting existing files.
 - **Refined Wallet UI**: Account cards now feature a precise 30%-width right-aligned sub-container for account names and amounts. Amounts use standard font weights for a cleaner look, matching a newly bundled `Format.png` export template.
-- **Expenses Zoom Controls**: The "All Expenses" table now includes dedicated manual Zoom-In and Zoom-Out floating buttons, allowing you to comfortably pan and scale your transaction history.
+- **Expenses Zoom Controls**: The "All Expenses" table now features dedicated manual Zoom-In and Zoom-Out floating buttons. These buttons are elegantly styled with the app's primary color and positioned perfectly above the main 'Add Transaction' button, providing full control to scale and horizontally scroll your transaction history smoothly.
 - **Safe Deletions**: Confirmation dialogs added for deleting Categories and Statuses in `SettingsScreen` to prevent accidental data loss.
 - **Flexible Status System**: Replaced the 'Priority' system with a more versatile 'Status' system (Not Started, Ongoing, Finished, Dropped).
 - **Toggleable Task Dates**: Tasks can now optionally omit Start/End dates, creating simple to-do items without scheduling urgency or alarms.
@@ -86,3 +89,12 @@ Ensure you have Flutter installed. If not, follow the instructions on the [Flutt
 For help getting started with Flutter development, view the
 [online documentation](https://docs.flutter.dev/), which offers tutorials,
 samples, guidance on mobile development, and a full API reference.
+
+## Development Instructions for AI Agents
+
+**CRITICAL RULE FOR ALL AI AGENTS:** Before declaring any task as finished, you MUST run the following commands to ensure code quality and consistency:
+
+1. `dart format .` (to format all code)
+2. `flutter analyze` (to check for any linting errors or warnings)
+
+Do not complete your turn until these commands pass successfully or you have explicitly addressed any issues they raise.

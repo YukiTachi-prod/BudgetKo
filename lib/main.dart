@@ -8,6 +8,7 @@ import 'database/budget_database.dart';
 import 'providers/ledger_provider.dart';
 import 'theme/app_theme.dart';
 import 'screens/budget_screen.dart';
+import 'providers/notification_provider.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -21,6 +22,7 @@ void main() async {
         ChangeNotifierProvider(create: (_) => TaskProvider()),
         Provider<BudgetDatabase>.value(value: budgetDb),
         ChangeNotifierProvider(create: (_) => LedgerProvider(budgetDb)),
+        ChangeNotifierProvider(create: (_) => NotificationProvider()),
       ],
       child: const TaskerApp(),
     ),

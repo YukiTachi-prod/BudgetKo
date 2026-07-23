@@ -97,6 +97,8 @@ class LedgerProvider extends ChangeNotifier {
     String name,
     bool isExpense,
     double? monthlyLimit, {
+    double? dailyLimit,
+    double? weeklyLimit,
     int? colorHex,
   }) async {
     await _db
@@ -114,6 +116,8 @@ class LedgerProvider extends ChangeNotifier {
                     : Colors.green.toARGB32()),
             isExpense: isExpense,
             monthlyBudgetLimit: Value(monthlyLimit),
+            dailyBudgetLimit: Value(dailyLimit),
+            weeklyBudgetLimit: Value(weeklyLimit),
           ),
         );
     await refreshData();
@@ -169,6 +173,8 @@ class LedgerProvider extends ChangeNotifier {
     String name,
     bool isExpense,
     double? monthlyLimit, {
+    double? dailyLimit,
+    double? weeklyLimit,
     int? colorHex,
   }) async {
     await (_db.update(
@@ -178,6 +184,8 @@ class LedgerProvider extends ChangeNotifier {
         name: Value(name),
         isExpense: Value(isExpense),
         monthlyBudgetLimit: Value(monthlyLimit),
+        dailyBudgetLimit: Value(dailyLimit),
+        weeklyBudgetLimit: Value(weeklyLimit),
         iconCodePoint: Value(
           isExpense
               ? Icons.shopping_bag.codePoint

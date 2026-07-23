@@ -27,7 +27,8 @@ class BudgetAnalytics extends StatefulWidget {
 }
 
 class _BudgetAnalyticsState extends State<BudgetAnalytics> {
-  final PageController _pageController = PageController(initialPage: 1002);
+  final PageController _chartPageController = PageController(initialPage: 1000);
+  final PageController _donutPageController = PageController(initialPage: 1000);
 
   String get _selectedPeriod {
     switch (widget.dateFilter) {
@@ -36,15 +37,17 @@ class _BudgetAnalyticsState extends State<BudgetAnalytics> {
       case 'This Month':
         return 'Month';
       case 'This Year':
-      case 'All Time':
-      default:
         return 'Year';
+      case 'Today':
+      default:
+        return 'Today';
     }
   }
 
   @override
   void dispose() {
-    _pageController.dispose();
+    _chartPageController.dispose();
+    _donutPageController.dispose();
     super.dispose();
   }
 
@@ -54,28 +57,34 @@ class _BudgetAnalyticsState extends State<BudgetAnalytics> {
     for (var tx in widget.recentTransactions) {
       if (tx.transactionType == TransactionType.expense.index) {
         if (_selectedPeriod == 'Week') {
-          final diff = now.difference(tx.date).inDays;
-          if (diff >= 0 && diff < 7) {
-            grouped[6 - diff] = (grouped[6 - diff] ?? 0) + tx.amount;
+          final startOfWeek = now.subtract(Duration(days: now.weekday - 1));
+          final start = DateTime(
+            startOfWeek.year,
+            startOfWeek.month,
+            startOfWeek.day,
+          );
+          if (!tx.date.isBefore(start)) {
+            grouped[tx.date.weekday - 1] =
+                (grouped[tx.date.weekday - 1] ?? 0) + tx.amount;
           }
         } else if (_selectedPeriod == 'Month') {
-          final diff = now.difference(tx.date).inDays;
-          if (diff >= 0 && diff < 30) {
-            grouped[29 - diff] = (grouped[29 - diff] ?? 0) + tx.amount;
+          if (tx.date.year == now.year && tx.date.month == now.month) {
+            grouped[tx.date.day - 1] =
+                (grouped[tx.date.day - 1] ?? 0) + tx.amount;
           }
         } else if (_selectedPeriod == 'Year') {
-          final monthDiff =
-              (now.year - tx.date.year) * 12 + now.month - tx.date.month;
-          if (monthDiff >= 0 && monthDiff < 12) {
-            grouped[11 - monthDiff] =
-                (grouped[11 - monthDiff] ?? 0) + tx.amount;
+          if (tx.date.year == now.year) {
+            grouped[tx.date.month - 1] =
+                (grouped[tx.date.month - 1] ?? 0) + tx.amount;
           }
         }
       }
     }
     final int maxIndex = _selectedPeriod == 'Week'
         ? 7
-        : (_selectedPeriod == 'Month' ? 30 : 12);
+        : (_selectedPeriod == 'Month'
+              ? DateUtils.getDaysInMonth(now.year, now.month)
+              : 12);
     final spots = <FlSpot>[];
     for (int i = 0; i < maxIndex; i++) {
       spots.add(FlSpot(i.toDouble(), grouped[i] ?? 0.0));
@@ -90,127 +99,164 @@ class _BudgetAnalyticsState extends State<BudgetAnalytics> {
 
     return Column(
       children: [
+        ...widget.categories
+            .where(
+              (c) =>
+                  c.monthlyBudgetLimit != null ||
+                  c.weeklyBudgetLimit != null ||
+                  c.dailyBudgetLimit != null,
+            )
+            .map((c) {
+              final spent = widget.categoryExpenses[c.id] ?? 0.0;
+              double baseLimit = 0.0;
+              String basePeriod = '';
+              if (c.dailyBudgetLimit != null) {
+                baseLimit = c.dailyBudgetLimit!;
+                basePeriod = 'Daily';
+              } else if (c.weeklyBudgetLimit != null) {
+                baseLimit = c.weeklyBudgetLimit!;
+                basePeriod = 'Weekly';
+              } else if (c.monthlyBudgetLimit != null) {
+                baseLimit = c.monthlyBudgetLimit!;
+                basePeriod = 'Monthly';
+              }
+
+              double limit = baseLimit;
+              String periodLabel = basePeriod;
+
+              final now = DateTime.now();
+              final daysInMonth = DateUtils.getDaysInMonth(now.year, now.month);
+              final daysInYear =
+                  DateTime(
+                    now.year,
+                    12,
+                    31,
+                  ).difference(DateTime(now.year, 1, 1)).inDays +
+                  1;
+
+              switch (widget.dateFilter) {
+                case 'Today':
+                  if (basePeriod == 'Weekly') {
+                    limit = baseLimit / 7;
+                  } else if (basePeriod == 'Monthly') {
+                    limit = baseLimit / daysInMonth;
+                  }
+                  periodLabel = 'Today';
+                  break;
+                case 'This Week':
+                  if (basePeriod == 'Daily') {
+                    limit = baseLimit * 7;
+                  } else if (basePeriod == 'Monthly') {
+                    limit = (baseLimit * 12) / 52;
+                  }
+                  periodLabel = 'This Week';
+                  break;
+                case 'This Month':
+                  if (basePeriod == 'Daily') {
+                    limit = baseLimit * daysInMonth;
+                  } else if (basePeriod == 'Weekly') {
+                    limit = baseLimit * (daysInMonth / 7);
+                  }
+                  periodLabel = 'This Month';
+                  break;
+                case 'This Year':
+                  if (basePeriod == 'Daily') {
+                    limit = baseLimit * daysInYear;
+                  } else if (basePeriod == 'Weekly') {
+                    limit = baseLimit * 52;
+                  } else if (basePeriod == 'Monthly') {
+                    limit = baseLimit * 12;
+                  }
+                  periodLabel = 'This Year';
+                  break;
+              }
+
+              final percent = limit > 0 ? (spent / limit).clamp(0.0, 1.0) : 0.0;
+
+              Color progressColor = Colors.green;
+              if (percent > 0.9) {
+                progressColor = Colors.red;
+              } else if (percent > 0.75) {
+                progressColor = Colors.orange;
+              }
+
+              return Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16.0,
+                  vertical: 8.0,
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          '${c.name} ($periodLabel)',
+                          style: TextStyle(
+                            color: Color(c.colorHex),
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        Text(
+                          '$currency${spent.toStringAsFixed(2)} / $currency${limit.toStringAsFixed(2)}',
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    LinearProgressIndicator(
+                      value: percent,
+                      color: progressColor,
+                      backgroundColor: Colors.grey.shade300,
+                      minHeight: 8,
+                    ),
+                  ],
+                ),
+              );
+            }),
+        const SizedBox(height: 16),
         SizedBox(
           height: 250,
           child: Stack(
             children: [
               PageView.builder(
-                controller: _pageController,
+                itemCount: widget.dateFilter == 'Today' ? 1 : null,
+                controller: _chartPageController,
                 physics: const NeverScrollableScrollPhysics(),
                 itemBuilder: (context, index) {
-                  final pageType = index % 4;
+                  final pageType = index % 2;
                   if (pageType == 0) {
-                    // Donut chart comparing amount of money inside accounts
-                    final sections = widget.accounts
-                        .map((a) {
-                          return PieChartSectionData(
-                            color: Color(a.colorHex),
-                            value: a.currentBalance > 0
-                                ? a.currentBalance
-                                : 0.0,
-                            title:
-                                '${a.name}\n$currency${a.currentBalance.toStringAsFixed(0)}',
-                            radius: 50,
-                            titleStyle: const TextStyle(
-                              fontSize: 10,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.white,
-                            ),
-                          );
-                        })
-                        .where((s) => s.value > 0)
-                        .toList();
-
-                    return Column(
-                      children: [
-                        Text(
-                          'Account Balances',
-                          style: theme.textTheme.titleMedium,
-                        ),
-                        const SizedBox(height: 16),
-                        Expanded(
-                          child: sections.isEmpty
-                              ? const Center(
-                                  child: Text(
-                                    'No positive account balances to display.',
-                                  ),
-                                )
-                              : PieChart(
-                                  PieChartData(
-                                    sections: sections,
-                                    centerSpaceRadius: 40,
-                                  ),
-                                ),
-                        ),
-                      ],
-                    );
-                  } else if (pageType == 1) {
-                    // Donut chart showing expense categories
-                    final sections = widget.categories
-                        .map((c) {
-                          final amount = widget.categoryExpenses[c.id] ?? 0.0;
-                          return PieChartSectionData(
-                            color: Color(c.colorHex),
-                            value: amount,
-                            title:
-                                '${c.name}\n$currency${amount.toStringAsFixed(0)}',
-                            radius: 50,
-                            titleStyle: const TextStyle(
-                              fontSize: 10,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.white,
-                            ),
-                          );
-                        })
-                        .where((s) => s.value > 0)
-                        .toList();
-
-                    return Stack(
-                      children: [
-                        Column(
-                          children: [
-                            Text(
-                              'Expense Categories',
-                              style: theme.textTheme.titleMedium,
-                            ),
-                            const SizedBox(height: 16),
-                            Expanded(
-                              child: sections.isEmpty
-                                  ? const Center(
-                                      child: Text(
-                                        'No expenses recorded in this period.',
-                                      ),
-                                    )
-                                  : PieChart(
-                                      PieChartData(
-                                        sections: sections,
-                                        centerSpaceRadius: 40,
-                                      ),
-                                    ),
-                            ),
-                          ],
-                        ),
-                        Positioned(
-                          top: 0,
-                          right: 0,
-                          child: IconButton(
-                            icon: const Icon(Icons.fullscreen),
-                            onPressed: () {
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (_) => FullScreenDonutChart(
-                                    categories: widget.categories,
-                                    categoryExpenses: widget.categoryExpenses,
-                                  ),
-                                ),
-                              );
-                            },
+                    if (widget.dateFilter == 'Today') {
+                      final totalToday = widget.categoryExpenses.values.fold(
+                        0.0,
+                        (a, b) => a + b,
+                      );
+                      return Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Text(
+                            'Expenses (Today)',
+                            style: theme.textTheme.titleMedium,
                           ),
-                        ),
-                      ],
-                    );
-                  } else if (pageType == 2) {
+                          const Spacer(),
+                          Text(
+                            'Today\'s Total',
+                            style: theme.textTheme.titleLarge?.copyWith(
+                              color: Colors.grey,
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            '$currency${totalToday.toStringAsFixed(2)}',
+                            style: theme.textTheme.displayLarge?.copyWith(
+                              fontWeight: FontWeight.bold,
+                              color: theme.colorScheme.primary,
+                            ),
+                          ),
+                          const Spacer(),
+                        ],
+                      );
+                    }
                     return Column(
                       children: [
                         Text(
@@ -322,6 +368,37 @@ class _BudgetAnalyticsState extends State<BudgetAnalytics> {
                       ],
                     );
                   } else {
+                    if (widget.dateFilter == 'Today') {
+                      final totalToday = widget.categoryExpenses.values.fold(
+                        0.0,
+                        (a, b) => a + b,
+                      );
+                      return Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Text(
+                            'Expenses (Bar - Today)',
+                            style: theme.textTheme.titleMedium,
+                          ),
+                          const Spacer(),
+                          Text(
+                            'Today\'s Total',
+                            style: theme.textTheme.titleLarge?.copyWith(
+                              color: Colors.grey,
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            '$currency${totalToday.toStringAsFixed(2)}',
+                            style: theme.textTheme.displayLarge?.copyWith(
+                              fontWeight: FontWeight.bold,
+                              color: theme.colorScheme.primary,
+                            ),
+                          ),
+                          const Spacer(),
+                        ],
+                      );
+                    }
                     return Column(
                       children: [
                         Text(
@@ -444,13 +521,216 @@ class _BudgetAnalyticsState extends State<BudgetAnalytics> {
                   }
                 },
               ),
+              if (widget.dateFilter != 'Today')
+                Row(
+                  children: [
+                    Expanded(
+                      child: GestureDetector(
+                        behavior: HitTestBehavior.translucent,
+                        onTap: () {
+                          _chartPageController.previousPage(
+                            duration: const Duration(milliseconds: 300),
+                            curve: Curves.easeInOut,
+                          );
+                        },
+                      ),
+                    ),
+                    Expanded(
+                      child: GestureDetector(
+                        behavior: HitTestBehavior.translucent,
+                        onTap: () {
+                          _chartPageController.nextPage(
+                            duration: const Duration(milliseconds: 300),
+                            curve: Curves.easeInOut,
+                          );
+                        },
+                      ),
+                    ),
+                  ],
+                ),
+            ],
+          ),
+        ),
+
+        const SizedBox(height: 24),
+        SizedBox(
+          height: 250,
+          child: Stack(
+            children: [
+              PageView.builder(
+                controller: _donutPageController,
+                physics: const NeverScrollableScrollPhysics(),
+                itemBuilder: (context, index) {
+                  final pageType = index % 2;
+                  if (pageType == 0) {
+                    // Horizontal bar chart for account balances
+                    final activeAccounts = widget.accounts
+                        .where((a) => a.currentBalance > 0)
+                        .toList();
+                    final maxBalance = activeAccounts.isEmpty
+                        ? 0.0
+                        : activeAccounts
+                              .map((a) => a.currentBalance)
+                              .reduce((a, b) => a > b ? a : b);
+
+                    return Column(
+                      children: [
+                        Text(
+                          'Account Balances',
+                          style: theme.textTheme.titleMedium,
+                        ),
+                        const SizedBox(height: 16),
+                        Expanded(
+                          child: activeAccounts.isEmpty
+                              ? const Center(
+                                  child: Text(
+                                    'No positive account balances to display.',
+                                  ),
+                                )
+                              : ListView.builder(
+                                  itemCount: activeAccounts.length,
+                                  itemBuilder: (context, idx) {
+                                    final a = activeAccounts[idx];
+                                    final percent = maxBalance > 0
+                                        ? (a.currentBalance / maxBalance).clamp(
+                                            0.0,
+                                            1.0,
+                                          )
+                                        : 0.0;
+                                    return Padding(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 16.0,
+                                        vertical: 8.0,
+                                      ),
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          Row(
+                                            mainAxisAlignment:
+                                                MainAxisAlignment.spaceBetween,
+                                            children: [
+                                              Text(
+                                                a.name,
+                                                style: TextStyle(
+                                                  color: Color(a.colorHex),
+                                                  fontWeight: FontWeight.bold,
+                                                ),
+                                              ),
+                                              Text(
+                                                '$currency${a.currentBalance.toStringAsFixed(2)}',
+                                              ),
+                                            ],
+                                          ),
+                                          const SizedBox(height: 8),
+                                          LinearProgressIndicator(
+                                            value: percent,
+                                            color: Color(a.colorHex),
+                                            backgroundColor:
+                                                Colors.grey.shade300,
+                                            minHeight: 8,
+                                            borderRadius: BorderRadius.circular(
+                                              4,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    );
+                                  },
+                                ),
+                        ),
+                      ],
+                    );
+                  } else {
+                    // Horizontal bar chart for expense categories
+                    final activeCategories = widget.categories
+                        .where(
+                          (c) => (widget.categoryExpenses[c.id] ?? 0.0) > 0,
+                        )
+                        .toList();
+                    final maxExpense = activeCategories.isEmpty
+                        ? 0.0
+                        : activeCategories
+                              .map((c) => widget.categoryExpenses[c.id] ?? 0.0)
+                              .reduce((a, b) => a > b ? a : b);
+
+                    return Column(
+                      children: [
+                        Text(
+                          'Expense Categories',
+                          style: theme.textTheme.titleMedium,
+                        ),
+                        const SizedBox(height: 16),
+                        Expanded(
+                          child: activeCategories.isEmpty
+                              ? const Center(
+                                  child: Text(
+                                    'No expenses recorded in this period.',
+                                  ),
+                                )
+                              : ListView.builder(
+                                  itemCount: activeCategories.length,
+                                  itemBuilder: (context, idx) {
+                                    final c = activeCategories[idx];
+                                    final amount =
+                                        widget.categoryExpenses[c.id] ?? 0.0;
+                                    final percent = maxExpense > 0
+                                        ? (amount / maxExpense).clamp(0.0, 1.0)
+                                        : 0.0;
+                                    return Padding(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 16.0,
+                                        vertical: 8.0,
+                                      ),
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          Row(
+                                            mainAxisAlignment:
+                                                MainAxisAlignment.spaceBetween,
+                                            children: [
+                                              Text(
+                                                c.name,
+                                                style: TextStyle(
+                                                  color: Color(c.colorHex),
+                                                  fontWeight: FontWeight.bold,
+                                                ),
+                                              ),
+                                              Text(
+                                                '$currency${amount.toStringAsFixed(2)}',
+                                              ),
+                                            ],
+                                          ),
+                                          const SizedBox(height: 8),
+                                          LinearProgressIndicator(
+                                            value: percent,
+                                            color: Color(c.colorHex),
+                                            backgroundColor:
+                                                Colors.grey.shade300,
+                                            minHeight: 8,
+                                            borderRadius: BorderRadius.circular(
+                                              4,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    );
+                                  },
+                                ),
+                        ),
+                      ],
+                    );
+                  }
+                },
+              ),
               Row(
                 children: [
                   Expanded(
                     child: GestureDetector(
                       behavior: HitTestBehavior.translucent,
                       onTap: () {
-                        _pageController.previousPage(
+                        _donutPageController.previousPage(
                           duration: const Duration(milliseconds: 300),
                           curve: Curves.easeInOut,
                         );
@@ -461,7 +741,7 @@ class _BudgetAnalyticsState extends State<BudgetAnalytics> {
                     child: GestureDetector(
                       behavior: HitTestBehavior.translucent,
                       onTap: () {
-                        _pageController.nextPage(
+                        _donutPageController.nextPage(
                           duration: const Duration(milliseconds: 300),
                           curve: Curves.easeInOut,
                         );
@@ -486,54 +766,6 @@ class _BudgetAnalyticsState extends State<BudgetAnalytics> {
           ],
         ),
         const SizedBox(height: 24),
-        ...widget.categories.where((c) => c.monthlyBudgetLimit != null).map((
-          c,
-        ) {
-          final spent = widget.categoryExpenses[c.id] ?? 0.0;
-          final limit = c.monthlyBudgetLimit!;
-          final percent = (spent / limit).clamp(0.0, 1.0);
-
-          Color progressColor = Colors.green;
-          if (percent > 0.9) {
-            progressColor = Colors.red;
-          } else if (percent > 0.75) {
-            progressColor = Colors.orange;
-          }
-
-          return Padding(
-            padding: const EdgeInsets.symmetric(
-              horizontal: 16.0,
-              vertical: 8.0,
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                      c.name,
-                      style: TextStyle(
-                        color: Color(c.colorHex),
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    Text(
-                      '$currency${spent.toStringAsFixed(2)} / $currency${limit.toStringAsFixed(2)}',
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 8),
-                LinearProgressIndicator(
-                  value: percent,
-                  color: progressColor,
-                  backgroundColor: Colors.grey.shade300,
-                  minHeight: 8,
-                ),
-              ],
-            ),
-          );
-        }),
       ],
     );
   }
