@@ -209,14 +209,14 @@ class _SavedBackgroundsScreenState extends State<SavedBackgroundsScreen> {
                       Positioned.fill(
                         child: Container(
                           decoration: BoxDecoration(
-                            borderRadius: BorderRadius.circular(8),
+                            borderRadius: BorderRadius.circular(6),
                             border: isSelected
-                                ? Border.all(color: Colors.blue, width: 3)
+                                ? Border.all(color: Colors.blueGrey, width: 2)
                                 : null,
                           ),
                           child: ClipRRect(
                             borderRadius: BorderRadius.circular(
-                              isSelected ? 5 : 8,
+                              isSelected ? 4 : 6,
                             ),
                             child: isSelected
                                 ? ColorFiltered(

@@ -424,22 +424,18 @@ class LoansAndSubscriptionsTab extends StatelessWidget {
       physics: const NeverScrollableScrollPhysics(),
       itemCount: loansList.length,
       itemBuilder: (context, index) {
+        final theme = Theme.of(context);
         final loan = loansList[index];
-        final acc = provider.accounts.firstWhere(
-          (a) => a.id == loan.accountId,
-          orElse: () => provider.accounts.first, // fallback
-        );
-        final accColor = Color(acc.colorHex);
 
         return Padding(
           padding: const EdgeInsets.symmetric(vertical: 4),
           child: ListTile(
             onTap: () => _showLoanDialog(context, loanToEdit: loan),
             shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12),
-              side: BorderSide(color: accColor.withValues(alpha: 0.3)),
+              borderRadius: BorderRadius.circular(6),
+              side: BorderSide(color: theme.dividerColor, width: 1.0),
             ),
-            tileColor: accColor.withValues(alpha: 0.05),
+            tileColor: theme.cardColor,
             leading: CircleAvatar(
               backgroundColor: loan.isPaid
                   ? Colors.green.withValues(alpha: 0.2)
@@ -626,10 +622,10 @@ class LoansAndSubscriptionsTab extends StatelessWidget {
                   child: ListTile(
                     onTap: () => _showSubscriptionDialog(context, sub),
                     shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      side: BorderSide(color: accColor.withValues(alpha: 0.3)),
+                      borderRadius: BorderRadius.circular(6),
+                      side: BorderSide(color: theme.dividerColor, width: 1.0),
                     ),
-                    tileColor: accColor.withValues(alpha: 0.05),
+                    tileColor: theme.cardColor,
                     leading: CircleAvatar(
                       backgroundColor: sub.isActive
                           ? Colors.blue.withValues(alpha: 0.2)
@@ -657,7 +653,7 @@ class LoansAndSubscriptionsTab extends StatelessWidget {
                           ),
                           decoration: BoxDecoration(
                             color: accColor.withValues(alpha: 0.15),
-                            borderRadius: BorderRadius.circular(8),
+                            borderRadius: BorderRadius.circular(4),
                           ),
                           child: Text(
                             acc.name,

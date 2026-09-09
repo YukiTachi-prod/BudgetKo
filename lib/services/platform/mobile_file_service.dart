@@ -9,22 +9,6 @@ class PlatformFileService {
   factory PlatformFileService() => _instance;
   PlatformFileService._internal();
 
-  bool get supportsPdfAttachment => true;
-
-  Future<String> copyPdfToAppStorage(String sourcePath) async {
-    final docsDir = await getApplicationDocumentsDirectory();
-    final pdfDir = Directory(p.join(docsDir.path, 'task_pdfs'));
-    if (!pdfDir.existsSync()) pdfDir.createSync(recursive: true);
-
-    final fileName = p.basename(sourcePath);
-    final destPath = p.join(
-      pdfDir.path,
-      '${DateTime.now().millisecondsSinceEpoch}_$fileName',
-    );
-    await File(sourcePath).copy(destPath);
-    return destPath;
-  }
-
   Future<String> copyFileToAppStorage(
     String sourcePath,
     String fileName,
@@ -41,13 +25,6 @@ class PlatformFileService {
     await File(destPath).writeAsBytes(bytes);
     return destPath;
   }
-
-  void deletePdfFile(String path) {
-    final file = File(path);
-    if (file.existsSync()) file.deleteSync();
-  }
-
-  bool pdfFileExists(String path) => File(path).existsSync();
 
   Future<bool> fileExistsInAppStorage(String fileName) async {
     final docsDir = await getApplicationDocumentsDirectory();
@@ -77,14 +54,14 @@ class PlatformFileService {
     final filePath = p.join(tempDir.path, filename);
     await File(filePath).writeAsBytes(bytes);
     await SharePlus.instance.share(
-      ShareParams(files: [XFile(filePath)], text: 'Sharing TASKo data'),
+      ShareParams(files: [XFile(filePath)], text: 'Sharing BulsaKo data'),
     );
   }
 
   Future<void> shareFile(
     Uint8List bytes,
     String filename, {
-    String text = 'File from TASKo',
+    String text = 'File from BulsaKo',
   }) async {
     final tempDir = await getTemporaryDirectory();
     final filePath = p.join(tempDir.path, filename);

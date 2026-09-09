@@ -10,7 +10,6 @@ import 'loans_and_subscriptions_tab.dart';
 import 'expenses_tab.dart';
 import 'package:flutter_colorpicker/flutter_colorpicker.dart';
 import '../utils/math_util.dart';
-import 'main_screen.dart';
 import 'settings_screen.dart';
 import 'dart:io';
 import 'dart:ui' as ui;
@@ -22,8 +21,7 @@ import '../widgets/notification_bell.dart';
 import '../widgets/notification_drawer.dart';
 
 class BudgetScreen extends StatefulWidget {
-  final bool isDefault;
-  const BudgetScreen({super.key, this.isDefault = false});
+  const BudgetScreen({super.key});
 
   @override
   State<BudgetScreen> createState() => _BudgetScreenState();
@@ -619,27 +617,10 @@ class _BudgetScreenState extends State<BudgetScreen> {
         appBar: AppBar(
           title: const Text('Wallet'),
           centerTitle: true,
-          leadingWidth: 180,
+          leadingWidth: 100,
           leading: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              IconButton(
-                icon: Icon(
-                  Icons.description_rounded,
-                  color: Theme.of(context).colorScheme.primary,
-                ),
-                onPressed: () {
-                  if (widget.isDefault) {
-                    Navigator.pushReplacement(
-                      context,
-                      MaterialPageRoute(builder: (_) => const MainScreen()),
-                    );
-                  } else {
-                    Navigator.pop(context);
-                  }
-                },
-                tooltip: 'Tasks',
-              ),
               IconButton(
                 icon: const Icon(Icons.file_download),
                 onPressed: () async {
@@ -731,7 +712,7 @@ class _BudgetScreenState extends State<BudgetScreen> {
                             padding: const EdgeInsets.only(bottom: 8.0),
                             child: InkWell(
                               onTap: () => _showAccountDialog(context, acc),
-                              borderRadius: BorderRadius.circular(12),
+                              borderRadius: BorderRadius.circular(6),
                               child: Container(
                                 height: 80,
                                 decoration: BoxDecoration(
@@ -746,9 +727,10 @@ class _BudgetScreenState extends State<BudgetScreen> {
                                           fit: BoxFit.cover,
                                         )
                                       : null,
-                                  borderRadius: BorderRadius.circular(12),
+                                  borderRadius: BorderRadius.circular(6),
                                   border: Border.all(
-                                    color: accColor.withValues(alpha: 0.3),
+                                    color: theme.dividerColor,
+                                    width: 1.0,
                                   ),
                                 ),
                                 child: Row(
@@ -979,15 +961,21 @@ class _BudgetScreenState extends State<BudgetScreen> {
                               );
                             },
                             shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
+                              borderRadius: BorderRadius.circular(6),
+                              side: BorderSide(
+                                color: theme.dividerColor,
+                                width: 1.0,
+                              ),
                             ),
-                            tileColor: catColor?.withValues(alpha: 0.08),
+                            tileColor: theme.cardColor,
                             leading: CircleAvatar(
                               backgroundColor: isInc
-                                  ? Colors.green.withValues(alpha: 0.2)
+                                  ? Colors.green.withValues(alpha: 0.15)
                                   : (isTransfer
-                                        ? Colors.blue.withValues(alpha: 0.2)
-                                        : Colors.red.withValues(alpha: 0.2)),
+                                        ? Colors.blueGrey.withValues(
+                                            alpha: 0.15,
+                                          )
+                                        : Colors.red.withValues(alpha: 0.15)),
                               child: Icon(
                                 isTransfer
                                     ? Icons.swap_horiz
@@ -996,7 +984,9 @@ class _BudgetScreenState extends State<BudgetScreen> {
                                           : Icons.arrow_downward),
                                 color: isInc
                                     ? Colors.green
-                                    : (isTransfer ? Colors.blue : Colors.red),
+                                    : (isTransfer
+                                          ? Colors.blueGrey
+                                          : Colors.red),
                               ),
                             ),
                             title: Row(
@@ -1018,7 +1008,7 @@ class _BudgetScreenState extends State<BudgetScreen> {
                                     ),
                                     decoration: BoxDecoration(
                                       color: catColor!.withValues(alpha: 0.15),
-                                      borderRadius: BorderRadius.circular(12),
+                                      borderRadius: BorderRadius.circular(4),
                                       border: Border.all(
                                         color: catColor.withValues(alpha: 0.3),
                                         width: 1,
@@ -1042,7 +1032,9 @@ class _BudgetScreenState extends State<BudgetScreen> {
                               style: TextStyle(
                                 color: isInc
                                     ? Colors.green
-                                    : (isTransfer ? Colors.blue : Colors.red),
+                                    : (isTransfer
+                                          ? Colors.blueGrey
+                                          : Colors.red),
                                 fontWeight: FontWeight.bold,
                                 fontSize: 16,
                               ),
@@ -1055,14 +1047,18 @@ class _BudgetScreenState extends State<BudgetScreen> {
                     Container(
                       padding: const EdgeInsets.all(16),
                       decoration: BoxDecoration(
-                        color: theme.colorScheme.errorContainer,
-                        borderRadius: BorderRadius.circular(12),
+                        color: theme.cardColor,
+                        borderRadius: BorderRadius.circular(6),
+                        border: Border.all(
+                          color: theme.dividerColor,
+                          width: 1.0,
+                        ),
                       ),
                       child: Center(
                         child: Text(
                           'Total Expenses: $currency${totalExpenses.toStringAsFixed(2)}',
-                          style: theme.textTheme.titleLarge?.copyWith(
-                            color: theme.colorScheme.onErrorContainer,
+                          style: theme.textTheme.titleMedium?.copyWith(
+                            color: theme.colorScheme.onSurface,
                           ),
                         ),
                       ),
@@ -1077,6 +1073,13 @@ class _BudgetScreenState extends State<BudgetScreen> {
           ),
         ),
         floatingActionButton: FloatingActionButton.extended(
+          elevation: 0,
+          highlightElevation: 0,
+          hoverElevation: 1,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(6),
+            side: BorderSide(color: theme.dividerColor, width: 1.0),
+          ),
           backgroundColor: theme.colorScheme.primary,
           foregroundColor: Colors.white,
           onPressed: () {

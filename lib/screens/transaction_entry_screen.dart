@@ -321,12 +321,12 @@ class _TransactionEntryScreenState extends State<TransactionEntryScreen> {
                   onPressed: _saveTransaction,
                   style: FilledButton.styleFrom(
                     shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(26),
+                      borderRadius: BorderRadius.circular(6),
                     ),
                   ),
                   child: const Text(
                     'Save',
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
                   ),
                 ),
               ),
@@ -370,7 +370,7 @@ class _TransactionEntryScreenState extends State<TransactionEntryScreen> {
           child: FilledButton.tonal(
             style: FilledButton.styleFrom(
               shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
+                borderRadius: BorderRadius.circular(6),
               ),
             ),
             onPressed: () => _onNumpadTap(keys[index]),

@@ -160,7 +160,6 @@ class _BudgetAnalyticsTabState extends State<BudgetAnalyticsTab> {
           if (_showCharts) ...[
             if (provider.categories.isNotEmpty)
               Card(
-                elevation: 4,
                 child: Padding(
                   padding: const EdgeInsets.all(16.0),
                   child: BudgetAnalytics(
@@ -188,7 +187,6 @@ class _BudgetAnalyticsTabState extends State<BudgetAnalyticsTab> {
                 if (_showLoans)
                   Expanded(
                     child: Card(
-                      elevation: 2,
                       child: Padding(
                         padding: const EdgeInsets.all(16.0),
                         child: Column(
@@ -260,7 +258,6 @@ class _BudgetAnalyticsTabState extends State<BudgetAnalyticsTab> {
                 if (_showSubscriptions)
                   Expanded(
                     child: Card(
-                      elevation: 2,
                       child: Padding(
                         padding: const EdgeInsets.all(16.0),
                         child: Column(
