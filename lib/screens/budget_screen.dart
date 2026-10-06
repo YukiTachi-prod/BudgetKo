@@ -11,12 +11,7 @@ import 'expenses_tab.dart';
 import 'package:flutter_colorpicker/flutter_colorpicker.dart';
 import '../utils/math_util.dart';
 import 'settings_screen.dart';
-import 'dart:io';
-import 'dart:ui' as ui;
-import 'package:file_picker/file_picker.dart';
-import '../services/platform/platform_file_service.dart';
-import '../widgets/transition_placeholder.dart';
-import 'package:flutter/services.dart' show rootBundle;
+import 'main_tab.dart';
 import '../widgets/notification_bell.dart';
 import '../widgets/notification_drawer.dart';
 
@@ -39,8 +34,6 @@ class _BudgetScreenState extends State<BudgetScreen> {
       text: accountToEdit?.minBalance.toString() ?? '0.0',
     );
     int? selectedColorHex = accountToEdit?.colorHex;
-    String? currentBgPath = accountToEdit?.backgroundImagePath;
-    bool clearBg = false;
 
     showDialog(
       context: context,
@@ -138,150 +131,6 @@ class _BudgetScreenState extends State<BudgetScreen> {
                         ),
                       ],
                     ),
-                    const SizedBox(height: 20),
-                    const Align(
-                      alignment: Alignment.centerLeft,
-                      child: Text(
-                        'Custom Background (1000x300 PNG Only)',
-                        style: TextStyle(fontWeight: FontWeight.bold),
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    if (currentBgPath != null && !clearBg)
-                      Container(
-                        height: 60,
-                        width: double.infinity,
-                        decoration: BoxDecoration(
-                          image: DecorationImage(
-                            image: FileImage(File(currentBgPath!)),
-                            fit: BoxFit.cover,
-                          ),
-                          borderRadius: BorderRadius.circular(8),
-                          border: Border.all(color: Colors.grey),
-                        ),
-                        child: Align(
-                          alignment: Alignment.topRight,
-                          child: IconButton(
-                            icon: const Icon(Icons.close, color: Colors.white),
-                            onPressed: () => setState(() => clearBg = true),
-                          ),
-                        ),
-                      )
-                    else
-                      Row(
-                        children: [
-                          Expanded(
-                            child: OutlinedButton(
-                              onPressed: () async {
-                                try {
-                                  final byteData = await rootBundle.load(
-                                    'lib/assets/Format.png',
-                                  );
-                                  await PlatformFileService().shareFile(
-                                    byteData.buffer.asUint8List(),
-                                    'Format.png',
-                                    text:
-                                        'Edit this 1000x300 PNG for your account background!',
-                                  );
-                                } catch (e) {
-                                  if (context.mounted) {
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      const SnackBar(
-                                        content: Text(
-                                          'Failed to load format file.',
-                                        ),
-                                      ),
-                                    );
-                                  }
-                                }
-                              },
-                              child: const Text('Export Format'),
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: OutlinedButton(
-                              onPressed: () async {
-                                final res = await FilePicker.pickFiles(
-                                  type: FileType.custom,
-                                  allowedExtensions: ['png'],
-                                );
-                                if (res != null &&
-                                    res.files.single.path != null) {
-                                  final path = res.files.single.path!;
-                                  final fileName = res.files.single.name;
-
-                                  final fileExists = await PlatformFileService()
-                                      .fileExistsInAppStorage(fileName);
-                                  if (fileExists && context.mounted) {
-                                    final confirm = await showDialog<bool>(
-                                      context: context,
-                                      builder: (ctx) => AlertDialog(
-                                        title: const Text(
-                                          'Overwrite Background?',
-                                        ),
-                                        content: Text(
-                                          'A background named "$fileName" already exists. Do you want to overwrite it?',
-                                        ),
-                                        actions: [
-                                          TextButton(
-                                            onPressed: () =>
-                                                Navigator.pop(ctx, false),
-                                            child: const Text('Cancel'),
-                                          ),
-                                          TextButton(
-                                            onPressed: () =>
-                                                Navigator.pop(ctx, true),
-                                            child: const Text(
-                                              'Overwrite',
-                                              style: TextStyle(
-                                                color: Colors.red,
-                                              ),
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    );
-                                    if (confirm != true) return;
-                                  }
-
-                                  final bytes = await File(path).readAsBytes();
-                                  final codec = await ui.instantiateImageCodec(
-                                    bytes,
-                                  );
-                                  final frame = await codec.getNextFrame();
-                                  if (frame.image.width == 1000 &&
-                                      frame.image.height == 300) {
-                                    final savedPath =
-                                        await PlatformFileService()
-                                            .copyFileToAppStorage(
-                                              path,
-                                              fileName,
-                                            );
-                                    setState(() {
-                                      currentBgPath = savedPath;
-                                      clearBg = false;
-                                    });
-                                  } else {
-                                    if (context.mounted) {
-                                      ScaffoldMessenger.of(
-                                        context,
-                                      ).showSnackBar(
-                                        const SnackBar(
-                                          content: Text(
-                                            'Image must be exactly 1000x300 pixels!',
-                                          ),
-                                        ),
-                                      );
-                                    }
-                                  }
-                                }
-                              },
-                              child: const Text('Import'),
-                            ),
-                          ),
-                        ],
-                      ),
                   ],
                 ),
               ),
@@ -315,7 +164,6 @@ class _BudgetScreenState extends State<BudgetScreen> {
                           balance,
                           colorHex: currentColorHex,
                           minBalance: minBalance,
-                          backgroundImagePath: clearBg ? null : currentBgPath,
                         );
                       } else {
                         context.read<LedgerProvider>().updateAccount(
@@ -324,8 +172,6 @@ class _BudgetScreenState extends State<BudgetScreen> {
                           balance,
                           colorHex: currentColorHex,
                           minBalance: minBalance,
-                          backgroundImagePath: currentBgPath,
-                          clearBackgroundImage: clearBg,
                         );
                       }
                       Navigator.pop(ctx);
@@ -612,10 +458,32 @@ class _BudgetScreenState extends State<BudgetScreen> {
         .fold(0.0, (sum, tx) => sum + tx.amount);
 
     return DefaultTabController(
-      length: 4,
+      length: 5,
       child: Scaffold(
         appBar: AppBar(
-          title: const Text('Wallet'),
+          title: Builder(
+            builder: (context) {
+              final tabController = DefaultTabController.of(context);
+              return AnimatedBuilder(
+                animation: tabController,
+                builder: (context, _) {
+                  const titles = [
+                    'Main',
+                    'Wallet',
+                    'Expenses',
+                    'Loans & Subs',
+                    'Analytics',
+                  ];
+                  final index = tabController.index;
+                  return Text(
+                    index >= 0 && index < titles.length
+                        ? titles[index]
+                        : 'BudgetKo',
+                  );
+                },
+              );
+            },
+          ),
           centerTitle: true,
           leadingWidth: 100,
           leading: Row(
@@ -651,7 +519,10 @@ class _BudgetScreenState extends State<BudgetScreen> {
             ],
           ),
           bottom: const TabBar(
+            isScrollable: true,
+            tabAlignment: TabAlignment.start,
             tabs: [
+              Tab(text: 'Main'),
               Tab(text: 'Wallet'),
               Tab(text: 'Expenses'),
               Tab(text: 'Loans & Subs'),
@@ -673,424 +544,381 @@ class _BudgetScreenState extends State<BudgetScreen> {
           ],
         ),
         endDrawer: const NotificationDrawer(),
-        body: TransitionPlaceholder(
-          child: TabBarView(
-            children: [
-              SingleChildScrollView(
-                padding: const EdgeInsets.all(16.0),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Row(
-                          children: [
-                            Text('Accounts', style: theme.textTheme.titleLarge),
-                            const SizedBox(width: 8),
-                            Text(
-                              '($currency${totalMoney.toStringAsFixed(2)})',
-                              style: theme.textTheme.titleMedium,
-                            ),
-                          ],
-                        ),
-                        IconButton(
-                          icon: const Icon(Icons.add),
-                          onPressed: () => _showAccountDialog(context),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 8),
-                    if (provider.accounts.isEmpty)
-                      const Text('No accounts yet. Add one to start tracking!')
-                    else
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: provider.accounts.map((acc) {
-                          final accColor = Color(acc.colorHex);
-                          return Padding(
-                            padding: const EdgeInsets.only(bottom: 8.0),
-                            child: InkWell(
-                              onTap: () => _showAccountDialog(context, acc),
-                              borderRadius: BorderRadius.circular(6),
-                              child: Container(
-                                height: 80,
-                                decoration: BoxDecoration(
-                                  color: acc.backgroundImagePath == null
-                                      ? accColor.withValues(alpha: 0.08)
-                                      : null,
-                                  image: acc.backgroundImagePath != null
-                                      ? DecorationImage(
-                                          image: FileImage(
-                                            File(acc.backgroundImagePath!),
-                                          ),
-                                          fit: BoxFit.cover,
-                                        )
-                                      : null,
-                                  borderRadius: BorderRadius.circular(6),
-                                  border: Border.all(
-                                    color: theme.dividerColor,
-                                    width: 1.0,
-                                  ),
-                                ),
-                                child: Row(
-                                  children: [
-                                    const Spacer(flex: 7),
-                                    Expanded(
-                                      flex: 3,
-                                      child: Container(
-                                        height: double.infinity,
-                                        padding: const EdgeInsets.symmetric(
-                                          horizontal: 12,
-                                        ),
-                                        decoration: BoxDecoration(
-                                          color:
-                                              theme.brightness ==
-                                                  Brightness.dark
-                                              ? Colors.black87
-                                              : Colors.white.withValues(
-                                                  alpha: 0.9,
-                                                ),
-                                          borderRadius: const BorderRadius.only(
-                                            topRight: Radius.circular(12),
-                                            bottomRight: Radius.circular(12),
-                                          ),
-                                        ),
-                                        child: Column(
-                                          crossAxisAlignment:
-                                              CrossAxisAlignment.end,
-                                          mainAxisAlignment:
-                                              MainAxisAlignment.center,
-                                          mainAxisSize: MainAxisSize.min,
-                                          children: [
-                                            Row(
-                                              mainAxisSize: MainAxisSize.min,
-                                              mainAxisAlignment:
-                                                  MainAxisAlignment.end,
-                                              children: [
-                                                if (acc.currentBalance <
-                                                    acc.minBalance)
-                                                  const Padding(
-                                                    padding: EdgeInsets.only(
-                                                      right: 8.0,
-                                                    ),
-                                                    child: Icon(
-                                                      Icons.error,
-                                                      color: Colors.red,
-                                                      size: 16,
-                                                    ),
-                                                  ),
-                                                Flexible(
-                                                  child: Text(
-                                                    acc.name,
-                                                    style: TextStyle(
-                                                      fontWeight:
-                                                          FontWeight.bold,
-                                                      fontSize: 14,
-                                                      color:
-                                                          theme.brightness ==
-                                                              Brightness.dark
-                                                          ? Colors.white
-                                                          : Colors.black,
-                                                    ),
-                                                    overflow:
-                                                        TextOverflow.ellipsis,
-                                                  ),
-                                                ),
-                                              ],
-                                            ),
-                                            const SizedBox(height: 2),
-                                            Flexible(
-                                              child: Text(
-                                                '$currency${acc.currentBalance.toStringAsFixed(2)}',
-                                                style: TextStyle(
-                                                  fontWeight: FontWeight.normal,
-                                                  fontSize: 20,
-                                                  color:
-                                                      theme.brightness ==
-                                                          Brightness.dark
-                                                      ? Colors.white
-                                                      : Colors.black,
-                                                ),
-                                                overflow: TextOverflow.ellipsis,
-                                              ),
-                                            ),
-                                          ],
-                                        ),
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ),
-                          );
-                        }).toList(),
-                      ),
-
-                    const SizedBox(height: 24),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text('Categories', style: theme.textTheme.titleLarge),
-                        IconButton(
-                          icon: const Icon(Icons.add),
-                          onPressed: () => _showCategoryDialog(context),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 8),
-                    if (provider.categories.isEmpty)
-                      const Text(
-                        'No categories yet. Add one to start tracking!',
-                      )
-                    else
-                      Wrap(
-                        spacing: 8.0,
-                        runSpacing: 8.0,
+        body: TabBarView(
+          children: [
+            Builder(
+              builder: (tabCtx) {
+                return MainTab(
+                  onAddAccount: () => _showAccountDialog(context),
+                  onNavigateToTab: (index) {
+                    DefaultTabController.of(tabCtx).animateTo(index);
+                  },
+                );
+              },
+            ),
+            SingleChildScrollView(
+              padding: const EdgeInsets.all(16.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Row(
                         children: [
-                          ...(_showAllCategories ||
-                                      provider.categories.length <= 4
-                                  ? provider.categories
-                                  : provider.categories.take(4))
-                              .map((cat) {
-                                final catColor = Color(cat.colorHex);
-                                return ActionChip(
-                                  label: Text(
-                                    '${cat.name} ${cat.dailyBudgetLimit != null
-                                        ? '($currency${cat.dailyBudgetLimit!.toStringAsFixed(0)}/d)'
-                                        : cat.weeklyBudgetLimit != null
-                                        ? '($currency${cat.weeklyBudgetLimit!.toStringAsFixed(0)}/w)'
-                                        : cat.monthlyBudgetLimit != null
-                                        ? '($currency${cat.monthlyBudgetLimit!.toStringAsFixed(0)}/m)'
-                                        : ''}',
-                                    style: TextStyle(
-                                      color: catColor,
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                  ),
-                                  avatar: Icon(
-                                    cat.isExpense
-                                        ? Icons.arrow_downward
-                                        : Icons.arrow_upward,
-                                    color: catColor,
-                                    size: 16,
-                                  ),
-                                  backgroundColor: catColor.withValues(
-                                    alpha: 0.08,
-                                  ),
-                                  side: BorderSide(
-                                    color: catColor.withValues(alpha: 0.3),
-                                  ),
-                                  onPressed: () =>
-                                      _showCategoryDialog(context, cat),
-                                );
-                              }),
-                          if (!_showAllCategories &&
-                              provider.categories.length > 4)
-                            ActionChip(
-                              label: const Text('Show More'),
-                              backgroundColor:
-                                  theme.colorScheme.surfaceContainerHighest,
-                              side: BorderSide(
-                                color: theme.colorScheme.outlineVariant,
-                              ),
-                              onPressed: () =>
-                                  setState(() => _showAllCategories = true),
-                            ),
-                          if (_showAllCategories &&
-                              provider.categories.length > 4)
-                            ActionChip(
-                              label: const Text('Show Less'),
-                              backgroundColor:
-                                  theme.colorScheme.surfaceContainerHighest,
-                              side: BorderSide(
-                                color: theme.colorScheme.outlineVariant,
-                              ),
-                              onPressed: () =>
-                                  setState(() => _showAllCategories = false),
-                            ),
+                          Text('Accounts', style: theme.textTheme.titleLarge),
+                          const SizedBox(width: 8),
+                          Text(
+                            settings.hideTotalAmount
+                                ? '($currency••••••)'
+                                : '($currency${totalMoney.toStringAsFixed(2)})',
+                            style: theme.textTheme.titleMedium,
+                          ),
                         ],
                       ),
-
-                    const SizedBox(height: 24),
-                    Text(
-                      'Recent Transactions',
-                      style: theme.textTheme.titleLarge,
-                    ),
-                    const SizedBox(height: 8),
-
-                    // Transactions List
-                    ListView.builder(
-                      shrinkWrap: true,
-                      physics: const NeverScrollableScrollPhysics(),
-                      itemCount: provider.recentTransactions.length > 5
-                          ? 5
-                          : provider.recentTransactions.length,
-                      itemBuilder: (context, index) {
-                        final tx = provider.recentTransactions[index];
-                        final isInc =
-                            tx.transactionType == TransactionType.income.index;
-                        final isTransfer =
-                            tx.transactionType ==
-                            TransactionType.transfer.index;
-
-                        BudgetCategory? cat;
-                        if (tx.categoryId != null) {
-                          for (final c in provider.categories) {
-                            if (c.id == tx.categoryId) {
-                              cat = c;
-                              break;
-                            }
-                          }
-                        }
-                        final catColor = cat != null
-                            ? Color(cat.colorHex)
-                            : null;
-
+                      IconButton(
+                        icon: const Icon(Icons.add),
+                        onPressed: () => _showAccountDialog(context),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  if (provider.accounts.isEmpty)
+                    const Text('No accounts yet. Add one to start tracking!')
+                  else
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: provider.accounts.map((acc) {
+                        final accColor = Color(acc.colorHex);
                         return Padding(
-                          padding: const EdgeInsets.symmetric(vertical: 4),
-                          child: ListTile(
-                            onTap: () {
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (_) => TransactionEntryScreen(
-                                    transactionToEdit: tx,
-                                  ),
-                                ),
-                              );
-                            },
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(6),
-                              side: BorderSide(
-                                color: theme.dividerColor,
-                                width: 1.0,
+                          padding: const EdgeInsets.only(bottom: 6.0),
+                          child: InkWell(
+                            onTap: () => _showAccountDialog(context, acc),
+                            borderRadius: BorderRadius.circular(6),
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 14,
+                                vertical: 12,
                               ),
-                            ),
-                            tileColor: theme.cardColor,
-                            leading: CircleAvatar(
-                              backgroundColor: isInc
-                                  ? Colors.green.withValues(alpha: 0.15)
-                                  : (isTransfer
-                                        ? Colors.blueGrey.withValues(
-                                            alpha: 0.15,
-                                          )
-                                        : Colors.red.withValues(alpha: 0.15)),
-                              child: Icon(
-                                isTransfer
-                                    ? Icons.swap_horiz
-                                    : (isInc
-                                          ? Icons.arrow_upward
-                                          : Icons.arrow_downward),
-                                color: isInc
-                                    ? Colors.green
-                                    : (isTransfer
-                                          ? Colors.blueGrey
-                                          : Colors.red),
-                              ),
-                            ),
-                            title: Row(
-                              children: [
-                                Expanded(
-                                  child: Text(
-                                    tx.notes ??
-                                        (isTransfer
-                                            ? 'Transfer'
-                                            : (isInc ? 'Income' : 'Expense')),
-                                  ),
+                              decoration: BoxDecoration(
+                                color: theme.cardColor,
+                                borderRadius: BorderRadius.circular(6),
+                                border: Border.all(
+                                  color: theme.dividerColor,
+                                  width: 1.0,
                                 ),
-                                if (cat != null) ...[
-                                  const SizedBox(width: 8),
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 8,
-                                      vertical: 2,
-                                    ),
-                                    decoration: BoxDecoration(
-                                      color: catColor!.withValues(alpha: 0.15),
-                                      borderRadius: BorderRadius.circular(4),
-                                      border: Border.all(
-                                        color: catColor.withValues(alpha: 0.3),
-                                        width: 1,
+                              ),
+                              child: Row(
+                                mainAxisAlignment:
+                                    MainAxisAlignment.spaceBetween,
+                                children: [
+                                  Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Container(
+                                        width: 8,
+                                        height: 8,
+                                        margin: const EdgeInsets.only(
+                                          right: 10,
+                                        ),
+                                        decoration: BoxDecoration(
+                                          color: accColor,
+                                          shape: BoxShape.circle,
+                                        ),
                                       ),
-                                    ),
-                                    child: Text(
-                                      cat.name,
-                                      style: TextStyle(
-                                        fontSize: 10,
-                                        fontWeight: FontWeight.bold,
-                                        color: catColor,
+                                      if (acc.currentBalance < acc.minBalance)
+                                        const Padding(
+                                          padding: EdgeInsets.only(right: 6.0),
+                                          child: Icon(
+                                            Icons.error,
+                                            color: Colors.red,
+                                            size: 16,
+                                          ),
+                                        ),
+                                      Text(
+                                        '${acc.name}: $currency${acc.currentBalance.toStringAsFixed(2)}',
+                                        style: theme.textTheme.titleMedium
+                                            ?.copyWith(
+                                              fontWeight: FontWeight.w500,
+                                            ),
                                       ),
-                                    ),
+                                    ],
+                                  ),
+                                  Icon(
+                                    Icons.chevron_right,
+                                    size: 18,
+                                    color: theme.colorScheme.secondary,
                                   ),
                                 ],
-                              ],
-                            ),
-                            subtitle: Text(tx.date.toString().split('.')[0]),
-                            trailing: Text(
-                              '${isInc ? '+' : (isTransfer ? '' : '-')}$currency${tx.amount.toStringAsFixed(2)}',
-                              style: TextStyle(
-                                color: isInc
-                                    ? Colors.green
-                                    : (isTransfer
-                                          ? Colors.blueGrey
-                                          : Colors.red),
-                                fontWeight: FontWeight.bold,
-                                fontSize: 16,
                               ),
                             ),
                           ),
                         );
-                      },
+                      }).toList(),
                     ),
-                    const SizedBox(height: 24),
-                    Container(
-                      padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(
-                        color: theme.cardColor,
-                        borderRadius: BorderRadius.circular(6),
-                        border: Border.all(
-                          color: theme.dividerColor,
-                          width: 1.0,
-                        ),
+
+                  const SizedBox(height: 24),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text('Categories', style: theme.textTheme.titleLarge),
+                      IconButton(
+                        icon: const Icon(Icons.add),
+                        onPressed: () => _showCategoryDialog(context),
                       ),
-                      child: Center(
-                        child: Text(
-                          'Total Expenses: $currency${totalExpenses.toStringAsFixed(2)}',
-                          style: theme.textTheme.titleMedium?.copyWith(
-                            color: theme.colorScheme.onSurface,
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  if (provider.categories.isEmpty)
+                    const Text('No categories yet. Add one to start tracking!')
+                  else
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        ...(_showAllCategories ||
+                                    provider.categories.length <= 5
+                                ? provider.categories
+                                : provider.categories.take(5))
+                            .map((cat) {
+                              final catColor = Color(cat.colorHex);
+                              final budgetStr = cat.dailyBudgetLimit != null
+                                  ? ' ($currency${cat.dailyBudgetLimit!.toStringAsFixed(0)}/d)'
+                                  : cat.weeklyBudgetLimit != null
+                                  ? ' ($currency${cat.weeklyBudgetLimit!.toStringAsFixed(0)}/w)'
+                                  : cat.monthlyBudgetLimit != null
+                                  ? ' ($currency${cat.monthlyBudgetLimit!.toStringAsFixed(0)}/m)'
+                                  : '';
+                              return InkWell(
+                                onTap: () => _showCategoryDialog(context, cat),
+                                child: Padding(
+                                  padding: const EdgeInsets.symmetric(
+                                    vertical: 6.0,
+                                  ),
+                                  child: Row(
+                                    children: [
+                                      Container(
+                                        width: 8,
+                                        height: 8,
+                                        margin: const EdgeInsets.only(
+                                          right: 10,
+                                        ),
+                                        decoration: BoxDecoration(
+                                          color: catColor,
+                                          shape: BoxShape.circle,
+                                        ),
+                                      ),
+                                      Expanded(
+                                        child: Text(
+                                          '${cat.name}$budgetStr',
+                                          style: theme.textTheme.bodyMedium
+                                              ?.copyWith(
+                                                fontWeight: FontWeight.w500,
+                                              ),
+                                        ),
+                                      ),
+                                      Icon(
+                                        Icons.chevron_right,
+                                        size: 16,
+                                        color: theme.colorScheme.secondary
+                                            .withValues(alpha: 0.5),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              );
+                            }),
+                        if (provider.categories.length > 5) ...[
+                          const SizedBox(height: 4),
+                          TextButton(
+                            onPressed: () => setState(
+                              () => _showAllCategories = !_showAllCategories,
+                            ),
+                            style: TextButton.styleFrom(
+                              padding: EdgeInsets.zero,
+                              minimumSize: Size.zero,
+                              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                            ),
+                            child: Text(
+                              _showAllCategories ? 'Show less' : 'Show all',
+                              style: TextStyle(
+                                fontSize: 13,
+                                color: theme.colorScheme.primary,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+
+                  const SizedBox(height: 24),
+                  Text(
+                    'Recent Transactions',
+                    style: theme.textTheme.titleLarge,
+                  ),
+                  const SizedBox(height: 8),
+
+                  // Transactions List
+                  ListView.builder(
+                    shrinkWrap: true,
+                    physics: const NeverScrollableScrollPhysics(),
+                    itemCount: provider.recentTransactions.length > 5
+                        ? 5
+                        : provider.recentTransactions.length,
+                    itemBuilder: (context, index) {
+                      final tx = provider.recentTransactions[index];
+                      final isInc =
+                          tx.transactionType == TransactionType.income.index;
+                      final isTransfer =
+                          tx.transactionType == TransactionType.transfer.index;
+
+                      BudgetCategory? cat;
+                      if (tx.categoryId != null) {
+                        for (final c in provider.categories) {
+                          if (c.id == tx.categoryId) {
+                            cat = c;
+                            break;
+                          }
+                        }
+                      }
+                      final catColor = cat != null ? Color(cat.colorHex) : null;
+
+                      return Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 4),
+                        child: ListTile(
+                          onTap: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => TransactionEntryScreen(
+                                  transactionToEdit: tx,
+                                ),
+                              ),
+                            );
+                          },
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(6),
+                            side: BorderSide(
+                              color: theme.dividerColor,
+                              width: 1.0,
+                            ),
+                          ),
+                          tileColor: theme.cardColor,
+                          leading: CircleAvatar(
+                            backgroundColor: isInc
+                                ? Colors.green.withValues(alpha: 0.15)
+                                : (isTransfer
+                                      ? Colors.blueGrey.withValues(alpha: 0.15)
+                                      : Colors.red.withValues(alpha: 0.15)),
+                            child: Icon(
+                              isTransfer
+                                  ? Icons.swap_horiz
+                                  : (isInc
+                                        ? Icons.arrow_upward
+                                        : Icons.arrow_downward),
+                              color: isInc
+                                  ? Colors.green
+                                  : (isTransfer ? Colors.blueGrey : Colors.red),
+                            ),
+                          ),
+                          title: Row(
+                            children: [
+                              Expanded(
+                                child: Text(
+                                  tx.notes ??
+                                      (isTransfer
+                                          ? 'Transfer'
+                                          : (isInc ? 'Income' : 'Expense')),
+                                ),
+                              ),
+                              if (cat != null) ...[
+                                const SizedBox(width: 8),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 8,
+                                    vertical: 2,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: catColor!.withValues(alpha: 0.15),
+                                    borderRadius: BorderRadius.circular(4),
+                                    border: Border.all(
+                                      color: catColor.withValues(alpha: 0.3),
+                                      width: 1,
+                                    ),
+                                  ),
+                                  child: Text(
+                                    cat.name,
+                                    style: TextStyle(
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.bold,
+                                      color: catColor,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ],
+                          ),
+                          subtitle: Text(tx.date.toString().split('.')[0]),
+                          trailing: Text(
+                            '${isInc ? '+' : (isTransfer ? '' : '-')}$currency${tx.amount.toStringAsFixed(2)}',
+                            style: TextStyle(
+                              color: isInc
+                                  ? Colors.green
+                                  : (isTransfer ? Colors.blueGrey : Colors.red),
+                              fontWeight: FontWeight.bold,
+                              fontSize: 16,
+                            ),
                           ),
                         ),
-                      ),
+                      );
+                    },
+                  ),
+                  const SizedBox(height: 16),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 8.0),
+                    child: Text(
+                      'Total Expenses: $currency${totalExpenses.toStringAsFixed(2)}',
+                      style: theme.textTheme.titleMedium,
                     ),
-                  ],
-                ),
+                  ),
+                ],
               ),
-              const ExpensesTab(),
-              const LoansAndSubscriptionsTab(),
-              const BudgetAnalyticsTab(),
-            ],
-          ),
+            ),
+            const ExpensesTab(),
+            const LoansAndSubscriptionsTab(),
+            const BudgetAnalyticsTab(),
+          ],
         ),
-        floatingActionButton: FloatingActionButton.extended(
-          elevation: 0,
-          highlightElevation: 0,
-          hoverElevation: 1,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(6),
-            side: BorderSide(color: theme.dividerColor, width: 1.0),
-          ),
-          backgroundColor: theme.colorScheme.primary,
-          foregroundColor: Colors.white,
-          onPressed: () {
-            Navigator.push(
-              context,
-              MaterialPageRoute(builder: (_) => const TransactionEntryScreen()),
-            );
-          },
-          icon: const Icon(Icons.add),
-          label: const Text('Add Transaction'),
-        ),
+        floatingActionButton: () {
+          final isDark = theme.brightness == Brightness.dark;
+          final fabFgColor = isDark
+              ? theme.scaffoldBackgroundColor
+              : Colors.white;
+          return FloatingActionButton.extended(
+            elevation: 0,
+            highlightElevation: 0,
+            hoverElevation: 1,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(6),
+              side: BorderSide(color: theme.dividerColor, width: 1.0),
+            ),
+            backgroundColor: theme.colorScheme.primary,
+            foregroundColor: fabFgColor,
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => const TransactionEntryScreen(),
+                ),
+              );
+            },
+            icon: Icon(Icons.add, color: fabFgColor),
+            label: Text(
+              'Add Transaction',
+              style: TextStyle(color: fabFgColor, fontWeight: FontWeight.w500),
+            ),
+          );
+        }(),
       ),
     );
   }

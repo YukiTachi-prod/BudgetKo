@@ -12,12 +12,12 @@ class NotificationService {
   final FlutterLocalNotificationsPlugin _plugin =
       FlutterLocalNotificationsPlugin();
 
-  static const _channelId = 'bulsako_reminders';
-  static const _channelName = 'BulsaKo Reminders';
+  static const _channelId = 'budgetko_reminders';
+  static const _channelName = 'BudgetKo Reminders';
   static const _channelDesc =
       'Notifications for budgets, bills, and subscriptions';
-  static const _alarmChannelId = 'bulsako_alarms';
-  static const _alarmChannelName = 'BulsaKo Alarms';
+  static const _alarmChannelId = 'budgetko_alarms';
+  static const _alarmChannelName = 'BudgetKo Alarms';
   static const _alarmChannelDesc =
       'Loud alarm notifications for important bills and budgets';
 

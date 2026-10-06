@@ -20,10 +20,14 @@ class _TransactionEntryScreenState extends State<TransactionEntryScreen> {
   int? _selectedFromAccountId;
   int? _selectedToAccountId;
   int? _selectedCategoryId;
+  late final TextEditingController _notesController;
 
   @override
   void initState() {
     super.initState();
+    _notesController = TextEditingController(
+      text: widget.transactionToEdit?.notes ?? '',
+    );
     if (widget.transactionToEdit != null) {
       final tx = widget.transactionToEdit!;
       _type = TransactionType.values[tx.transactionType];
@@ -40,6 +44,12 @@ class _TransactionEntryScreenState extends State<TransactionEntryScreen> {
       _selectedFromAccountId = provider.lastUsedAccountId;
       _selectedCategoryId = provider.lastUsedCategoryId;
     }
+  }
+
+  @override
+  void dispose() {
+    _notesController.dispose();
+    super.dispose();
   }
 
   void _onNumpadTap(String value) {
@@ -142,6 +152,9 @@ class _TransactionEntryScreenState extends State<TransactionEntryScreen> {
       }
     }
 
+    final noteText = _notesController.text.trim();
+    final String? notes = noteText.isEmpty ? null : noteText;
+
     if (widget.transactionToEdit != null) {
       await provider.updateTransaction(
         transactionId: widget.transactionToEdit!.id,
@@ -155,6 +168,7 @@ class _TransactionEntryScreenState extends State<TransactionEntryScreen> {
         categoryId: _type != TransactionType.transfer
             ? _selectedCategoryId
             : null,
+        notes: notes,
       );
     } else {
       await provider.addTransaction(
@@ -168,6 +182,7 @@ class _TransactionEntryScreenState extends State<TransactionEntryScreen> {
         categoryId: _type != TransactionType.transfer
             ? _selectedCategoryId
             : null,
+        notes: notes,
       );
     }
 
@@ -182,6 +197,7 @@ class _TransactionEntryScreenState extends State<TransactionEntryScreen> {
     final isTransfer = _type == TransactionType.transfer;
 
     return Scaffold(
+      resizeToAvoidBottomInset: false,
       appBar: AppBar(
         title: Text(
           widget.transactionToEdit != null
@@ -298,6 +314,17 @@ class _TransactionEntryScreenState extends State<TransactionEntryScreen> {
                         .toList(),
                     onChanged: (v) => setState(() => _selectedCategoryId = v),
                   ),
+                const SizedBox(height: 16),
+                TextFormField(
+                  controller: _notesController,
+                  maxLength: 50,
+                  textInputAction: TextInputAction.done,
+                  decoration: const InputDecoration(
+                    labelText: 'Note',
+                    hintText: 'Note (optional)',
+                    counterText: '',
+                  ),
+                ),
               ],
             ),
           ),

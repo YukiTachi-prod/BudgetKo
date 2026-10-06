@@ -69,9 +69,19 @@ class AppTheme {
       scaffoldBackgroundColor: bg,
       fontFamily: fontFamily,
       fontFamilyFallback: fontFamilyFallback,
-      hoverColor: text.withValues(alpha: 0.04),
-      splashColor: text.withValues(alpha: 0.06),
-      highlightColor: text.withValues(alpha: 0.04),
+      hoverColor: Colors.transparent,
+      splashColor: Colors.transparent,
+      highlightColor: Colors.transparent,
+      splashFactory: NoSplash.splashFactory,
+      pageTransitionsTheme: const PageTransitionsTheme(
+        builders: {
+          TargetPlatform.android: FadeUpwardsPageTransitionsBuilder(),
+          TargetPlatform.iOS: FadeUpwardsPageTransitionsBuilder(),
+          TargetPlatform.linux: FadeUpwardsPageTransitionsBuilder(),
+          TargetPlatform.macOS: FadeUpwardsPageTransitionsBuilder(),
+          TargetPlatform.windows: FadeUpwardsPageTransitionsBuilder(),
+        },
+      ),
       colorScheme: ColorScheme(
         brightness: brightness,
         primary: accent,
@@ -324,7 +334,9 @@ class AppTheme {
           minimumSize: const Size(0, 38),
           elevation: 0,
           shadowColor: Colors.transparent,
-        ),
+          splashFactory: NoSplash.splashFactory,
+          enableFeedback: false,
+        ).copyWith(overlayColor: WidgetStateProperty.all(Colors.transparent)),
       ),
       textButtonTheme: TextButtonThemeData(
         style: TextButton.styleFrom(
@@ -338,8 +350,9 @@ class AppTheme {
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(buttonRadius),
           ),
-          overlayColor: text.withValues(alpha: 0.05),
-        ),
+          splashFactory: NoSplash.splashFactory,
+          enableFeedback: false,
+        ).copyWith(overlayColor: WidgetStateProperty.all(Colors.transparent)),
       ),
       outlinedButtonTheme: OutlinedButtonThemeData(
         style: OutlinedButton.styleFrom(
@@ -356,25 +369,39 @@ class AppTheme {
           ),
           minimumSize: const Size(0, 38),
           elevation: 0,
-        ),
+          splashFactory: NoSplash.splashFactory,
+          enableFeedback: false,
+        ).copyWith(overlayColor: WidgetStateProperty.all(Colors.transparent)),
       ),
       iconButtonTheme: IconButtonThemeData(
         style: IconButton.styleFrom(
           foregroundColor: subtext,
-          hoverColor: text.withValues(alpha: 0.05),
-          highlightColor: text.withValues(alpha: 0.05),
-        ),
+          hoverColor: Colors.transparent,
+          highlightColor: Colors.transparent,
+          splashFactory: NoSplash.splashFactory,
+          enableFeedback: false,
+        ).copyWith(overlayColor: WidgetStateProperty.all(Colors.transparent)),
       ),
       floatingActionButtonTheme: FloatingActionButtonThemeData(
         backgroundColor: accent,
         foregroundColor: isDark ? const Color(0xFF1E1E1C) : Colors.white,
         elevation: 0,
         focusElevation: 0,
-        hoverElevation: 1,
-        highlightElevation: 1,
+        hoverElevation: 0,
+        highlightElevation: 0,
+        splashColor: Colors.transparent,
+        focusColor: Colors.transparent,
+        hoverColor: Colors.transparent,
+        enableFeedback: false,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(radius),
           side: BorderSide(color: border, width: 1.0),
+        ),
+      ),
+      segmentedButtonTheme: SegmentedButtonThemeData(
+        style: ButtonStyle(
+          splashFactory: NoSplash.splashFactory,
+          overlayColor: WidgetStateProperty.all(Colors.transparent),
         ),
       ),
       switchTheme: SwitchThemeData(

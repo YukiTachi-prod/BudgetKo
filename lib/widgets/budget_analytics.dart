@@ -11,6 +11,7 @@ class BudgetAnalytics extends StatefulWidget {
   final List<BudgetCategory> categories;
   final Map<int, double> categoryExpenses;
   final List<LedgerTransaction> recentTransactions;
+  final List<LedgerTransaction> allTransactions;
   final String dateFilter;
 
   const BudgetAnalytics({
@@ -19,6 +20,7 @@ class BudgetAnalytics extends StatefulWidget {
     required this.categories,
     required this.categoryExpenses,
     required this.recentTransactions,
+    this.allTransactions = const [],
     required this.dateFilter,
   });
 
@@ -41,6 +43,187 @@ class _BudgetAnalyticsState extends State<BudgetAnalytics> {
       case 'Today':
       default:
         return 'Today';
+    }
+  }
+
+  bool get _hasEnoughDataForFilter {
+    final now = DateTime.now();
+    DateTime priorStart;
+    DateTime priorEnd;
+
+    switch (widget.dateFilter) {
+      case 'Today':
+        final currentStart = DateTime(now.year, now.month, now.day);
+        priorStart = currentStart.subtract(const Duration(days: 1));
+        priorEnd = currentStart.subtract(const Duration(milliseconds: 1));
+        break;
+      case 'This Week':
+        final startOfWeek = now.subtract(Duration(days: now.weekday - 1));
+        final currentStart = DateTime(
+          startOfWeek.year,
+          startOfWeek.month,
+          startOfWeek.day,
+        );
+        priorStart = currentStart.subtract(const Duration(days: 7));
+        priorEnd = currentStart.subtract(const Duration(milliseconds: 1));
+        break;
+      case 'This Month':
+        final currentStart = DateTime(now.year, now.month, 1);
+        final priorYear = now.month == 1 ? now.year - 1 : now.year;
+        final priorMonth = now.month == 1 ? 12 : now.month - 1;
+        priorStart = DateTime(priorYear, priorMonth, 1);
+        priorEnd = currentStart.subtract(const Duration(milliseconds: 1));
+        break;
+      case 'This Year':
+      default:
+        final currentStart = DateTime(now.year, 1, 1);
+        priorStart = DateTime(now.year - 1, 1, 1);
+        priorEnd = currentStart.subtract(const Duration(milliseconds: 1));
+        break;
+    }
+
+    final txList = widget.allTransactions.isNotEmpty
+        ? widget.allTransactions
+        : widget.recentTransactions;
+
+    return txList.any(
+      (tx) => !tx.date.isBefore(priorStart) && !tx.date.isAfter(priorEnd),
+    );
+  }
+
+  Map<String, dynamic> _getCategoryTrend(BudgetCategory c) {
+    final now = DateTime.now();
+    DateTime currentStart;
+    DateTime currentEnd = now;
+    DateTime priorStart;
+    DateTime priorEnd;
+    String periodLabel;
+
+    switch (widget.dateFilter) {
+      case 'Today':
+        periodLabel = 'yesterday';
+        currentStart = DateTime(now.year, now.month, now.day);
+        priorStart = currentStart.subtract(const Duration(days: 1));
+        priorEnd = currentStart.subtract(const Duration(milliseconds: 1));
+        break;
+      case 'This Week':
+        periodLabel = 'last week';
+        final startOfWeek = now.subtract(Duration(days: now.weekday - 1));
+        currentStart = DateTime(
+          startOfWeek.year,
+          startOfWeek.month,
+          startOfWeek.day,
+        );
+        priorStart = currentStart.subtract(const Duration(days: 7));
+        priorEnd = currentStart.subtract(const Duration(milliseconds: 1));
+        break;
+      case 'This Month':
+        periodLabel = 'last month';
+        currentStart = DateTime(now.year, now.month, 1);
+        final priorYear = now.month == 1 ? now.year - 1 : now.year;
+        final priorMonth = now.month == 1 ? 12 : now.month - 1;
+        priorStart = DateTime(priorYear, priorMonth, 1);
+        priorEnd = currentStart.subtract(const Duration(milliseconds: 1));
+        break;
+      case 'This Year':
+      default:
+        periodLabel = 'last year';
+        currentStart = DateTime(now.year, 1, 1);
+        priorStart = DateTime(now.year - 1, 1, 1);
+        priorEnd = currentStart.subtract(const Duration(milliseconds: 1));
+        break;
+    }
+
+    final txList = widget.allTransactions.isNotEmpty
+        ? widget.allTransactions
+        : widget.recentTransactions;
+
+    final priorPeriodAllTx = txList.where(
+      (tx) => !tx.date.isBefore(priorStart) && !tx.date.isAfter(priorEnd),
+    );
+
+    final bool hasEnoughData = priorPeriodAllTx.isNotEmpty;
+
+    if (!hasEnoughData) {
+      return {
+        'hasEnoughData': false,
+        'periodLabel': periodLabel,
+        'message': 'Not enough data',
+        'rate': 0.0,
+        'isIncrease': false,
+      };
+    }
+
+    final currentAmount = txList
+        .where(
+          (tx) =>
+              tx.transactionType == TransactionType.expense.index &&
+              tx.categoryId == c.id &&
+              !tx.date.isBefore(currentStart) &&
+              !tx.date.isAfter(currentEnd),
+        )
+        .fold(0.0, (sum, tx) => sum + tx.amount);
+
+    final priorAmount = txList
+        .where(
+          (tx) =>
+              tx.transactionType == TransactionType.expense.index &&
+              tx.categoryId == c.id &&
+              !tx.date.isBefore(priorStart) &&
+              !tx.date.isAfter(priorEnd),
+        )
+        .fold(0.0, (sum, tx) => sum + tx.amount);
+
+    if (priorAmount == 0) {
+      if (currentAmount > 0) {
+        return {
+          'hasEnoughData': true,
+          'periodLabel': periodLabel,
+          'message': 'New spending on ${c.name.toLowerCase()} vs $periodLabel',
+          'rate': 100.0,
+          'isIncrease': true,
+        };
+      } else {
+        return {
+          'hasEnoughData': true,
+          'periodLabel': periodLabel,
+          'message': 'No spending on ${c.name.toLowerCase()} in this period',
+          'rate': 0.0,
+          'isIncrease': false,
+        };
+      }
+    }
+
+    final diff = currentAmount - priorAmount;
+    final percent = (diff / priorAmount) * 100;
+    final absPercent = percent.abs().toStringAsFixed(0);
+
+    if (diff > 0) {
+      return {
+        'hasEnoughData': true,
+        'periodLabel': periodLabel,
+        'message':
+            '$absPercent% spent more on ${c.name.toLowerCase()} than $periodLabel',
+        'rate': percent,
+        'isIncrease': true,
+      };
+    } else if (diff < 0) {
+      return {
+        'hasEnoughData': true,
+        'periodLabel': periodLabel,
+        'message':
+            '$absPercent% spent less on ${c.name.toLowerCase()} than $periodLabel',
+        'rate': percent,
+        'isIncrease': false,
+      };
+    } else {
+      return {
+        'hasEnoughData': true,
+        'periodLabel': periodLabel,
+        'message': 'Same spending on ${c.name.toLowerCase()} as $periodLabel',
+        'rate': 0.0,
+        'isIncrease': false,
+      };
     }
   }
 
@@ -209,6 +392,58 @@ class _BudgetAnalyticsState extends State<BudgetAnalytics> {
                       color: progressColor,
                       backgroundColor: Colors.grey.shade300,
                       minHeight: 8,
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                    const SizedBox(height: 4),
+                    Builder(
+                      builder: (context) {
+                        final trend = _getCategoryTrend(c);
+                        if (!trend['hasEnoughData']) {
+                          return Text(
+                            'Not enough data',
+                            style: TextStyle(
+                              fontSize: 11,
+                              color: theme.colorScheme.onSurface.withValues(
+                                alpha: 0.5,
+                              ),
+                              fontStyle: FontStyle.italic,
+                            ),
+                          );
+                        }
+                        final isIncrease = trend['isIncrease'] as bool;
+                        final message = trend['message'] as String;
+                        final trendColor = isIncrease
+                            ? (theme.brightness == Brightness.dark
+                                  ? const Color(0xFFEF9A9A)
+                                  : Colors.red.shade700)
+                            : (theme.brightness == Brightness.dark
+                                  ? const Color(0xFFA5D6A7)
+                                  : Colors.green.shade700);
+
+                        return Row(
+                          children: [
+                            Icon(
+                              isIncrease
+                                  ? Icons.trending_up
+                                  : Icons.trending_down,
+                              size: 13,
+                              color: trendColor,
+                            ),
+                            const SizedBox(width: 4),
+                            Expanded(
+                              child: Text(
+                                message,
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  color: trendColor,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                          ],
+                        );
+                      },
                     ),
                   ],
                 ),
@@ -529,8 +764,8 @@ class _BudgetAnalyticsState extends State<BudgetAnalytics> {
                         behavior: HitTestBehavior.translucent,
                         onTap: () {
                           _chartPageController.previousPage(
-                            duration: const Duration(milliseconds: 300),
-                            curve: Curves.easeInOut,
+                            duration: const Duration(milliseconds: 150),
+                            curve: Curves.easeOut,
                           );
                         },
                       ),
@@ -540,8 +775,8 @@ class _BudgetAnalyticsState extends State<BudgetAnalytics> {
                         behavior: HitTestBehavior.translucent,
                         onTap: () {
                           _chartPageController.nextPage(
-                            duration: const Duration(milliseconds: 300),
-                            curve: Curves.easeInOut,
+                            duration: const Duration(milliseconds: 150),
+                            curve: Curves.easeOut,
                           );
                         },
                       ),
@@ -554,7 +789,7 @@ class _BudgetAnalyticsState extends State<BudgetAnalytics> {
 
         const SizedBox(height: 24),
         SizedBox(
-          height: 250,
+          height: 290,
           child: Stack(
             children: [
               PageView.builder(
@@ -660,7 +895,20 @@ class _BudgetAnalyticsState extends State<BudgetAnalytics> {
                           'Expense Categories',
                           style: theme.textTheme.titleMedium,
                         ),
-                        const SizedBox(height: 16),
+                        if (!_hasEnoughDataForFilter) ...[
+                          const SizedBox(height: 4),
+                          Text(
+                            'Not enough data to calculate rates for this filter',
+                            style: TextStyle(
+                              fontSize: 11,
+                              color: theme.colorScheme.onSurface.withValues(
+                                alpha: 0.5,
+                              ),
+                              fontStyle: FontStyle.italic,
+                            ),
+                          ),
+                        ],
+                        const SizedBox(height: 12),
                         Expanded(
                           child: activeCategories.isEmpty
                               ? const Center(
@@ -677,10 +925,14 @@ class _BudgetAnalyticsState extends State<BudgetAnalytics> {
                                     final percent = maxExpense > 0
                                         ? (amount / maxExpense).clamp(0.0, 1.0)
                                         : 0.0;
+                                    final trend = _getCategoryTrend(c);
+                                    final bool hasEnoughData =
+                                        trend['hasEnoughData'] as bool;
+
                                     return Padding(
                                       padding: const EdgeInsets.symmetric(
                                         horizontal: 16.0,
-                                        vertical: 8.0,
+                                        vertical: 6.0,
                                       ),
                                       child: Column(
                                         crossAxisAlignment:
@@ -699,20 +951,101 @@ class _BudgetAnalyticsState extends State<BudgetAnalytics> {
                                               ),
                                               Text(
                                                 '$currency${amount.toStringAsFixed(2)}',
+                                                style: const TextStyle(
+                                                  fontWeight: FontWeight.w600,
+                                                ),
                                               ),
                                             ],
                                           ),
-                                          const SizedBox(height: 8),
+                                          const SizedBox(height: 6),
                                           LinearProgressIndicator(
                                             value: percent,
                                             color: Color(c.colorHex),
                                             backgroundColor:
                                                 Colors.grey.shade300,
-                                            minHeight: 8,
+                                            minHeight: 6,
                                             borderRadius: BorderRadius.circular(
                                               4,
                                             ),
                                           ),
+                                          const SizedBox(height: 4),
+                                          if (!hasEnoughData)
+                                            Text(
+                                              'Not enough data',
+                                              style: TextStyle(
+                                                fontSize: 11,
+                                                color: theme
+                                                    .colorScheme
+                                                    .onSurface
+                                                    .withValues(alpha: 0.5),
+                                                fontStyle: FontStyle.italic,
+                                              ),
+                                            )
+                                          else ...[
+                                            Row(
+                                              children: [
+                                                Icon(
+                                                  (trend['isIncrease'] as bool)
+                                                      ? Icons.trending_up
+                                                      : Icons.trending_down,
+                                                  size: 13,
+                                                  color:
+                                                      (trend['isIncrease']
+                                                          as bool)
+                                                      ? (theme.brightness ==
+                                                                Brightness.dark
+                                                            ? const Color(
+                                                                0xFFEF9A9A,
+                                                              )
+                                                            : Colors
+                                                                  .red
+                                                                  .shade700)
+                                                      : (theme.brightness ==
+                                                                Brightness.dark
+                                                            ? const Color(
+                                                                0xFFA5D6A7,
+                                                              )
+                                                            : Colors
+                                                                  .green
+                                                                  .shade700),
+                                                ),
+                                                const SizedBox(width: 4),
+                                                Expanded(
+                                                  child: Text(
+                                                    trend['message'] as String,
+                                                    style: TextStyle(
+                                                      fontSize: 11,
+                                                      color:
+                                                          (trend['isIncrease']
+                                                              as bool)
+                                                          ? (theme.brightness ==
+                                                                    Brightness
+                                                                        .dark
+                                                                ? const Color(
+                                                                    0xFFEF9A9A,
+                                                                  )
+                                                                : Colors
+                                                                      .red
+                                                                      .shade700)
+                                                          : (theme.brightness ==
+                                                                    Brightness
+                                                                        .dark
+                                                                ? const Color(
+                                                                    0xFFA5D6A7,
+                                                                  )
+                                                                : Colors
+                                                                      .green
+                                                                      .shade700),
+                                                      fontWeight:
+                                                          FontWeight.w500,
+                                                    ),
+                                                    overflow:
+                                                        TextOverflow.ellipsis,
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                          ],
                                         ],
                                       ),
                                     );
@@ -731,8 +1064,8 @@ class _BudgetAnalyticsState extends State<BudgetAnalytics> {
                       behavior: HitTestBehavior.translucent,
                       onTap: () {
                         _donutPageController.previousPage(
-                          duration: const Duration(milliseconds: 300),
-                          curve: Curves.easeInOut,
+                          duration: const Duration(milliseconds: 150),
+                          curve: Curves.easeOut,
                         );
                       },
                     ),
@@ -742,8 +1075,8 @@ class _BudgetAnalyticsState extends State<BudgetAnalytics> {
                       behavior: HitTestBehavior.translucent,
                       onTap: () {
                         _donutPageController.nextPage(
-                          duration: const Duration(milliseconds: 300),
-                          curve: Curves.easeInOut,
+                          duration: const Duration(milliseconds: 150),
+                          curve: Curves.easeOut,
                         );
                       },
                     ),

@@ -167,6 +167,7 @@ class _BudgetAnalyticsTabState extends State<BudgetAnalyticsTab> {
                     categories: provider.categories,
                     categoryExpenses: categoryExpenses,
                     recentTransactions: filteredTransactions,
+                    allTransactions: provider.allTransactions,
                     dateFilter: _dateFilter,
                   ),
                 ),
@@ -181,151 +182,121 @@ class _BudgetAnalyticsTabState extends State<BudgetAnalyticsTab> {
               style: Theme.of(context).textTheme.titleLarge,
             ),
             const SizedBox(height: 12),
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                if (_showLoans)
-                  Expanded(
-                    child: Card(
-                      child: Padding(
-                        padding: const EdgeInsets.all(16.0),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Row(
-                              children: [
-                                const Icon(Icons.money_off, color: Colors.red),
-                                const SizedBox(width: 8),
-                                Text(
-                                  'Loans Summary',
-                                  style: Theme.of(
-                                    context,
-                                  ).textTheme.titleMedium,
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: 16),
-                            Text(
-                              'Active Debts: $activeLoansCount',
-                              style: const TextStyle(
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                            const SizedBox(height: 4),
-                            Text(
-                              'Total borrowed: $currency${totalBorrowed.toStringAsFixed(2)}',
-                            ),
-                            const SizedBox(height: 4),
-                            Text(
-                              'Total remaining: $currency${totalRemaining.toStringAsFixed(2)}',
-                              style: TextStyle(
-                                color: Colors.red.shade700,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                            const SizedBox(height: 12),
-                            const Text(
-                              'Paid Off Progress:',
-                              style: TextStyle(
-                                fontSize: 12,
-                                color: Colors.grey,
-                              ),
-                            ),
-                            const SizedBox(height: 6),
-                            LinearProgressIndicator(
-                              value: debtProgress,
-                              color: Colors.green,
-                              backgroundColor: Colors.grey.shade300,
-                              minHeight: 6,
-                            ),
-                            const SizedBox(height: 4),
-                            Align(
-                              alignment: Alignment.bottomRight,
-                              child: Text(
-                                '${(debtProgress * 100).toStringAsFixed(0)}% paid',
-                                style: const TextStyle(
-                                  fontSize: 10,
-                                  color: Colors.grey,
-                                ),
-                              ),
-                            ),
-                          ],
+            if (_showLoans)
+              Card(
+                child: Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          const Icon(Icons.money_off, color: Colors.red),
+                          const SizedBox(width: 8),
+                          Text(
+                            'Loans Summary',
+                            style: Theme.of(context).textTheme.titleMedium,
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 16),
+                      Text(
+                        'Active Debts: $activeLoansCount',
+                        style: const TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        'Total borrowed: $currency${totalBorrowed.toStringAsFixed(2)}',
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        'Total remaining: $currency${totalRemaining.toStringAsFixed(2)}',
+                        style: TextStyle(
+                          color: Colors.red.shade700,
+                          fontWeight: FontWeight.w600,
                         ),
                       ),
-                    ),
-                  ),
-                if (_showLoans && _showSubscriptions) const SizedBox(width: 12),
-                if (_showSubscriptions)
-                  Expanded(
-                    child: Card(
-                      child: Padding(
-                        padding: const EdgeInsets.all(16.0),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Row(
-                              children: [
-                                const Icon(Icons.autorenew, color: Colors.blue),
-                                const SizedBox(width: 8),
-                                Text(
-                                  'Subscriptions',
-                                  style: Theme.of(
-                                    context,
-                                  ).textTheme.titleMedium,
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: 16),
-                            Text(
-                              'Active: $activeSubsCount',
-                              style: const TextStyle(
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                            const SizedBox(height: 4),
-                            Text(
-                              'Est. Monthly Cost: $currency${monthlyCostSum.toStringAsFixed(2)}',
-                              style: TextStyle(
-                                color: Colors.blue.shade700,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                            const SizedBox(height: 12),
-                            if (nextSub != null) ...[
-                              const Text(
-                                'Next Bill:',
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  color: Colors.grey,
-                                ),
-                              ),
-                              const SizedBox(height: 4),
-                              Text(
-                                '${nextSub.name} ($currency${nextSub.cost.toStringAsFixed(2)})',
-                              ),
-                              Text(
-                                'Due: ${nextSub.nextBillingDate.toString().split(' ')[0]}',
-                                style: const TextStyle(
-                                  fontSize: 11,
-                                  color: Colors.grey,
-                                ),
-                              ),
-                            ] else ...[
-                              const Text(
-                                'No upcoming bills.',
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  color: Colors.grey,
-                                ),
-                              ),
-                            ],
-                          ],
+                      const SizedBox(height: 12),
+                      const Text(
+                        'Paid Off Progress:',
+                        style: TextStyle(fontSize: 12, color: Colors.grey),
+                      ),
+                      const SizedBox(height: 6),
+                      LinearProgressIndicator(
+                        value: debtProgress,
+                        color: Colors.green,
+                        backgroundColor: Colors.grey.shade300,
+                        minHeight: 6,
+                      ),
+                      const SizedBox(height: 4),
+                      Align(
+                        alignment: Alignment.bottomRight,
+                        child: Text(
+                          '${(debtProgress * 100).toStringAsFixed(0)}% paid',
+                          style: const TextStyle(
+                            fontSize: 10,
+                            color: Colors.grey,
+                          ),
                         ),
                       ),
-                    ),
+                    ],
                   ),
-              ],
-            ),
+                ),
+              ),
+            if (_showLoans && _showSubscriptions) const SizedBox(height: 12),
+            if (_showSubscriptions)
+              Card(
+                child: Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          const Icon(Icons.autorenew, color: Colors.blue),
+                          const SizedBox(width: 8),
+                          Text(
+                            'Subscriptions',
+                            style: Theme.of(context).textTheme.titleMedium,
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 16),
+                      Text(
+                        'Active: $activeSubsCount',
+                        style: const TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        'Est. Monthly Cost: $currency${monthlyCostSum.toStringAsFixed(2)}',
+                      ),
+                      const SizedBox(height: 12),
+                      if (nextSub != null) ...[
+                        const Text(
+                          'Next Bill:',
+                          style: TextStyle(fontSize: 12, color: Colors.grey),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          '${nextSub.name} ($currency${nextSub.cost.toStringAsFixed(2)})',
+                        ),
+                        Text(
+                          'Due: ${nextSub.nextBillingDate.toString().split(' ')[0]}',
+                          style: const TextStyle(
+                            fontSize: 11,
+                            color: Colors.grey,
+                          ),
+                        ),
+                      ] else ...[
+                        const Text(
+                          'No upcoming bills.',
+                          style: TextStyle(fontSize: 12, color: Colors.grey),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+              ),
             const SizedBox(height: 16),
           ],
         ],

@@ -8,6 +8,7 @@ class LedgerProvider extends ChangeNotifier {
 
   List<Account> accounts = [];
   List<BudgetCategory> categories = [];
+  List<LedgerTransaction> allTransactions = [];
   List<LedgerTransaction> recentTransactions = [];
   List<Loan> loans = [];
   List<Subscription> subscriptions = [];
@@ -16,8 +17,14 @@ class LedgerProvider extends ChangeNotifier {
   int? lastUsedAccountId;
   int? lastUsedCategoryId;
 
+  Future<void>? _initFuture;
+
   LedgerProvider(this._db) {
-    _loadInitialData();
+    preload();
+  }
+
+  Future<void> preload() {
+    return _initFuture ??= _loadInitialData();
   }
 
   Future<void> _loadInitialData() async {
@@ -29,18 +36,8 @@ class LedgerProvider extends ChangeNotifier {
             CategoriesCompanion.insert(
               name: 'Food',
               iconCodePoint: Icons.fastfood.codePoint,
+              isExpense: true,
               colorHex: Colors.orange.toARGB32(),
-              isExpense: true,
-            ),
-          );
-      await _db
-          .into(_db.categories)
-          .insert(
-            CategoriesCompanion.insert(
-              name: 'Transport',
-              iconCodePoint: Icons.directions_car.codePoint,
-              colorHex: Colors.blue.toARGB32(),
-              isExpense: true,
             ),
           );
       await _db
@@ -49,22 +46,31 @@ class LedgerProvider extends ChangeNotifier {
             CategoriesCompanion.insert(
               name: 'Salary',
               iconCodePoint: Icons.attach_money.codePoint,
-              colorHex: Colors.green.toARGB32(),
               isExpense: false,
+              colorHex: Colors.green.toARGB32(),
             ),
           );
-      await refreshData();
+      await _db
+          .into(_db.categories)
+          .insert(
+            CategoriesCompanion.insert(
+              name: 'Transport',
+              iconCodePoint: Icons.directions_bus.codePoint,
+              isExpense: true,
+              colorHex: Colors.blue.toARGB32(),
+            ),
+          );
+      categories = await _db.select(_db.categories).get();
     }
   }
 
   Future<void> refreshData() async {
     accounts = await _db.select(_db.accounts).get();
     categories = await _db.select(_db.categories).get();
-    recentTransactions =
-        await (_db.select(_db.transactions)
-              ..orderBy([(t) => OrderingTerm.desc(t.date)])
-              ..limit(50))
-            .get();
+    allTransactions = await (_db.select(
+      _db.transactions,
+    )..orderBy([(t) => OrderingTerm.desc(t.date)])).get();
+    recentTransactions = allTransactions.take(50).toList();
     loans = await _db.select(_db.loans).get();
     subscriptions = await _db.select(_db.subscriptions).get();
     notifyListeners();

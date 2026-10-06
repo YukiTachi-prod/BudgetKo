@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'providers/settings_provider.dart';
-import 'services/notification/notification_service.dart';
+import 'services/notification_service.dart';
 import 'database/budget_database.dart';
 import 'providers/ledger_provider.dart';
 import 'theme/app_theme.dart';
@@ -11,17 +11,30 @@ import 'providers/notification_provider.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  await NotificationService().initialize();
   final budgetDb = BudgetDatabase();
+  final settingsProvider = SettingsProvider();
+  final ledgerProvider = LedgerProvider(budgetDb);
+  final notificationProvider = NotificationProvider();
+
+  // Preload all essentials concurrently from the beginning
+  await Future.wait([
+    NotificationService().initialize(),
+    settingsProvider.preload(),
+    ledgerProvider.preload(),
+    notificationProvider.preload(),
+  ]);
+
+  notificationProvider.checkLedgerWarnings(ledgerProvider);
+
   runApp(
     MultiProvider(
       providers: [
-        ChangeNotifierProvider(create: (_) => SettingsProvider()),
+        ChangeNotifierProvider.value(value: settingsProvider),
         Provider<BudgetDatabase>.value(value: budgetDb),
-        ChangeNotifierProvider(create: (_) => LedgerProvider(budgetDb)),
-        ChangeNotifierProvider(create: (_) => NotificationProvider()),
+        ChangeNotifierProvider.value(value: ledgerProvider),
+        ChangeNotifierProvider.value(value: notificationProvider),
       ],
-      child: const BulsaKoApp(),
+      child: const BudgetKoApp(),
     ),
   );
 }
@@ -39,14 +52,14 @@ class NoScrollbarBehavior extends MaterialScrollBehavior {
   }
 }
 
-class BulsaKoApp extends StatelessWidget {
-  const BulsaKoApp({super.key});
+class BudgetKoApp extends StatelessWidget {
+  const BudgetKoApp({super.key});
 
   @override
   Widget build(BuildContext context) {
     final settings = Provider.of<SettingsProvider>(context);
     return MaterialApp(
-      title: 'BulsaKo',
+      title: 'BudgetKo',
       debugShowCheckedModeBanner: false,
       scrollBehavior: const NoScrollbarBehavior(),
       themeMode: settings.isDarkMode ? ThemeMode.dark : ThemeMode.light,
@@ -56,6 +69,14 @@ class BulsaKoApp extends StatelessWidget {
       darkTheme: AppTheme.dark(
         settings.themeColor != null ? Color(settings.themeColor!) : null,
       ),
+      builder: (context, child) {
+        return MediaQuery(
+          data: MediaQuery.of(
+            context,
+          ).copyWith(textScaler: TextScaler.linear(settings.textScaleFactor)),
+          child: child ?? const SizedBox.shrink(),
+        );
+      },
       home: const BudgetScreen(),
     );
   }

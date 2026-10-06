@@ -42,8 +42,14 @@ class NotificationProvider extends ChangeNotifier {
   List<AppNotification> get unreadNotifications =>
       _notifications.where((n) => !n.isRead).toList();
 
+  Future<void>? _loadFuture;
+
   NotificationProvider() {
-    _loadFromPrefs();
+    preload();
+  }
+
+  Future<void> preload() {
+    return _loadFuture ??= _loadFromPrefs();
   }
 
   Future<void> _loadFromPrefs() async {

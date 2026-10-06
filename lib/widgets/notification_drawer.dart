@@ -1,22 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/notification_provider.dart';
-import '../providers/ledger_provider.dart';
 
 class NotificationDrawer extends StatelessWidget {
   const NotificationDrawer({super.key});
 
   @override
   Widget build(BuildContext context) {
-    // Check for warnings whenever the drawer is opened/built
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (context.mounted) {
-        context.read<NotificationProvider>().checkLedgerWarnings(
-          context.read<LedgerProvider>(),
-        );
-      }
-    });
-
     final provider = context.watch<NotificationProvider>();
     final notifications = provider.notifications;
     final unreadCount = provider.unreadNotifications.length;
