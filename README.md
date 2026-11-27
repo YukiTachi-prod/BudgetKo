@@ -22,11 +22,13 @@ Built with a modern Flutter architecture, TASKo leverages the **Provider** packa
 - **Services**: Dedicated services like `NotificationService` and `ImportExportService` manage system-level interactions and data portability.
 - **Screens**: A rich set of screens including Dashboard, Settings, Task Editing, PDF Viewer, Analytics, and Budget.
 - **Database**: Drift-powered SQLite database (`BudgetDatabase`) for robust ledger transactions and account tracking.
+- **Function Map & Architecture Guide**: Complete symbol directory, architecture data flow, and fast lookup table available in [FUNCTION_MAP.md](FUNCTION_MAP.md).
 
 ## Recent Updates
 
 We are continuously improving TASKo to enhance your experience:
 
+- **Group Wallet & Collective Budget (Supabase Sync)**: A dedicated shared wallet window and tab allowing groups to view their collective budget. Members create a locally held profile, connect a Supabase project via API key, auto-verify or generate database tables, and track shared contributions, expenses, and member shares.
 - **In-App Notification Center**: A brand-new notification bell and sliding drawer accessible from the top app bar for seamless tracking and management of app alerts.
 - **Granular Budgeting**: Categories now support **Daily** and **Weekly Budget Limits** in addition to monthly limits, empowering you with precise control over your spending.
 - **Precise Expense Timestamps**: The expenses tab now displays exact transaction times, intelligently falling back to just the date for time-less entries.
@@ -92,9 +94,43 @@ samples, guidance on mobile development, and a full API reference.
 
 ## Development Instructions for AI Agents
 
+> [!IMPORTANT]
+> **ALWAYS CONSULT THE FUNCTION MAP FIRST**: Do not burn tokens running recursive grep, search commands, or reading files blindly. The entire architecture, file layout, class hierarchy, method signatures, database schemas, and data flow are mapped in **[FUNCTION_MAP.md](FUNCTION_MAP.md)**.
+
+### Quick Lookup for Agents
+
+| To Work On... | Check File | Primary Symbols |
+| :--- | :--- | :--- |
+| **App Startup & Providers** | [`lib/main.dart`](lib/main.dart) | `main()`, `BudgetKoApp`, `MultiProvider` |
+| **Database Tables & Migrations** | [`lib/database/budget_database.dart`](lib/database/budget_database.dart) | `BudgetDatabase`, `Accounts`, `Categories`, `Transactions`, `Loans`, `Subscriptions` |
+| **Accounts, Transactions, Loans & Subs** | [`lib/providers/ledger_provider.dart`](lib/providers/ledger_provider.dart) | `LedgerProvider` (`accounts`, `categories`, `transactions`, `loans`, `subscriptions`, CRUD & balance math) |
+| **Appearance & Preferences** | [`lib/providers/settings_provider.dart`](lib/providers/settings_provider.dart) | `SettingsProvider` (`isDarkMode`, `currency`, `themeColor`, `hideTotalAmount`, `fontSize`) |
+| **In-App Alerts & Warnings** | [`lib/providers/notification_provider.dart`](lib/providers/notification_provider.dart) | `NotificationProvider`, `checkLedgerWarnings()` |
+| **OS Notifications & Alarms** | [`lib/services/notification_service.dart`](lib/services/notification_service.dart) | `NotificationService` |
+| **CSV Export** | [`lib/services/export_service.dart`](lib/services/export_service.dart) | `DataExportService.exportLedgerToCsv()` |
+| **Math Expression Evaluator** | [`lib/utils/math_util.dart`](lib/utils/math_util.dart) | `parseAmount(String input)` |
+| **Theme & Design Tokens** | [`lib/theme/app_theme.dart`](lib/theme/app_theme.dart) | `AppTheme.light()`, `AppTheme.dark()`, `AppTheme.categoryColor()` |
+| **Main 5-Tab Scaffold** | [`lib/screens/budget_screen.dart`](lib/screens/budget_screen.dart) | `BudgetScreen` (Main, Wallet, Expenses, Loans & Subs, Analytics) |
+| **Overview Dashboard** | [`lib/screens/main_tab.dart`](lib/screens/main_tab.dart) | `MainTab` (Total Balance, Cash Flow, Accounts Overview, Recent Activity) |
+| **All Expenses Table & Zoom** | [`lib/screens/expenses_tab.dart`](lib/screens/expenses_tab.dart) | `ExpensesTab` (`DataTable`, date filter, zoom controls) |
+| **Debts & Subscriptions UI** | [`lib/screens/loans_and_subscriptions_tab.dart`](lib/screens/loans_and_subscriptions_tab.dart) | `LoansAndSubscriptionsTab` |
+| **Analytics Dashboard & Charts** | [`lib/screens/budget_analytics_screen.dart`](lib/screens/budget_analytics_screen.dart), [`lib/widgets/budget_analytics.dart`](lib/widgets/budget_analytics.dart) | `BudgetAnalyticsTab`, `BudgetAnalytics`, `FullScreenDonutChart` |
+| **Transaction Entry & Numpad** | [`lib/screens/transaction_entry_screen.dart`](lib/screens/transaction_entry_screen.dart) | `TransactionEntryScreen` (numpad, negative balance block) |
+| **Settings UI** | [`lib/screens/settings_screen.dart`](lib/screens/settings_screen.dart) | `SettingsScreen` |
+| **Group Wallet & Collective Budget** | [`lib/screens/group_wallet_screen.dart`](lib/screens/group_wallet_screen.dart), [`lib/providers/group_wallet_provider.dart`](lib/providers/group_wallet_provider.dart) | `GroupWalletScreen`, `GroupWalletTab`, `GroupWalletProvider`, `GroupProfile`, `GroupTransaction` |
+| **Supabase Setup Scripts** | [`supabase_schema.sql`](supabase_schema.sql), [`lib/database/supabase_schema.sql`](lib/database/supabase_schema.sql) | DDL schema for `group_wallets`, `group_members`, `group_transactions`, RLS |
+
+> [!NOTE]
+> **Active vs. Archived Code**: All active application code lives in `lib/`. The `tasko_pivot/` directory contains archived legacy task management code from before the pivot. Do not modify `tasko_pivot/` unless explicitly instructed to restore legacy task features.
+
+### Quality Assurance Rules
+
 **CRITICAL RULE FOR ALL AI AGENTS:** Before declaring any task as finished, you MUST run the following commands to ensure code quality and consistency:
 
 1. `dart format .` (to format all code)
 2. `flutter analyze` (to check for any linting errors or warnings)
+3. `flutter test` (to ensure all unit and widget tests pass)
 
 Do not complete your turn until these commands pass successfully or you have explicitly addressed any issues they raise.
+
+

@@ -68,6 +68,13 @@ class NotificationDrawer extends StatelessWidget {
                               : Theme.of(
                                   context,
                                 ).colorScheme.primary.withValues(alpha: 0.1),
+                          trailing: IconButton(
+                            icon: const Icon(Icons.close, size: 16),
+                            tooltip: 'Close notification',
+                            onPressed: () {
+                              provider.closeNotification(notification.id);
+                            },
+                          ),
                           onTap: () {
                             provider.markAsRead(notification.id);
                             showDialog(
@@ -77,7 +84,12 @@ class NotificationDrawer extends StatelessWidget {
                                 content: Text(notification.message),
                                 actions: [
                                   TextButton(
-                                    onPressed: () => Navigator.pop(ctx),
+                                    onPressed: () {
+                                      provider.closeNotification(
+                                        notification.id,
+                                      );
+                                      Navigator.pop(ctx);
+                                    },
                                     child: const Text('Close'),
                                   ),
                                 ],

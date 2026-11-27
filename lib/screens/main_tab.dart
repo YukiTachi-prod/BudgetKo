@@ -3,18 +3,18 @@ import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import '../providers/ledger_provider.dart';
 import '../providers/settings_provider.dart';
+import '../providers/group_wallet_provider.dart';
+import '../providers/temp_group_pool_provider.dart';
 import '../database/budget_database.dart';
 import '../theme/app_theme.dart';
+import 'group_wallet_screen.dart';
+import 'temp_group_pool_screen.dart';
 
 class MainTab extends StatelessWidget {
   final VoidCallback? onAddAccount;
   final ValueChanged<int>? onNavigateToTab;
 
-  const MainTab({
-    super.key,
-    this.onAddAccount,
-    this.onNavigateToTab,
-  });
+  const MainTab({super.key, this.onAddAccount, this.onNavigateToTab});
 
   String _formatAmount(double amount, String currency, bool isHidden) {
     if (isHidden) {
@@ -24,7 +24,12 @@ class MainTab extends StatelessWidget {
     return amount < 0 ? '-$currency$formatted' : '$currency$formatted';
   }
 
-  String _formatMetric(double amount, String currency, bool isHidden, {required String prefix}) {
+  String _formatMetric(
+    double amount,
+    String currency,
+    bool isHidden, {
+    required String prefix,
+  }) {
     if (isHidden) {
       return '••••••';
     }
@@ -102,7 +107,9 @@ class MainTab extends StatelessWidget {
                         size: 20,
                         color: theme.colorScheme.secondary,
                       ),
-                      tooltip: isHidden ? 'Show total amount' : 'Hide total amount',
+                      tooltip: isHidden
+                          ? 'Show total amount'
+                          : 'Hide total amount',
                       visualDensity: VisualDensity.compact,
                       onPressed: () => settings.toggleHideTotalAmount(),
                     ),
@@ -201,7 +208,12 @@ class MainTab extends StatelessWidget {
                       ),
                       const SizedBox(height: 8),
                       Text(
-                        _formatMetric(totalIncome, currency, isHidden, prefix: '+'),
+                        _formatMetric(
+                          totalIncome,
+                          currency,
+                          isHidden,
+                          prefix: '+',
+                        ),
                         style: theme.textTheme.titleMedium?.copyWith(
                           fontWeight: FontWeight.bold,
                           color: isHidden ? null : Colors.green.shade600,
@@ -243,7 +255,12 @@ class MainTab extends StatelessWidget {
                       ),
                       const SizedBox(height: 8),
                       Text(
-                        _formatMetric(totalExpenses, currency, isHidden, prefix: '-'),
+                        _formatMetric(
+                          totalExpenses,
+                          currency,
+                          isHidden,
+                          prefix: '-',
+                        ),
                         style: theme.textTheme.titleMedium?.copyWith(
                           fontWeight: FontWeight.bold,
                           color: isHidden ? null : Colors.red.shade600,
@@ -255,6 +272,240 @@ class MainTab extends StatelessWidget {
                 ),
               ),
             ],
+          ),
+          const SizedBox(height: 14),
+
+          // ── Group Wallet Callout / Summary Card ─────────────────────
+          Consumer<GroupWalletProvider>(
+            builder: (context, groupProvider, _) {
+              final hasActive = groupProvider.currentWallet != null;
+              final pool = groupProvider.collectivePoolBalance;
+              final gCurrency =
+                  groupProvider.currentWallet?.currency ?? currency;
+
+              return Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 12,
+                ),
+                decoration: BoxDecoration(
+                  color: theme.cardColor,
+                  borderRadius: BorderRadius.circular(AppTheme.radius),
+                  border: Border.all(color: theme.dividerColor, width: 1.0),
+                ),
+                child: Row(
+                  children: [
+                    Container(
+                      width: 36,
+                      height: 36,
+                      decoration: BoxDecoration(
+                        color: theme.colorScheme.primary.withValues(
+                          alpha: 0.12,
+                        ),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Icon(
+                        Icons.groups_rounded,
+                        size: 20,
+                        color: theme.colorScheme.primary,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Text(
+                                hasActive
+                                    ? groupProvider.currentWallet!.name
+                                    : 'Group Wallet',
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 13,
+                                ),
+                              ),
+                              if (hasActive) ...[
+                                const SizedBox(width: 6),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 6,
+                                    vertical: 1,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color:
+                                        (pool >= 0 ? Colors.green : Colors.red)
+                                            .withValues(alpha: 0.12),
+                                    borderRadius: BorderRadius.circular(4),
+                                  ),
+                                  child: Text(
+                                    pool >= 0 ? 'Pool Active' : 'Deficit',
+                                    style: TextStyle(
+                                      fontSize: 9,
+                                      fontWeight: FontWeight.bold,
+                                      color: pool >= 0
+                                          ? Colors.green
+                                          : Colors.red,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ],
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            hasActive
+                                ? 'Collective pool: $gCurrency${NumberFormat('#,##0.00').format(pool)} • ${groupProvider.members.length} members'
+                                : 'Sync a collective budget with group members via Supabase.',
+                            style: TextStyle(
+                              fontSize: 11,
+                              color: theme.colorScheme.secondary,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    TextButton(
+                      onPressed: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => const GroupWalletScreen(),
+                          ),
+                        );
+                      },
+                      style: TextButton.styleFrom(
+                        visualDensity: VisualDensity.compact,
+                        padding: const EdgeInsets.symmetric(horizontal: 10),
+                      ),
+                      child: const Text('Open'),
+                    ),
+                  ],
+                ),
+              );
+            },
+          ),
+
+          const SizedBox(height: 12),
+
+          // ── Temporary Group Pool Callout Card ───────────────────────
+          Builder(
+            builder: (context) {
+              TempGroupPoolProvider? tempPoolProvider;
+              try {
+                tempPoolProvider = context.watch<TempGroupPoolProvider>();
+              } catch (_) {
+                tempPoolProvider = null;
+              }
+              final activePool = tempPoolProvider?.activePool;
+              final pCurrency = activePool?.currency ?? currency;
+
+              return Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 12,
+                ),
+                decoration: BoxDecoration(
+                  color: theme.cardColor,
+                  borderRadius: BorderRadius.circular(AppTheme.radius),
+                  border: Border.all(color: theme.dividerColor, width: 1.0),
+                ),
+                child: Row(
+                  children: [
+                    Container(
+                      width: 36,
+                      height: 36,
+                      decoration: BoxDecoration(
+                        color: theme.colorScheme.primary.withValues(
+                          alpha: 0.12,
+                        ),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Icon(
+                        Icons.donut_large_rounded,
+                        size: 20,
+                        color: theme.colorScheme.primary,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Flexible(
+                                child: Text(
+                                  activePool != null
+                                      ? activePool.name
+                                      : 'Temporary Group Pool',
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 13,
+                                  ),
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                              if (activePool != null) ...[
+                                const SizedBox(width: 6),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 6,
+                                    vertical: 1,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: theme.colorScheme.primary.withValues(
+                                      alpha: 0.12,
+                                    ),
+                                    borderRadius: BorderRadius.circular(4),
+                                  ),
+                                  child: Text(
+                                    'Temp',
+                                    style: TextStyle(
+                                      fontSize: 9,
+                                      fontWeight: FontWeight.bold,
+                                      color: theme.colorScheme.primary,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ],
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            activePool != null
+                                ? 'Pool: $pCurrency${NumberFormat('#,##0.00').format(activePool.totalPooled)} • ${activePool.participants.length} ${activePool.participants.length == 1 ? 'person' : 'people'}'
+                                : 'Split a meal & track change back — isolated from your wallets.',
+                            style: TextStyle(
+                              fontSize: 11,
+                              color: theme.colorScheme.secondary,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    TextButton(
+                      onPressed: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => const TempGroupPoolScreen(),
+                          ),
+                        );
+                      },
+                      style: TextButton.styleFrom(
+                        visualDensity: VisualDensity.compact,
+                        padding: const EdgeInsets.symmetric(horizontal: 10),
+                      ),
+                      child: const Text('Pool'),
+                    ),
+                  ],
+                ),
+              );
+            },
           ),
 
           const SizedBox(height: 20),
@@ -428,12 +679,16 @@ class MainTab extends StatelessWidget {
           else
             Column(
               children: recentTransactions.map((tx) {
-                final isInc = tx.transactionType == TransactionType.income.index;
-                final isTransfer = tx.transactionType == TransactionType.transfer.index;
+                final isInc =
+                    tx.transactionType == TransactionType.income.index;
+                final isTransfer =
+                    tx.transactionType == TransactionType.transfer.index;
                 final cat = provider.categories
                     .where((c) => c.id == tx.categoryId)
                     .firstOrNull;
-                final catColor = cat?.colorHex != null ? Color(cat!.colorHex) : null;
+                final catColor = cat?.colorHex != null
+                    ? Color(cat!.colorHex)
+                    : null;
 
                 return Container(
                   margin: const EdgeInsets.only(bottom: 8.0),
@@ -453,12 +708,14 @@ class MainTab extends StatelessWidget {
                         backgroundColor: isInc
                             ? Colors.green.withValues(alpha: 0.15)
                             : (isTransfer
-                                ? Colors.blue.withValues(alpha: 0.15)
-                                : Colors.red.withValues(alpha: 0.15)),
+                                  ? Colors.blue.withValues(alpha: 0.15)
+                                  : Colors.red.withValues(alpha: 0.15)),
                         child: Icon(
                           isTransfer
                               ? Icons.swap_horiz
-                              : (isInc ? Icons.arrow_downward : Icons.arrow_upward),
+                              : (isInc
+                                    ? Icons.arrow_downward
+                                    : Icons.arrow_upward),
                           size: 18,
                           color: isInc
                               ? Colors.green
@@ -477,8 +734,8 @@ class MainTab extends StatelessWidget {
                                     tx.notes?.isNotEmpty == true
                                         ? tx.notes!
                                         : (isTransfer
-                                            ? 'Transfer'
-                                            : (isInc ? 'Income' : 'Expense')),
+                                              ? 'Transfer'
+                                              : (isInc ? 'Income' : 'Expense')),
                                     style: const TextStyle(
                                       fontWeight: FontWeight.bold,
                                       fontSize: 13,
@@ -495,8 +752,10 @@ class MainTab extends StatelessWidget {
                                       vertical: 1,
                                     ),
                                     decoration: BoxDecoration(
-                                      color: (catColor ?? theme.colorScheme.primary)
-                                          .withValues(alpha: 0.15),
+                                      color:
+                                          (catColor ??
+                                                  theme.colorScheme.primary)
+                                              .withValues(alpha: 0.15),
                                       borderRadius: BorderRadius.circular(4),
                                     ),
                                     child: Text(
@@ -504,7 +763,9 @@ class MainTab extends StatelessWidget {
                                       style: TextStyle(
                                         fontSize: 9,
                                         fontWeight: FontWeight.bold,
-                                        color: catColor ?? theme.colorScheme.primary,
+                                        color:
+                                            catColor ??
+                                            theme.colorScheme.primary,
                                       ),
                                     ),
                                   ),
@@ -513,7 +774,9 @@ class MainTab extends StatelessWidget {
                             ),
                             const SizedBox(height: 2),
                             Text(
-                              DateFormat('MMM d, yyyy • hh:mm a').format(tx.date),
+                              DateFormat(
+                                'MMM d, yyyy • hh:mm a',
+                              ).format(tx.date),
                               style: TextStyle(
                                 fontSize: 11,
                                 color: theme.colorScheme.secondary,

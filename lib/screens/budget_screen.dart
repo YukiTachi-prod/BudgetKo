@@ -12,6 +12,8 @@ import 'package:flutter_colorpicker/flutter_colorpicker.dart';
 import '../utils/math_util.dart';
 import 'settings_screen.dart';
 import 'main_tab.dart';
+import 'group_wallet_screen.dart';
+import 'temp_group_pool_screen.dart';
 import '../widgets/notification_bell.dart';
 import '../widgets/notification_drawer.dart';
 
@@ -530,6 +532,28 @@ class _BudgetScreenState extends State<BudgetScreen> {
             ],
           ),
           actions: [
+            IconButton(
+              icon: const Icon(Icons.donut_large_rounded),
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => const TempGroupPoolScreen(),
+                  ),
+                );
+              },
+              tooltip: 'Temporary Group Pool',
+            ),
+            IconButton(
+              icon: const Icon(Icons.groups_rounded),
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const GroupWalletScreen()),
+                );
+              },
+              tooltip: 'Group Wallet Window',
+            ),
             const NotificationBell(),
             IconButton(
               icon: const Icon(Icons.settings_rounded),

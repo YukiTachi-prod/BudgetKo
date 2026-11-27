@@ -7,6 +7,7 @@ import 'package:tasker/database/budget_database.dart';
 import 'package:tasker/providers/ledger_provider.dart';
 import 'package:tasker/providers/notification_provider.dart';
 import 'package:tasker/providers/settings_provider.dart';
+import 'package:tasker/providers/group_wallet_provider.dart';
 import 'package:tasker/screens/budget_screen.dart';
 
 void main() {
@@ -52,6 +53,7 @@ void main() {
     late LedgerProvider ledger;
     late SettingsProvider settings;
     late NotificationProvider notifications;
+    late GroupWalletProvider groupWallet;
 
     setUp(() async {
       SharedPreferences.setMockInitialValues({});
@@ -59,11 +61,13 @@ void main() {
       ledger = LedgerProvider(db);
       settings = SettingsProvider();
       notifications = NotificationProvider();
+      groupWallet = GroupWalletProvider();
 
       await Future.wait([
         ledger.preload(),
         settings.preload(),
         notifications.preload(),
+        groupWallet.preload(),
       ]);
 
       // Add a test account
@@ -80,26 +84,80 @@ void main() {
           ChangeNotifierProvider<SettingsProvider>.value(value: settings),
           Provider<BudgetDatabase>.value(value: db),
           ChangeNotifierProvider<LedgerProvider>.value(value: ledger),
-          ChangeNotifierProvider<NotificationProvider>.value(value: notifications),
+          ChangeNotifierProvider<NotificationProvider>.value(
+            value: notifications,
+          ),
+          ChangeNotifierProvider<GroupWalletProvider>.value(value: groupWallet),
         ],
-        child: const MaterialApp(
-          home: BudgetScreen(),
-        ),
+        child: const MaterialApp(home: BudgetScreen()),
       );
     }
 
-    testWidgets('BudgetScreen has 5 tabs including Main tab', (tester) async {
+    testWidgets('BudgetScreen has tabs without Group tab', (
+      tester,
+    ) async {
       await tester.pumpWidget(createTestApp());
       await tester.pumpAndSettle();
 
       expect(find.widgetWithText(Tab, 'Main'), findsOneWidget);
       expect(find.widgetWithText(Tab, 'Wallet'), findsOneWidget);
+      expect(find.widgetWithText(Tab, 'Group'), findsNothing);
       expect(find.widgetWithText(Tab, 'Expenses'), findsOneWidget);
       expect(find.widgetWithText(Tab, 'Loans & Subs'), findsOneWidget);
       expect(find.widgetWithText(Tab, 'Analytics'), findsOneWidget);
     });
 
-    testWidgets('Main tab displays total amount hidden by default', (tester) async {
+    testWidgets(
+      'Group wallet setup in window and return to Main preserve personal wallet',
+      (tester) async {
+        await tester.pumpWidget(createTestApp());
+        await tester.pumpAndSettle();
+        await tester.tap(find.byTooltip('Group Wallet Window'));
+        await tester.pumpAndSettle();
+        expect(find.text('Create Your Local Profile'), findsOneWidget);
+        expect(tester.takeException(), isNull);
+        await groupWallet.saveProfile('Alex', 0xFF2196F3);
+        await tester.pumpAndSettle();
+        expect(find.text('Connect Supabase API'), findsOneWidget);
+        await tester.pageBack();
+        await tester.pumpAndSettle();
+        expect(find.text('Total Balance'), findsOneWidget);
+        expect(ledger.accounts.single.currentBalance, 5000);
+      },
+    );
+
+    testWidgets('Group wallet window opens and closes independently', (
+      tester,
+    ) async {
+      await tester.pumpWidget(createTestApp());
+      await tester.pumpAndSettle();
+      await tester.tap(find.byTooltip('Group Wallet Window'));
+      await tester.pumpAndSettle();
+      expect(find.text('Group Wallet'), findsOneWidget);
+      expect(find.text('Create Your Local Profile'), findsOneWidget);
+      await tester.pageBack();
+      await tester.pumpAndSettle();
+      expect(find.text('Total Balance'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets(
+      'Main tab group wallet card Open button launches Group Wallet window',
+      (tester) async {
+        await tester.pumpWidget(createTestApp());
+        await tester.pumpAndSettle();
+        await tester.tap(find.widgetWithText(TextButton, 'Open'));
+        await tester.pumpAndSettle();
+        expect(find.text('Group Wallet'), findsOneWidget);
+        await tester.pageBack();
+        await tester.pumpAndSettle();
+        expect(find.text('Total Balance'), findsOneWidget);
+      },
+    );
+
+    testWidgets('Main tab displays total amount hidden by default', (
+      tester,
+    ) async {
       await tester.pumpWidget(createTestApp());
       await tester.pumpAndSettle();
 
@@ -116,7 +174,9 @@ void main() {
       expect(find.byIcon(Icons.visibility_off_outlined), findsOneWidget);
     });
 
-    testWidgets('Tapping visibility icon reveals and re-hides total amount', (tester) async {
+    testWidgets('Tapping visibility icon reveals and re-hides total amount', (
+      tester,
+    ) async {
       await tester.pumpWidget(createTestApp());
       await tester.pumpAndSettle();
 

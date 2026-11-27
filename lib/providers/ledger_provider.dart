@@ -160,12 +160,33 @@ class LedgerProvider extends ChangeNotifier {
 
   Future<void> deleteAccount(int accountId) async {
     await _db.transaction(() async {
+      final transfers =
+          await (_db.select(_db.transactions)..where(
+                (t) =>
+                    t.transactionType.equals(TransactionType.transfer.index) &
+                    (t.fromAccountId.equals(accountId) |
+                        t.toAccountId.equals(accountId)),
+              ))
+              .get();
+      for (final tx in transfers) {
+        if (tx.fromAccountId != accountId) {
+          await _adjustBalance(tx.fromAccountId, tx.amount);
+        } else if (tx.toAccountId != null && tx.toAccountId != accountId) {
+          await _adjustBalance(tx.toAccountId!, -tx.amount);
+        }
+      }
       await (_db.delete(_db.transactions)..where(
             (t) =>
                 t.fromAccountId.equals(accountId) |
                 t.toAccountId.equals(accountId),
           ))
           .go();
+      await (_db.delete(
+        _db.loans,
+      )..where((l) => l.accountId.equals(accountId))).go();
+      await (_db.delete(
+        _db.subscriptions,
+      )..where((s) => s.accountId.equals(accountId))).go();
       await (_db.delete(
         _db.accounts,
       )..where((a) => a.id.equals(accountId))).go();
@@ -228,6 +249,7 @@ class LedgerProvider extends ChangeNotifier {
     int? categoryId,
     String? notes,
   }) async {
+    _validateTransaction(amount, type, fromAccountId, toAccountId);
     await _db.transaction(() async {
       // 1. Insert Transaction
       await _db
@@ -244,30 +266,8 @@ class LedgerProvider extends ChangeNotifier {
             ),
           );
 
-      // 2. Update Balances
-      final fromAccount = accounts.firstWhere((a) => a.id == fromAccountId);
-
-      if (type == TransactionType.expense) {
-        await _updateAccountBalance(
-          fromAccountId,
-          fromAccount.currentBalance - amount,
-        );
-      } else if (type == TransactionType.income) {
-        await _updateAccountBalance(
-          fromAccountId,
-          fromAccount.currentBalance + amount,
-        );
-      } else if (type == TransactionType.transfer && toAccountId != null) {
-        final toAccount = accounts.firstWhere((a) => a.id == toAccountId);
-        await _updateAccountBalance(
-          fromAccountId,
-          fromAccount.currentBalance - amount,
-        );
-        await _updateAccountBalance(
-          toAccountId,
-          toAccount.currentBalance + amount,
-        );
-      }
+      await _applyTransactionBalance(type, fromAccountId, toAccountId, amount);
+      await _validateBalances({fromAccountId, ?toAccountId});
     });
 
     // Update sticky defaults
@@ -287,52 +287,25 @@ class LedgerProvider extends ChangeNotifier {
     int? categoryId,
     String? notes,
   }) async {
+    _validateTransaction(amount, type, fromAccountId, toAccountId);
     await _db.transaction(() async {
       final oldTx = await (_db.select(
         _db.transactions,
       )..where((t) => t.id.equals(transactionId))).getSingle();
 
-      // Reverse old tx
-      if (oldTx.transactionType == TransactionType.expense.index) {
-        final acc = accounts.firstWhere((a) => a.id == oldTx.fromAccountId);
-        await _updateAccountBalance(acc.id, acc.currentBalance + oldTx.amount);
-      } else if (oldTx.transactionType == TransactionType.income.index) {
-        final acc = accounts.firstWhere((a) => a.id == oldTx.fromAccountId);
-        await _updateAccountBalance(acc.id, acc.currentBalance - oldTx.amount);
-      } else if (oldTx.transactionType == TransactionType.transfer.index &&
-          oldTx.toAccountId != null) {
-        final fromAcc = accounts.firstWhere((a) => a.id == oldTx.fromAccountId);
-        final toAcc = accounts.firstWhere((a) => a.id == oldTx.toAccountId!);
-        await _updateAccountBalance(
-          fromAcc.id,
-          fromAcc.currentBalance + oldTx.amount,
-        );
-        await _updateAccountBalance(
-          toAcc.id,
-          toAcc.currentBalance - oldTx.amount,
-        );
-      }
-
-      accounts = await _db
-          .select(_db.accounts)
-          .get(); // refresh accounts inside tx
-
-      // Apply new tx
-      if (type == TransactionType.expense) {
-        final acc = accounts.firstWhere((a) => a.id == fromAccountId);
-        await _updateAccountBalance(acc.id, acc.currentBalance - amount);
-      } else if (type == TransactionType.income) {
-        final acc = accounts.firstWhere((a) => a.id == fromAccountId);
-        await _updateAccountBalance(acc.id, acc.currentBalance + amount);
-      } else if (type == TransactionType.transfer && toAccountId != null) {
-        final fromAcc = accounts.firstWhere((a) => a.id == fromAccountId);
-        final toAcc = accounts.firstWhere((a) => a.id == toAccountId);
-        await _updateAccountBalance(
-          fromAcc.id,
-          fromAcc.currentBalance - amount,
-        );
-        await _updateAccountBalance(toAcc.id, toAcc.currentBalance + amount);
-      }
+      await _applyTransactionBalance(
+        TransactionType.values[oldTx.transactionType],
+        oldTx.fromAccountId,
+        oldTx.toAccountId,
+        -oldTx.amount,
+      );
+      await _applyTransactionBalance(type, fromAccountId, toAccountId, amount);
+      await _validateBalances({
+        fromAccountId,
+        ?toAccountId,
+        oldTx.fromAccountId,
+        if (oldTx.toAccountId != null) oldTx.toAccountId!,
+      });
 
       await (_db.update(
         _db.transactions,
@@ -358,30 +331,72 @@ class LedgerProvider extends ChangeNotifier {
         _db.transactions,
       )..where((t) => t.id.equals(transactionId))).getSingle();
 
-      if (oldTx.transactionType == TransactionType.expense.index) {
-        final acc = accounts.firstWhere((a) => a.id == oldTx.fromAccountId);
-        await _updateAccountBalance(acc.id, acc.currentBalance + oldTx.amount);
-      } else if (oldTx.transactionType == TransactionType.income.index) {
-        final acc = accounts.firstWhere((a) => a.id == oldTx.fromAccountId);
-        await _updateAccountBalance(acc.id, acc.currentBalance - oldTx.amount);
-      } else if (oldTx.transactionType == TransactionType.transfer.index &&
-          oldTx.toAccountId != null) {
-        final fromAcc = accounts.firstWhere((a) => a.id == oldTx.fromAccountId);
-        final toAcc = accounts.firstWhere((a) => a.id == oldTx.toAccountId!);
-        await _updateAccountBalance(
-          fromAcc.id,
-          fromAcc.currentBalance + oldTx.amount,
-        );
-        await _updateAccountBalance(
-          toAcc.id,
-          toAcc.currentBalance - oldTx.amount,
-        );
-      }
+      await _applyTransactionBalance(
+        TransactionType.values[oldTx.transactionType],
+        oldTx.fromAccountId,
+        oldTx.toAccountId,
+        -oldTx.amount,
+      );
       await (_db.delete(
         _db.transactions,
       )..where((t) => t.id.equals(transactionId))).go();
     });
     await refreshData();
+  }
+
+  void _validateTransaction(
+    double amount,
+    TransactionType type,
+    int fromAccountId,
+    int? toAccountId,
+  ) {
+    if (!amount.isFinite || amount <= 0) {
+      throw ArgumentError('Enter a positive, finite amount.');
+    }
+    if (type == TransactionType.transfer &&
+        (toAccountId == null || toAccountId == fromAccountId)) {
+      throw ArgumentError('Choose two different accounts for a transfer.');
+    }
+  }
+
+  Future<void> _applyTransactionBalance(
+    TransactionType type,
+    int fromId,
+    int? toId,
+    double amount,
+  ) async {
+    await _adjustBalance(
+      fromId,
+      type == TransactionType.income ? amount : -amount,
+    );
+    if (type == TransactionType.transfer && toId != null) {
+      await _adjustBalance(toId, amount);
+    }
+  }
+
+  Future<void> _adjustBalance(int accountId, double delta) async {
+    final account = await (_db.select(
+      _db.accounts,
+    )..where((a) => a.id.equals(accountId))).getSingleOrNull();
+    if (account == null) {
+      throw StateError('The selected account no longer exists.');
+    }
+    await _updateAccountBalance(accountId, account.currentBalance + delta);
+  }
+
+  Future<void> _validateBalances(Set<int> accountIds) async {
+    final negative =
+        await (_db.select(_db.accounts)..where(
+              (a) =>
+                  a.id.isIn(accountIds) &
+                  a.currentBalance.isSmallerThanValue(0),
+            ))
+            .get();
+    if (negative.isNotEmpty) {
+      throw StateError(
+        'This transaction would leave an account with a negative balance.',
+      );
+    }
   }
 
   Future<void> _updateAccountBalance(int accountId, double newBalance) async {

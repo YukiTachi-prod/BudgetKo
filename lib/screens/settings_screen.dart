@@ -99,7 +99,9 @@ class SettingsScreen extends StatelessWidget {
           _buildSectionHeader('Preferences'),
           SwitchListTile(
             title: const Text('Hide Total Amount'),
-            subtitle: const Text('Mask balance and amounts on the Main tab by default'),
+            subtitle: const Text(
+              'Mask balance and amounts on the Main tab by default',
+            ),
             value: settings.hideTotalAmount,
             onChanged: (val) => settings.setHideTotalAmount(val),
           ),

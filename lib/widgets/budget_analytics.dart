@@ -58,13 +58,17 @@ class _BudgetAnalyticsState extends State<BudgetAnalytics> {
         priorEnd = currentStart.subtract(const Duration(milliseconds: 1));
         break;
       case 'This Week':
-        final startOfWeek = now.subtract(Duration(days: now.weekday - 1));
-        final currentStart = DateTime(
+        final startOfWeek = DateTime(
+          now.year,
+          now.month,
+          now.day - (now.weekday - 1),
+        );
+        final currentStart = startOfWeek;
+        priorStart = DateTime(
           startOfWeek.year,
           startOfWeek.month,
-          startOfWeek.day,
+          startOfWeek.day - 7,
         );
-        priorStart = currentStart.subtract(const Duration(days: 7));
         priorEnd = currentStart.subtract(const Duration(milliseconds: 1));
         break;
       case 'This Month':
@@ -108,13 +112,17 @@ class _BudgetAnalyticsState extends State<BudgetAnalytics> {
         break;
       case 'This Week':
         periodLabel = 'last week';
-        final startOfWeek = now.subtract(Duration(days: now.weekday - 1));
-        currentStart = DateTime(
+        final startOfWeek = DateTime(
+          now.year,
+          now.month,
+          now.day - (now.weekday - 1),
+        );
+        currentStart = startOfWeek;
+        priorStart = DateTime(
           startOfWeek.year,
           startOfWeek.month,
-          startOfWeek.day,
+          startOfWeek.day - 7,
         );
-        priorStart = currentStart.subtract(const Duration(days: 7));
         priorEnd = currentStart.subtract(const Duration(milliseconds: 1));
         break;
       case 'This Month':
@@ -234,19 +242,81 @@ class _BudgetAnalyticsState extends State<BudgetAnalytics> {
     super.dispose();
   }
 
+  DateTime _getDateForIndex(int index, DateTime now) {
+    if (_selectedPeriod == 'Week') {
+      final startOfWeek = DateTime(
+        now.year,
+        now.month,
+        now.day - (now.weekday - 1),
+      );
+      return DateTime(
+        startOfWeek.year,
+        startOfWeek.month,
+        startOfWeek.day + index,
+      );
+    } else if (_selectedPeriod == 'Month') {
+      return DateTime(now.year, now.month, index + 1);
+    } else {
+      return DateTime(now.year, index + 1, 1);
+    }
+  }
+
+  String _formatTooltipDate(int index, DateTime now) {
+    final date = _getDateForIndex(index, now);
+    if (_selectedPeriod == 'Week' || _selectedPeriod == 'Month') {
+      return DateFormat('EEE, MMM d').format(date);
+    } else {
+      return DateFormat('MMMM yyyy').format(date);
+    }
+  }
+
+  Widget _buildBottomTitle(double value, TitleMeta meta) {
+    if (value != value.toInt()) {
+      return const SizedBox.shrink();
+    }
+    final int i = value.toInt();
+    final now = DateTime.now();
+    String text = '';
+    if (_selectedPeriod == 'Week') {
+      if (i < 0 || i > 6) return const SizedBox.shrink();
+      final date = _getDateForIndex(i, now);
+      text = DateFormat('EEE').format(date);
+    } else if (_selectedPeriod == 'Month') {
+      final daysInMonth = DateUtils.getDaysInMonth(now.year, now.month);
+      if (i < 0 || i >= daysInMonth) return const SizedBox.shrink();
+      if (i % 5 != 0 && i != daysInMonth - 1) {
+        return const SizedBox.shrink();
+      }
+      if (i == 25 && daysInMonth - 1 - i <= 2) {
+        return const SizedBox.shrink();
+      }
+      final date = _getDateForIndex(i, now);
+      text = DateFormat('dd/MM').format(date);
+    } else if (_selectedPeriod == 'Year') {
+      if (i < 0 || i >= 12) return const SizedBox.shrink();
+      final date = _getDateForIndex(i, now);
+      text = DateFormat('MMM').format(date);
+    }
+    return Text(text, style: const TextStyle(fontSize: 10));
+  }
+
   List<FlSpot> _getSpots() {
     final Map<int, double> grouped = {};
     final now = DateTime.now();
     for (var tx in widget.recentTransactions) {
       if (tx.transactionType == TransactionType.expense.index) {
         if (_selectedPeriod == 'Week') {
-          final startOfWeek = now.subtract(Duration(days: now.weekday - 1));
-          final start = DateTime(
+          final startOfWeek = DateTime(
+            now.year,
+            now.month,
+            now.day - (now.weekday - 1),
+          );
+          final endOfWeek = DateTime(
             startOfWeek.year,
             startOfWeek.month,
-            startOfWeek.day,
+            startOfWeek.day + 7,
           );
-          if (!tx.date.isBefore(start)) {
+          if (!tx.date.isBefore(startOfWeek) && tx.date.isBefore(endOfWeek)) {
             grouped[tx.date.weekday - 1] =
                 (grouped[tx.date.weekday - 1] ?? 0) + tx.amount;
           }
@@ -506,6 +576,30 @@ class _BudgetAnalyticsState extends State<BudgetAnalytics> {
                             ),
                             child: LineChart(
                               LineChartData(
+                                lineTouchData: LineTouchData(
+                                  touchTooltipData: LineTouchTooltipData(
+                                    getTooltipColor: (spot) => theme
+                                        .colorScheme
+                                        .surfaceContainerHighest,
+                                    getTooltipItems: (touchedSpots) {
+                                      return touchedSpots.map((spot) {
+                                        final int i = spot.x.toInt();
+                                        final now = DateTime.now();
+                                        final dateLabel = _formatTooltipDate(
+                                          i,
+                                          now,
+                                        );
+                                        return LineTooltipItem(
+                                          '$dateLabel\n$currency${spot.y.toStringAsFixed(2)}',
+                                          TextStyle(
+                                            color: theme.colorScheme.onSurface,
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                        );
+                                      }).toList();
+                                    },
+                                  ),
+                                ),
                                 gridData: FlGridData(
                                   show: true,
                                   drawVerticalLine: false,
@@ -542,41 +636,8 @@ class _BudgetAnalyticsState extends State<BudgetAnalytics> {
                                     sideTitles: SideTitles(
                                       showTitles: true,
                                       reservedSize: 22,
-                                      getTitlesWidget: (value, meta) {
-                                        if (value != value.toInt()) {
-                                          return const SizedBox.shrink();
-                                        }
-                                        final int i = value.toInt();
-                                        final now = DateTime.now();
-                                        String text = '';
-                                        if (_selectedPeriod == 'Week') {
-                                          final date = now.subtract(
-                                            Duration(days: 6 - i),
-                                          );
-                                          text = DateFormat('EEE').format(date);
-                                        } else if (_selectedPeriod == 'Month') {
-                                          if (i % 5 != 0 && i != 29) {
-                                            return const SizedBox.shrink();
-                                          }
-                                          final date = now.subtract(
-                                            Duration(days: 29 - i),
-                                          );
-                                          text = DateFormat(
-                                            'dd/MM',
-                                          ).format(date);
-                                        } else if (_selectedPeriod == 'Year') {
-                                          final date = DateTime(
-                                            now.year,
-                                            now.month - (11 - i),
-                                            1,
-                                          );
-                                          text = DateFormat('MMM').format(date);
-                                        }
-                                        return Text(
-                                          text,
-                                          style: const TextStyle(fontSize: 10),
-                                        );
-                                      },
+                                      interval: 1,
+                                      getTitlesWidget: _buildBottomTitle,
                                     ),
                                   ),
                                 ),
@@ -649,6 +710,30 @@ class _BudgetAnalyticsState extends State<BudgetAnalytics> {
                             ),
                             child: BarChart(
                               BarChartData(
+                                barTouchData: BarTouchData(
+                                  touchTooltipData: BarTouchTooltipData(
+                                    getTooltipColor: (group) => theme
+                                        .colorScheme
+                                        .surfaceContainerHighest,
+                                    getTooltipItem:
+                                        (group, groupIndex, rod, rodIndex) {
+                                          final int i = group.x;
+                                          final now = DateTime.now();
+                                          final dateLabel = _formatTooltipDate(
+                                            i,
+                                            now,
+                                          );
+                                          return BarTooltipItem(
+                                            '$dateLabel\n$currency${rod.toY.toStringAsFixed(2)}',
+                                            TextStyle(
+                                              color:
+                                                  theme.colorScheme.onSurface,
+                                              fontWeight: FontWeight.bold,
+                                            ),
+                                          );
+                                        },
+                                  ),
+                                ),
                                 gridData: FlGridData(
                                   show: true,
                                   drawVerticalLine: false,
@@ -685,41 +770,8 @@ class _BudgetAnalyticsState extends State<BudgetAnalytics> {
                                     sideTitles: SideTitles(
                                       showTitles: true,
                                       reservedSize: 22,
-                                      getTitlesWidget: (value, meta) {
-                                        if (value != value.toInt()) {
-                                          return const SizedBox.shrink();
-                                        }
-                                        final int i = value.toInt();
-                                        final now = DateTime.now();
-                                        String text = '';
-                                        if (_selectedPeriod == 'Week') {
-                                          final date = now.subtract(
-                                            Duration(days: 6 - i),
-                                          );
-                                          text = DateFormat('EEE').format(date);
-                                        } else if (_selectedPeriod == 'Month') {
-                                          if (i % 5 != 0 && i != 29) {
-                                            return const SizedBox.shrink();
-                                          }
-                                          final date = now.subtract(
-                                            Duration(days: 29 - i),
-                                          );
-                                          text = DateFormat(
-                                            'dd/MM',
-                                          ).format(date);
-                                        } else if (_selectedPeriod == 'Year') {
-                                          final date = DateTime(
-                                            now.year,
-                                            now.month - (11 - i),
-                                            1,
-                                          );
-                                          text = DateFormat('MMM').format(date);
-                                        }
-                                        return Text(
-                                          text,
-                                          style: const TextStyle(fontSize: 10),
-                                        );
-                                      },
+                                      interval: 1,
+                                      getTitlesWidget: _buildBottomTitle,
                                     ),
                                   ),
                                 ),

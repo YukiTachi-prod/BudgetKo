@@ -75,7 +75,8 @@ class Subscriptions extends Table {
   tables: [Accounts, Categories, Transactions, Loans, Subscriptions],
 )
 class BudgetDatabase extends _$BudgetDatabase {
-  BudgetDatabase([QueryExecutor? executor]) : super(executor ?? _openConnection());
+  BudgetDatabase([QueryExecutor? executor])
+    : super(executor ?? _openConnection());
 
   @override
   int get schemaVersion => 6;

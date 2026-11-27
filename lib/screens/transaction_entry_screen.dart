@@ -17,6 +17,7 @@ class TransactionEntryScreen extends StatefulWidget {
 class _TransactionEntryScreenState extends State<TransactionEntryScreen> {
   TransactionType _type = TransactionType.expense;
   String _amountStr = '0';
+  bool _saving = false;
   int? _selectedFromAccountId;
   int? _selectedToAccountId;
   int? _selectedCategoryId;
@@ -42,7 +43,10 @@ class _TransactionEntryScreenState extends State<TransactionEntryScreen> {
       // Pre-fill sticky defaults
       final provider = context.read<LedgerProvider>();
       _selectedFromAccountId = provider.lastUsedAccountId;
-      _selectedCategoryId = provider.lastUsedCategoryId;
+      final categoryId = provider.lastUsedCategoryId;
+      if (provider.categories.any((c) => c.id == categoryId && c.isExpense)) {
+        _selectedCategoryId = categoryId;
+      }
     }
   }
 
@@ -61,7 +65,9 @@ class _TransactionEntryScreenState extends State<TransactionEntryScreen> {
           _amountStr = '0';
         }
       } else if (value == '.') {
-        if (!_amountStr.contains('.')) _amountStr += '.';
+        if (!_amountStr.split(RegExp(r'[+\-]')).last.contains('.')) {
+          _amountStr += '.';
+        }
       } else if (value == '=') {
         _amountStr = parseAmount(_amountStr).toString();
         if (_amountStr.endsWith('.0')) {
@@ -115,7 +121,10 @@ class _TransactionEntryScreenState extends State<TransactionEntryScreen> {
 
   Future<void> _saveTransaction() async {
     final amount = parseAmount(_amountStr);
-    if (amount <= 0 || _selectedFromAccountId == null) return;
+    if (_saving) return;
+    if (!amount.isFinite || amount <= 0 || _selectedFromAccountId == null) {
+      return;
+    }
 
     if (_type == TransactionType.transfer && _selectedToAccountId == null) {
       return;
@@ -152,42 +161,53 @@ class _TransactionEntryScreenState extends State<TransactionEntryScreen> {
       }
     }
 
-    final noteText = _notesController.text.trim();
-    final String? notes = noteText.isEmpty ? null : noteText;
+    setState(() => _saving = true);
+    try {
+      final noteText = _notesController.text.trim();
+      final String? notes = noteText.isEmpty ? null : noteText;
 
-    if (widget.transactionToEdit != null) {
-      await provider.updateTransaction(
-        transactionId: widget.transactionToEdit!.id,
-        amount: amount,
-        date: widget.transactionToEdit!.date,
-        type: _type,
-        fromAccountId: _selectedFromAccountId!,
-        toAccountId: _type == TransactionType.transfer
-            ? _selectedToAccountId
-            : null,
-        categoryId: _type != TransactionType.transfer
-            ? _selectedCategoryId
-            : null,
-        notes: notes,
-      );
-    } else {
-      await provider.addTransaction(
-        amount: amount,
-        date: DateTime.now(),
-        type: _type,
-        fromAccountId: _selectedFromAccountId!,
-        toAccountId: _type == TransactionType.transfer
-            ? _selectedToAccountId
-            : null,
-        categoryId: _type != TransactionType.transfer
-            ? _selectedCategoryId
-            : null,
-        notes: notes,
-      );
+      if (widget.transactionToEdit != null) {
+        await provider.updateTransaction(
+          transactionId: widget.transactionToEdit!.id,
+          amount: amount,
+          date: widget.transactionToEdit!.date,
+          type: _type,
+          fromAccountId: _selectedFromAccountId!,
+          toAccountId: _type == TransactionType.transfer
+              ? _selectedToAccountId
+              : null,
+          categoryId: _type != TransactionType.transfer
+              ? _selectedCategoryId
+              : null,
+          notes: notes,
+        );
+      } else {
+        await provider.addTransaction(
+          amount: amount,
+          date: DateTime.now(),
+          type: _type,
+          fromAccountId: _selectedFromAccountId!,
+          toAccountId: _type == TransactionType.transfer
+              ? _selectedToAccountId
+              : null,
+          categoryId: _type != TransactionType.transfer
+              ? _selectedCategoryId
+              : null,
+          notes: notes,
+        );
+      }
+
+      if (!mounted) return;
+      Navigator.pop(context);
+    } catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(error.toString())));
+      }
+    } finally {
+      if (mounted) setState(() => _saving = false);
     }
-
-    if (!mounted) return;
-    Navigator.pop(context);
   }
 
   @override
@@ -220,58 +240,49 @@ class _TransactionEntryScreenState extends State<TransactionEntryScreen> {
               ]
             : null,
       ),
-      body: Column(
-        children: [
-          // Segmented Control for Type
-          Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: SegmentedButton<TransactionType>(
-              segments: const [
-                ButtonSegment(
-                  value: TransactionType.expense,
-                  label: Text('Expense'),
-                ),
-                ButtonSegment(
-                  value: TransactionType.income,
-                  label: Text('Income'),
-                ),
-                ButtonSegment(
-                  value: TransactionType.transfer,
-                  label: Text('Transfer'),
-                ),
-              ],
-              selected: {_type},
-              onSelectionChanged: (set) => setState(() => _type = set.first),
+      body: SingleChildScrollView(
+        child: Column(
+          children: [
+            // Segmented Control for Type
+            Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: SegmentedButton<TransactionType>(
+                segments: const [
+                  ButtonSegment(
+                    value: TransactionType.expense,
+                    label: Text('Expense'),
+                  ),
+                  ButtonSegment(
+                    value: TransactionType.income,
+                    label: Text('Income'),
+                  ),
+                  ButtonSegment(
+                    value: TransactionType.transfer,
+                    label: Text('Transfer'),
+                  ),
+                ],
+                selected: {_type},
+                onSelectionChanged: (set) => setState(() {
+                  _type = set.first;
+                  _selectedCategoryId = null;
+                }),
+              ),
             ),
-          ),
 
-          // Display Amount
-          Text(
-            '$currency$_amountStr',
-            style: Theme.of(context).textTheme.displayLarge,
-          ),
+            // Display Amount
+            Text(
+              '$currency$_amountStr',
+              style: Theme.of(context).textTheme.displayLarge,
+            ),
 
-          // Dynamic Selectors
-          Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: Column(
-              children: [
-                DropdownButtonFormField<int>(
-                  initialValue: _selectedFromAccountId,
-                  hint: const Text('From Account'),
-                  items: provider.accounts
-                      .map(
-                        (a) =>
-                            DropdownMenuItem(value: a.id, child: Text(a.name)),
-                      )
-                      .toList(),
-                  onChanged: (v) => setState(() => _selectedFromAccountId = v),
-                ),
-                if (isTransfer) const SizedBox(height: 16),
-                if (isTransfer)
+            // Dynamic Selectors
+            Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: Column(
+                children: [
                   DropdownButtonFormField<int>(
-                    initialValue: _selectedToAccountId,
-                    hint: const Text('To Account'),
+                    initialValue: _selectedFromAccountId,
+                    hint: const Text('From Account'),
                     items: provider.accounts
                         .map(
                           (a) => DropdownMenuItem(
@@ -280,86 +291,117 @@ class _TransactionEntryScreenState extends State<TransactionEntryScreen> {
                           ),
                         )
                         .toList(),
-                    onChanged: (v) => setState(() => _selectedToAccountId = v),
+                    onChanged: (v) =>
+                        setState(() => _selectedFromAccountId = v),
                   ),
-                if (!isTransfer) const SizedBox(height: 16),
-                if (!isTransfer)
-                  DropdownButtonFormField<int>(
-                    initialValue: _selectedCategoryId,
-                    hint: const Text('Category'),
-                    items: provider.categories
-                        .where(
-                          (c) =>
-                              c.isExpense == (_type == TransactionType.expense),
-                        )
-                        .map(
-                          (c) => DropdownMenuItem(
-                            value: c.id,
-                            child: Row(
-                              children: [
-                                Container(
-                                  width: 12,
-                                  height: 12,
-                                  decoration: BoxDecoration(
-                                    color: Color(c.colorHex),
-                                    shape: BoxShape.circle,
-                                  ),
-                                ),
-                                const SizedBox(width: 8),
-                                Text(c.name),
-                              ],
+                  if (isTransfer) const SizedBox(height: 16),
+                  if (isTransfer)
+                    DropdownButtonFormField<int>(
+                      initialValue: _selectedToAccountId,
+                      hint: const Text('To Account'),
+                      items: provider.accounts
+                          .map(
+                            (a) => DropdownMenuItem(
+                              value: a.id,
+                              child: Text(a.name),
                             ),
-                          ),
-                        )
-                        .toList(),
-                    onChanged: (v) => setState(() => _selectedCategoryId = v),
-                  ),
-                const SizedBox(height: 16),
-                TextFormField(
-                  controller: _notesController,
-                  maxLength: 50,
-                  textInputAction: TextInputAction.done,
-                  decoration: const InputDecoration(
-                    labelText: 'Note',
-                    hintText: 'Note (optional)',
-                    counterText: '',
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const Spacer(),
-
-          // 4x4 Custom Numpad
-          _buildNumpad(),
-
-          Padding(
-            padding: const EdgeInsets.only(
-              left: 16.0,
-              right: 16.0,
-              top: 16.0,
-              bottom: 40.0,
-            ),
-            child: Center(
-              child: SizedBox(
-                width: 160,
-                height: 52,
-                child: FilledButton(
-                  onPressed: _saveTransaction,
-                  style: FilledButton.styleFrom(
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(6),
+                          )
+                          .toList(),
+                      onChanged: (v) =>
+                          setState(() => _selectedToAccountId = v),
+                    ),
+                  if (!isTransfer) const SizedBox(height: 16),
+                  if (!isTransfer)
+                    DropdownButtonFormField<int>(
+                      key: ValueKey(_type),
+                      initialValue:
+                          provider.categories.any(
+                            (c) =>
+                                c.id == _selectedCategoryId &&
+                                c.isExpense ==
+                                    (_type == TransactionType.expense),
+                          )
+                          ? _selectedCategoryId
+                          : null,
+                      hint: const Text('Category'),
+                      items: provider.categories
+                          .where(
+                            (c) =>
+                                c.isExpense ==
+                                (_type == TransactionType.expense),
+                          )
+                          .map(
+                            (c) => DropdownMenuItem(
+                              value: c.id,
+                              child: Row(
+                                children: [
+                                  Container(
+                                    width: 12,
+                                    height: 12,
+                                    decoration: BoxDecoration(
+                                      color: Color(c.colorHex),
+                                      shape: BoxShape.circle,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Text(c.name),
+                                ],
+                              ),
+                            ),
+                          )
+                          .toList(),
+                      onChanged: (v) => setState(() => _selectedCategoryId = v),
+                    ),
+                  const SizedBox(height: 16),
+                  TextFormField(
+                    controller: _notesController,
+                    maxLength: 50,
+                    textInputAction: TextInputAction.done,
+                    decoration: const InputDecoration(
+                      labelText: 'Note',
+                      hintText: 'Note (optional)',
+                      counterText: '',
                     ),
                   ),
-                  child: const Text(
-                    'Save',
-                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                ],
+              ),
+            ),
+            const SizedBox(height: 16),
+
+            // 4x4 Custom Numpad
+            _buildNumpad(),
+
+            Padding(
+              padding: const EdgeInsets.only(
+                left: 16.0,
+                right: 16.0,
+                top: 16.0,
+                bottom: 40.0,
+              ),
+              child: Center(
+                child: SizedBox(
+                  width: 160,
+                  height: 52,
+                  child: FilledButton(
+                    onPressed: _saving ? null : _saveTransaction,
+                    style: FilledButton.styleFrom(
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                    ),
+                    child: const Text(
+                      'Save',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
                   ),
                 ),
               ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

@@ -8,6 +8,9 @@ import 'theme/app_theme.dart';
 import 'screens/budget_screen.dart';
 import 'providers/notification_provider.dart';
 
+import 'providers/group_wallet_provider.dart';
+import 'providers/temp_group_pool_provider.dart';
+
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
@@ -15,6 +18,8 @@ void main() async {
   final settingsProvider = SettingsProvider();
   final ledgerProvider = LedgerProvider(budgetDb);
   final notificationProvider = NotificationProvider();
+  final groupWalletProvider = GroupWalletProvider();
+  final tempGroupPoolProvider = TempGroupPoolProvider();
 
   // Preload all essentials concurrently from the beginning
   await Future.wait([
@@ -22,6 +27,8 @@ void main() async {
     settingsProvider.preload(),
     ledgerProvider.preload(),
     notificationProvider.preload(),
+    groupWalletProvider.preload(),
+    tempGroupPoolProvider.preload(),
   ]);
 
   notificationProvider.checkLedgerWarnings(ledgerProvider);
@@ -33,6 +40,8 @@ void main() async {
         Provider<BudgetDatabase>.value(value: budgetDb),
         ChangeNotifierProvider.value(value: ledgerProvider),
         ChangeNotifierProvider.value(value: notificationProvider),
+        ChangeNotifierProvider.value(value: groupWalletProvider),
+        ChangeNotifierProvider.value(value: tempGroupPoolProvider),
       ],
       child: const BudgetKoApp(),
     ),

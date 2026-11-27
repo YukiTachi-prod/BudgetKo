@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import '../utils/date_util.dart';
 import 'package:provider/provider.dart';
 import '../providers/ledger_provider.dart';
 import '../providers/settings_provider.dart';
@@ -673,6 +674,7 @@ class LoansAndSubscriptionsTab extends StatelessWidget {
                         Text(
                           'Next Bill: ${DateFormat('yyyy-MM-dd').format(sub.nextBillingDate)}',
                         ),
+                        Text(subscriptionDueStatus(sub.nextBillingDate)),
                         if (sub.notes != null && sub.notes!.isNotEmpty)
                           Text(
                             'Notes: ${sub.notes}',

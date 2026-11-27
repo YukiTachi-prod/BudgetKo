@@ -4,6 +4,7 @@ import '../providers/ledger_provider.dart';
 import '../providers/settings_provider.dart';
 import '../database/budget_database.dart';
 import '../widgets/budget_analytics.dart';
+import '../utils/date_util.dart';
 
 class BudgetAnalyticsTab extends StatefulWidget {
   const BudgetAnalyticsTab({super.key});
@@ -27,13 +28,17 @@ class _BudgetAnalyticsTabState extends State<BudgetAnalyticsTab> {
             date.month == now.month &&
             date.day == now.day;
       case 'This Week':
-        final startOfWeek = now.subtract(Duration(days: now.weekday - 1));
-        final start = DateTime(
+        final startOfWeek = DateTime(
+          now.year,
+          now.month,
+          now.day - (now.weekday - 1),
+        );
+        final endOfWeek = DateTime(
           startOfWeek.year,
           startOfWeek.month,
-          startOfWeek.day,
+          startOfWeek.day + 7,
         );
-        return !date.isBefore(start);
+        return !date.isBefore(startOfWeek) && date.isBefore(endOfWeek);
       case 'This Month':
         return date.year == now.year && date.month == now.month;
       case 'This Year':
@@ -87,10 +92,21 @@ class _BudgetAnalyticsTabState extends State<BudgetAnalyticsTab> {
     }
 
     Subscription? nextSub;
+    final today = DateTime.now();
     final activeSubs = provider.subscriptions.where((s) => s.isActive).toList();
     if (activeSubs.isNotEmpty) {
-      activeSubs.sort((a, b) => a.nextBillingDate.compareTo(b.nextBillingDate));
-      nextSub = activeSubs.first;
+      final upcomingSubs = activeSubs
+          .where((s) => calendarDaysUntil(s.nextBillingDate, from: today) >= 0)
+          .toList();
+      final candidates = upcomingSubs.isNotEmpty ? upcomingSubs : activeSubs;
+      candidates.sort((a, b) {
+        final aDays = calendarDaysUntil(a.nextBillingDate, from: today);
+        final bDays = calendarDaysUntil(b.nextBillingDate, from: today);
+        return upcomingSubs.isNotEmpty
+            ? aDays.compareTo(bDays)
+            : bDays.compareTo(aDays);
+      });
+      nextSub = candidates.first;
     }
 
     return SingleChildScrollView(
@@ -282,6 +298,16 @@ class _BudgetAnalyticsTabState extends State<BudgetAnalyticsTab> {
                         ),
                         Text(
                           'Due: ${nextSub.nextBillingDate.toString().split(' ')[0]}',
+                          style: const TextStyle(
+                            fontSize: 11,
+                            color: Colors.grey,
+                          ),
+                        ),
+                        Text(
+                          subscriptionDueStatus(
+                            nextSub.nextBillingDate,
+                            today: today,
+                          ),
                           style: const TextStyle(
                             fontSize: 11,
                             color: Colors.grey,
