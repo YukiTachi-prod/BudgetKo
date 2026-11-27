@@ -212,7 +212,10 @@ void main() {
 
       // Dialog is shown with 'Add to Group' button
       expect(find.text('Add Group Transaction'), findsOneWidget);
-      final addToGroupBtnFinder = find.widgetWithText(FilledButton, 'Add to Group');
+      final addToGroupBtnFinder = find.widgetWithText(
+        FilledButton,
+        'Add to Group',
+      );
       expect(addToGroupBtnFinder, findsOneWidget);
 
       // Enter amount
@@ -231,7 +234,9 @@ void main() {
       expect(find.byType(CircularProgressIndicator), findsOneWidget);
 
       // Cancel button should be disabled while submitting
-      final cancelBtn = tester.widget<TextButton>(find.widgetWithText(TextButton, 'Cancel'));
+      final cancelBtn = tester.widget<TextButton>(
+        find.widgetWithText(TextButton, 'Cancel'),
+      );
       expect(cancelBtn.onPressed, isNull);
 
       // Complete the network call

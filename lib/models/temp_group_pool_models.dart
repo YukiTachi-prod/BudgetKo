@@ -127,9 +127,7 @@ class TempGroupPool {
 
   /// Breakdown of pooled money by payment category (e.g. Cash, E-Cash).
   Map<String, double> get categoryTotals {
-    final Map<String, double> totals = {
-      for (final cat in categories) cat: 0.0,
-    };
+    final Map<String, double> totals = {for (final cat in categories) cat: 0.0};
     for (final p in participants) {
       totals[p.category] = (totals[p.category] ?? 0.0) + p.amountPaid;
     }
@@ -181,9 +179,7 @@ class TempGroupPool {
     final rawParticipants = (json['participants'] as List?) ?? const [];
     final participants = rawParticipants
         .whereType<Map>()
-        .map(
-          (m) => TempPoolParticipant.fromJson(Map<String, dynamic>.from(m)),
-        )
+        .map((m) => TempPoolParticipant.fromJson(Map<String, dynamic>.from(m)))
         .toList();
 
     return TempGroupPool(

@@ -1,10 +1,181 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_colorpicker/flutter_colorpicker.dart';
 import 'package:provider/provider.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../providers/settings_provider.dart';
+import '../services/update_service.dart';
+import '../theme/app_theme.dart';
 
-class SettingsScreen extends StatelessWidget {
-  const SettingsScreen({super.key});
+class SettingsScreen extends StatefulWidget {
+  final UpdateService? updateService;
+
+  const SettingsScreen({super.key, this.updateService});
+
+  @override
+  State<SettingsScreen> createState() => _SettingsScreenState();
+}
+
+class _SettingsScreenState extends State<SettingsScreen> {
+  late final UpdateService _updateService;
+  bool _isCheckingUpdates = false;
+  String? _currentVersion;
+
+  @override
+  void initState() {
+    super.initState();
+    _updateService = widget.updateService ?? UpdateService();
+    _loadCurrentVersion();
+  }
+
+  Future<void> _loadCurrentVersion() async {
+    try {
+      final version = await _updateService.getCurrentVersion();
+      if (mounted) {
+        setState(() => _currentVersion = version);
+      }
+    } catch (_) {}
+  }
+
+  Future<void> _scanForUpdates() async {
+    if (_isCheckingUpdates) return;
+    setState(() => _isCheckingUpdates = true);
+
+    final result = await _updateService.checkForUpdates();
+
+    if (!mounted) return;
+    setState(() {
+      _isCheckingUpdates = false;
+      _currentVersion = result.currentVersion;
+    });
+
+    switch (result.status) {
+      case UpdateStatus.updateAvailable:
+        _showUpdateAvailableDialog(result);
+        break;
+      case UpdateStatus.upToDate:
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('You\'re up to date! (v${result.currentVersion})'),
+          ),
+        );
+        break;
+      case UpdateStatus.noReleasesFound:
+      case UpdateStatus.error:
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              result.errorMessage ?? 'Could not check for updates.',
+            ),
+          ),
+        );
+        break;
+    }
+  }
+
+  Future<void> _openExternalUrl(String url) async {
+    final uri = Uri.tryParse(url);
+    if (uri == null) return;
+    final launched = await launchUrl(uri, mode: LaunchMode.externalApplication);
+    if (!launched && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Could not open browser for download.')),
+      );
+    }
+  }
+
+  void _showUpdateAvailableDialog(UpdateCheckResult result) {
+    final theme = Theme.of(context);
+    showDialog(
+      context: context,
+      builder: (ctx) {
+        return AlertDialog(
+          title: const Text('Update Available'),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 10,
+                  ),
+                  decoration: BoxDecoration(
+                    color: theme.scaffoldBackgroundColor,
+                    borderRadius: BorderRadius.circular(AppTheme.radius),
+                    border: Border.all(color: theme.dividerColor),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        result.releaseName ??
+                            result.latestVersion ??
+                            'New Release',
+                        style: theme.textTheme.titleSmall?.copyWith(
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        'Installed: v${result.currentVersion}  →  Latest: ${result.latestVersion}',
+                        style: theme.textTheme.bodySmall,
+                      ),
+                      if (result.apkAssetName != null) ...[
+                        const SizedBox(height: 4),
+                        Text(
+                          'APK: ${result.apkAssetName}',
+                          style: theme.textTheme.bodySmall,
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+                if (result.releaseNotes != null) ...[
+                  const SizedBox(height: 14),
+                  Text(
+                    'Release Notes',
+                    style: theme.textTheme.labelLarge?.copyWith(
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  Text(result.releaseNotes!, style: theme.textTheme.bodySmall),
+                ],
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('Later'),
+            ),
+            if (result.releasePageUrl != null &&
+                result.releasePageUrl != result.downloadUrl)
+              TextButton(
+                onPressed: () {
+                  Navigator.pop(ctx);
+                  _openExternalUrl(result.releasePageUrl!);
+                },
+                child: const Text('Release Page'),
+              ),
+            if (result.downloadUrl != null)
+              FilledButton.icon(
+                onPressed: () {
+                  Navigator.pop(ctx);
+                  _openExternalUrl(result.downloadUrl!);
+                },
+                icon: const Icon(Icons.download_rounded, size: 18),
+                label: Text(
+                  result.hasDirectApk ? 'Download APK' : 'Open Release',
+                ),
+              ),
+          ],
+        );
+      },
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -123,6 +294,28 @@ class SettingsScreen extends StatelessWidget {
                 if (val != null) settings.setCurrency(val);
               },
             ),
+          ),
+          const Divider(),
+          _buildSectionHeader('App Updates'),
+          ListTile(
+            leading: const Icon(Icons.system_update_outlined),
+            title: const Text('Scan for Updates'),
+            subtitle: Text(
+              _currentVersion != null
+                  ? 'Current version: v$_currentVersion • GitHub Releases'
+                  : 'Check GitHub Releases for a newer version',
+            ),
+            trailing: _isCheckingUpdates
+                ? const SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : FilledButton(
+                    onPressed: _scanForUpdates,
+                    child: const Text('Scan'),
+                  ),
+            onTap: _isCheckingUpdates ? null : _scanForUpdates,
           ),
           const SizedBox(height: 32),
         ],

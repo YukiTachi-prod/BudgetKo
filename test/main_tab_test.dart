@@ -93,9 +93,7 @@ void main() {
       );
     }
 
-    testWidgets('BudgetScreen has tabs without Group tab', (
-      tester,
-    ) async {
+    testWidgets('BudgetScreen has tabs without Group tab', (tester) async {
       await tester.pumpWidget(createTestApp());
       await tester.pumpAndSettle();
 

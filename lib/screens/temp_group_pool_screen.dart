@@ -480,7 +480,8 @@ class _TempGroupPoolScreenState extends State<TempGroupPoolScreen> {
                       maxLines: 2,
                       decoration: const InputDecoration(
                         labelText: 'Notes (Optional)',
-                        hintText: 'e.g. Ordered ramen + iced tea, sent via GCash',
+                        hintText:
+                            'e.g. Ordered ramen + iced tea, sent via GCash',
                       ),
                     ),
                     const SizedBox(height: 12),
@@ -772,10 +773,7 @@ class _TempGroupPoolScreenState extends State<TempGroupPoolScreen> {
 
           // ── Centerpiece: Large Circular Money Pool ───────────────────
           Center(
-            child: _MoneyPoolCircle(
-              pool: pool,
-              formatAmount: _fmt,
-            ),
+            child: _MoneyPoolCircle(pool: pool, formatAmount: _fmt),
           ),
 
           const SizedBox(height: 18),

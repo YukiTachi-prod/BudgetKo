@@ -21,122 +21,140 @@ void main() {
       SharedPreferences.setMockInitialValues({});
     });
 
-    test('creates isolated pool with Cash and E-Cash default categories', () async {
-      final provider = TempGroupPoolProvider();
-      await provider.preload();
+    test(
+      'creates isolated pool with Cash and E-Cash default categories',
+      () async {
+        final provider = TempGroupPoolProvider();
+        await provider.preload();
 
-      expect(provider.hasActivePool, isFalse);
+        expect(provider.hasActivePool, isFalse);
 
-      final pool = await provider.createPool(
-        name: 'Friday Ramen',
-        currency: '₱',
-      );
+        final pool = await provider.createPool(
+          name: 'Friday Ramen',
+          currency: '₱',
+        );
 
-      expect(provider.hasActivePool, isTrue);
-      expect(pool.name, 'Friday Ramen');
-      expect(pool.categories, ['Cash', 'E-Cash']);
-      expect(pool.totalPooled, 0.0);
-    });
+        expect(provider.hasActivePool, isTrue);
+        expect(pool.name, 'Friday Ramen');
+        expect(pool.categories, ['Cash', 'E-Cash']);
+        expect(pool.totalPooled, 0.0);
+      },
+    );
 
-    test('computes pooled total, unique shares, change back, still owed, and category totals', () async {
-      final provider = TempGroupPoolProvider();
-      await provider.preload();
-      await provider.createPool(name: 'Samgyup Night', currency: '₱');
+    test(
+      'computes pooled total, unique shares, change back, still owed, and category totals',
+      () async {
+        final provider = TempGroupPoolProvider();
+        await provider.preload();
+        await provider.createPool(name: 'Samgyup Night', currency: '₱');
 
-      await provider.addParticipant(
-        name: 'Alex',
-        amountPaid: 500,
-        amountToPay: 350,
-        category: 'Cash',
-        notes: 'Paid with 500 bill',
-      );
-      await provider.addParticipant(
-        name: 'Sam',
-        amountPaid: 300,
-        amountToPay: 350,
-        category: 'E-Cash',
-        notes: 'Sent via GCash, owes 50',
-      );
-      await provider.addParticipant(
-        name: 'Jamie',
-        amountPaid: 400,
-        amountToPay: 400,
-        category: 'Cash',
-      );
+        await provider.addParticipant(
+          name: 'Alex',
+          amountPaid: 500,
+          amountToPay: 350,
+          category: 'Cash',
+          notes: 'Paid with 500 bill',
+        );
+        await provider.addParticipant(
+          name: 'Sam',
+          amountPaid: 300,
+          amountToPay: 350,
+          category: 'E-Cash',
+          notes: 'Sent via GCash, owes 50',
+        );
+        await provider.addParticipant(
+          name: 'Jamie',
+          amountPaid: 400,
+          amountToPay: 400,
+          category: 'Cash',
+        );
 
-      final pool = provider.activePool!;
-      expect(pool.totalPooled, 1200.0);
-      expect(pool.totalExpected, 1100.0);
-      expect(pool.totalChangeBack, 150.0);
-      expect(pool.totalStillOwed, 50.0);
-      expect(pool.netBalance, 100.0);
-      expect(pool.categoryTotals['Cash'], 900.0);
-      expect(pool.categoryTotals['E-Cash'], 300.0);
-      expect(pool.participants[0].notes, 'Paid with 500 bill');
-      expect(pool.changeFor(pool.participants[0]), 150.0);
-      expect(pool.changeFor(pool.participants[1]), -50.0);
-      expect(pool.changeFor(pool.participants[2]), 0.0);
-    });
+        final pool = provider.activePool!;
+        expect(pool.totalPooled, 1200.0);
+        expect(pool.totalExpected, 1100.0);
+        expect(pool.totalChangeBack, 150.0);
+        expect(pool.totalStillOwed, 50.0);
+        expect(pool.netBalance, 100.0);
+        expect(pool.categoryTotals['Cash'], 900.0);
+        expect(pool.categoryTotals['E-Cash'], 300.0);
+        expect(pool.participants[0].notes, 'Paid with 500 bill');
+        expect(pool.changeFor(pool.participants[0]), 150.0);
+        expect(pool.changeFor(pool.participants[1]), -50.0);
+        expect(pool.changeFor(pool.participants[2]), 0.0);
+      },
+    );
 
-    test('supports same amount for everyone and splitting total bill equally', () async {
-      final provider = TempGroupPoolProvider();
-      await provider.preload();
-      await provider.createPool(
-        name: 'Pizza Split',
-        currency: '₱',
-        isEqualShare: true,
-        equalShareAmount: 250,
-      );
+    test(
+      'supports same amount for everyone and splitting total bill equally',
+      () async {
+        final provider = TempGroupPoolProvider();
+        await provider.preload();
+        await provider.createPool(
+          name: 'Pizza Split',
+          currency: '₱',
+          isEqualShare: true,
+          equalShareAmount: 250,
+        );
 
-      await provider.addParticipant(
-        name: 'Alex',
-        amountPaid: 500,
-        amountToPay: 0,
-        category: 'Cash',
-      );
-      await provider.addParticipant(
-        name: 'Sam',
-        amountPaid: 250,
-        amountToPay: 0,
-        category: 'E-Cash',
-      );
+        await provider.addParticipant(
+          name: 'Alex',
+          amountPaid: 500,
+          amountToPay: 0,
+          category: 'Cash',
+        );
+        await provider.addParticipant(
+          name: 'Sam',
+          amountPaid: 250,
+          amountToPay: 0,
+          category: 'E-Cash',
+        );
 
-      expect(provider.activePool!.totalExpected, 500.0);
-      expect(provider.activePool!.changeFor(provider.activePool!.participants[0]), 250.0);
-      expect(provider.activePool!.changeFor(provider.activePool!.participants[1]), 0.0);
+        expect(provider.activePool!.totalExpected, 500.0);
+        expect(
+          provider.activePool!.changeFor(provider.activePool!.participants[0]),
+          250.0,
+        );
+        expect(
+          provider.activePool!.changeFor(provider.activePool!.participants[1]),
+          0.0,
+        );
 
-      await provider.splitTotalBillEqually(600);
-      expect(provider.activePool!.equalShareAmount, 300.0);
-      expect(provider.activePool!.totalExpected, 600.0);
-    });
+        await provider.splitTotalBillEqually(600);
+        expect(provider.activePool!.equalShareAmount, 300.0);
+        expect(provider.activePool!.totalExpected, 600.0);
+      },
+    );
 
-    test('supports custom categories and protects default Cash / E-Cash', () async {
-      final provider = TempGroupPoolProvider();
-      await provider.preload();
-      await provider.createPool(name: 'Dinner');
+    test(
+      'supports custom categories and protects default Cash / E-Cash',
+      () async {
+        final provider = TempGroupPoolProvider();
+        await provider.preload();
+        await provider.createPool(name: 'Dinner');
 
-      await provider.addCategory('Card');
-      expect(provider.activePool!.categories, ['Cash', 'E-Cash', 'Card']);
+        await provider.addCategory('Card');
+        expect(provider.activePool!.categories, ['Cash', 'E-Cash', 'Card']);
 
-      await provider.addParticipant(
-        name: 'Alex',
-        amountPaid: 400,
-        amountToPay: 400,
-        category: 'Card',
-      );
+        await provider.addParticipant(
+          name: 'Alex',
+          amountPaid: 400,
+          amountToPay: 400,
+          category: 'Card',
+        );
 
-      // Removing a default category is ignored
-      await provider.removeCategory('Cash');
-      expect(provider.activePool!.categories.contains('Cash'), isTrue);
+        // Removing a default category is ignored
+        await provider.removeCategory('Cash');
+        expect(provider.activePool!.categories.contains('Cash'), isTrue);
 
-      // Removing a custom category reassigns participants to Cash
-      await provider.removeCategory('Card');
-      expect(provider.activePool!.categories, ['Cash', 'E-Cash']);
-      expect(
-        provider.activePool!.participants.single.category,
-        TempGroupPool.defaultCashCategory,
-      );
-    });
+        // Removing a custom category reassigns participants to Cash
+        await provider.removeCategory('Card');
+        expect(provider.activePool!.categories, ['Cash', 'E-Cash']);
+        expect(
+          provider.activePool!.participants.single.category,
+          TempGroupPool.defaultCashCategory,
+        );
+      },
+    );
 
     test('persists across provider reloads and deletes cleanly', () async {
       final provider1 = TempGroupPoolProvider();
@@ -229,7 +247,9 @@ void main() {
         expect(find.text('MONEY POOL'), findsOneWidget);
 
         // Add participant
-        await tester.tap(find.widgetWithText(FloatingActionButton, 'Add Person'));
+        await tester.tap(
+          find.widgetWithText(FloatingActionButton, 'Add Person'),
+        );
         await tester.pumpAndSettle();
 
         final fields = find.byType(TextField);

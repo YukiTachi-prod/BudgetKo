@@ -46,9 +46,7 @@ class TempGroupPoolProvider extends ChangeNotifier {
         if (decoded is List) {
           _pools = decoded
               .whereType<Map>()
-              .map(
-                (m) => TempGroupPool.fromJson(Map<String, dynamic>.from(m)),
-              )
+              .map((m) => TempGroupPool.fromJson(Map<String, dynamic>.from(m)))
               .toList();
         }
       } catch (_) {

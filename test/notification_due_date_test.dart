@@ -18,10 +18,7 @@ void main() {
     ledger = LedgerProvider(db);
     notificationProvider = NotificationProvider();
 
-    await Future.wait([
-      ledger.preload(),
-      notificationProvider.preload(),
-    ]);
+    await Future.wait([ledger.preload(), notificationProvider.preload()]);
 
     await ledger.addAccount('Test Account', 1000);
   });
