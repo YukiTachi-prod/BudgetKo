@@ -67,6 +67,8 @@ class Subscriptions extends Table {
   TextColumn get billingCycle => text().withLength(min: 1, max: 20)();
   DateTimeColumn get nextBillingDate => dateTime()();
   BoolColumn get isActive => boolean().withDefault(const Constant(true))();
+  BoolColumn get isRecurringPayment =>
+      boolean().withDefault(const Constant(false))();
   IntColumn get accountId => integer()();
   TextColumn get notes => text().nullable()();
 }
@@ -79,7 +81,7 @@ class BudgetDatabase extends _$BudgetDatabase {
     : super(executor ?? _openConnection());
 
   @override
-  int get schemaVersion => 6;
+  int get schemaVersion => 7;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -103,6 +105,9 @@ class BudgetDatabase extends _$BudgetDatabase {
       if (from < 6) {
         await m.addColumn(categories, categories.dailyBudgetLimit);
         await m.addColumn(categories, categories.weeklyBudgetLimit);
+      }
+      if (from < 7) {
+        await m.addColumn(subscriptions, subscriptions.isRecurringPayment);
       }
     },
   );

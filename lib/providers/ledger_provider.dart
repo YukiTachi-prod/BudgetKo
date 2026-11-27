@@ -502,6 +502,7 @@ class LedgerProvider extends ChangeNotifier {
     required String billingCycle,
     required DateTime nextBillingDate,
     required int accountId,
+    bool isRecurringPayment = false,
     String? notes,
   }) async {
     await _db
@@ -515,6 +516,7 @@ class LedgerProvider extends ChangeNotifier {
             accountId: accountId,
             notes: Value(notes),
             isActive: const Value(true),
+            isRecurringPayment: Value(isRecurringPayment),
           ),
         );
     await refreshData();
@@ -528,6 +530,7 @@ class LedgerProvider extends ChangeNotifier {
     required DateTime nextBillingDate,
     required bool isActive,
     required int accountId,
+    bool? isRecurringPayment,
     String? notes,
   }) async {
     await (_db.update(
@@ -539,6 +542,9 @@ class LedgerProvider extends ChangeNotifier {
         billingCycle: Value(billingCycle),
         nextBillingDate: Value(nextBillingDate),
         isActive: Value(isActive),
+        isRecurringPayment: isRecurringPayment == null
+            ? const Value.absent()
+            : Value(isRecurringPayment),
         accountId: Value(accountId),
         notes: Value(notes),
       ),

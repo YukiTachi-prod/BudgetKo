@@ -290,6 +290,7 @@ class LoansAndSubscriptionsTab extends StatelessWidget {
         subToEdit?.accountId ??
         (provider.accounts.isNotEmpty ? provider.accounts.first.id : null);
     bool isActive = subToEdit?.isActive ?? true;
+    bool isRecurringPayment = subToEdit?.isRecurringPayment ?? false;
 
     showDialog(
       context: context,
@@ -384,6 +385,13 @@ class LoansAndSubscriptionsTab extends StatelessWidget {
                       }).toList(),
                       onChanged: (v) => setState(() => selectedAccountId = v),
                     ),
+                    SwitchListTile(
+                      contentPadding: EdgeInsets.zero,
+                      title: const Text('Recurring payment'),
+                      value: isRecurringPayment,
+                      onChanged: (value) =>
+                          setState(() => isRecurringPayment = value),
+                    ),
                     const SizedBox(height: 16),
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -462,6 +470,7 @@ class LoansAndSubscriptionsTab extends StatelessWidget {
                           billingCycle: billingCycle,
                           nextBillingDate: selectedDate,
                           accountId: selectedAccountId!,
+                          isRecurringPayment: isRecurringPayment,
                           notes: notesCtrl.text.trim().isEmpty
                               ? null
                               : notesCtrl.text.trim(),
@@ -475,6 +484,7 @@ class LoansAndSubscriptionsTab extends StatelessWidget {
                           nextBillingDate: selectedDate,
                           isActive: isActive,
                           accountId: selectedAccountId!,
+                          isRecurringPayment: isRecurringPayment,
                           notes: notesCtrl.text.trim().isEmpty
                               ? null
                               : notesCtrl.text.trim(),

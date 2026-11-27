@@ -2234,6 +2234,20 @@ class $SubscriptionsTable extends Subscriptions
     ),
     defaultValue: const Constant(true),
   );
+  static const VerificationMeta _isRecurringPaymentMeta =
+      const VerificationMeta('isRecurringPayment');
+  @override
+  late final GeneratedColumn<bool> isRecurringPayment = GeneratedColumn<bool>(
+    'is_recurring_payment',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("is_recurring_payment" IN (0, 1))',
+    ),
+    defaultValue: const Constant(false),
+  );
   static const VerificationMeta _accountIdMeta = const VerificationMeta(
     'accountId',
   );
@@ -2262,6 +2276,7 @@ class $SubscriptionsTable extends Subscriptions
     billingCycle,
     nextBillingDate,
     isActive,
+    isRecurringPayment,
     accountId,
     notes,
   ];
@@ -2324,6 +2339,15 @@ class $SubscriptionsTable extends Subscriptions
         isActive.isAcceptableOrUnknown(data['is_active']!, _isActiveMeta),
       );
     }
+    if (data.containsKey('is_recurring_payment')) {
+      context.handle(
+        _isRecurringPaymentMeta,
+        isRecurringPayment.isAcceptableOrUnknown(
+          data['is_recurring_payment']!,
+          _isRecurringPaymentMeta,
+        ),
+      );
+    }
     if (data.containsKey('account_id')) {
       context.handle(
         _accountIdMeta,
@@ -2371,6 +2395,10 @@ class $SubscriptionsTable extends Subscriptions
         DriftSqlType.bool,
         data['${effectivePrefix}is_active'],
       )!,
+      isRecurringPayment: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}is_recurring_payment'],
+      )!,
       accountId: attachedDatabase.typeMapping.read(
         DriftSqlType.int,
         data['${effectivePrefix}account_id'],
@@ -2395,6 +2423,7 @@ class Subscription extends DataClass implements Insertable<Subscription> {
   final String billingCycle;
   final DateTime nextBillingDate;
   final bool isActive;
+  final bool isRecurringPayment;
   final int accountId;
   final String? notes;
   const Subscription({
@@ -2404,6 +2433,7 @@ class Subscription extends DataClass implements Insertable<Subscription> {
     required this.billingCycle,
     required this.nextBillingDate,
     required this.isActive,
+    required this.isRecurringPayment,
     required this.accountId,
     this.notes,
   });
@@ -2416,6 +2446,7 @@ class Subscription extends DataClass implements Insertable<Subscription> {
     map['billing_cycle'] = Variable<String>(billingCycle);
     map['next_billing_date'] = Variable<DateTime>(nextBillingDate);
     map['is_active'] = Variable<bool>(isActive);
+    map['is_recurring_payment'] = Variable<bool>(isRecurringPayment);
     map['account_id'] = Variable<int>(accountId);
     if (!nullToAbsent || notes != null) {
       map['notes'] = Variable<String>(notes);
@@ -2431,6 +2462,7 @@ class Subscription extends DataClass implements Insertable<Subscription> {
       billingCycle: Value(billingCycle),
       nextBillingDate: Value(nextBillingDate),
       isActive: Value(isActive),
+      isRecurringPayment: Value(isRecurringPayment),
       accountId: Value(accountId),
       notes: notes == null && nullToAbsent
           ? const Value.absent()
@@ -2450,6 +2482,7 @@ class Subscription extends DataClass implements Insertable<Subscription> {
       billingCycle: serializer.fromJson<String>(json['billingCycle']),
       nextBillingDate: serializer.fromJson<DateTime>(json['nextBillingDate']),
       isActive: serializer.fromJson<bool>(json['isActive']),
+      isRecurringPayment: serializer.fromJson<bool>(json['isRecurringPayment']),
       accountId: serializer.fromJson<int>(json['accountId']),
       notes: serializer.fromJson<String?>(json['notes']),
     );
@@ -2464,6 +2497,7 @@ class Subscription extends DataClass implements Insertable<Subscription> {
       'billingCycle': serializer.toJson<String>(billingCycle),
       'nextBillingDate': serializer.toJson<DateTime>(nextBillingDate),
       'isActive': serializer.toJson<bool>(isActive),
+      'isRecurringPayment': serializer.toJson<bool>(isRecurringPayment),
       'accountId': serializer.toJson<int>(accountId),
       'notes': serializer.toJson<String?>(notes),
     };
@@ -2476,6 +2510,7 @@ class Subscription extends DataClass implements Insertable<Subscription> {
     String? billingCycle,
     DateTime? nextBillingDate,
     bool? isActive,
+    bool? isRecurringPayment,
     int? accountId,
     Value<String?> notes = const Value.absent(),
   }) => Subscription(
@@ -2485,6 +2520,7 @@ class Subscription extends DataClass implements Insertable<Subscription> {
     billingCycle: billingCycle ?? this.billingCycle,
     nextBillingDate: nextBillingDate ?? this.nextBillingDate,
     isActive: isActive ?? this.isActive,
+    isRecurringPayment: isRecurringPayment ?? this.isRecurringPayment,
     accountId: accountId ?? this.accountId,
     notes: notes.present ? notes.value : this.notes,
   );
@@ -2500,6 +2536,9 @@ class Subscription extends DataClass implements Insertable<Subscription> {
           ? data.nextBillingDate.value
           : this.nextBillingDate,
       isActive: data.isActive.present ? data.isActive.value : this.isActive,
+      isRecurringPayment: data.isRecurringPayment.present
+          ? data.isRecurringPayment.value
+          : this.isRecurringPayment,
       accountId: data.accountId.present ? data.accountId.value : this.accountId,
       notes: data.notes.present ? data.notes.value : this.notes,
     );
@@ -2514,6 +2553,7 @@ class Subscription extends DataClass implements Insertable<Subscription> {
           ..write('billingCycle: $billingCycle, ')
           ..write('nextBillingDate: $nextBillingDate, ')
           ..write('isActive: $isActive, ')
+          ..write('isRecurringPayment: $isRecurringPayment, ')
           ..write('accountId: $accountId, ')
           ..write('notes: $notes')
           ..write(')'))
@@ -2528,6 +2568,7 @@ class Subscription extends DataClass implements Insertable<Subscription> {
     billingCycle,
     nextBillingDate,
     isActive,
+    isRecurringPayment,
     accountId,
     notes,
   );
@@ -2541,6 +2582,7 @@ class Subscription extends DataClass implements Insertable<Subscription> {
           other.billingCycle == this.billingCycle &&
           other.nextBillingDate == this.nextBillingDate &&
           other.isActive == this.isActive &&
+          other.isRecurringPayment == this.isRecurringPayment &&
           other.accountId == this.accountId &&
           other.notes == this.notes);
 }
@@ -2552,6 +2594,7 @@ class SubscriptionsCompanion extends UpdateCompanion<Subscription> {
   final Value<String> billingCycle;
   final Value<DateTime> nextBillingDate;
   final Value<bool> isActive;
+  final Value<bool> isRecurringPayment;
   final Value<int> accountId;
   final Value<String?> notes;
   const SubscriptionsCompanion({
@@ -2561,6 +2604,7 @@ class SubscriptionsCompanion extends UpdateCompanion<Subscription> {
     this.billingCycle = const Value.absent(),
     this.nextBillingDate = const Value.absent(),
     this.isActive = const Value.absent(),
+    this.isRecurringPayment = const Value.absent(),
     this.accountId = const Value.absent(),
     this.notes = const Value.absent(),
   });
@@ -2571,6 +2615,7 @@ class SubscriptionsCompanion extends UpdateCompanion<Subscription> {
     required String billingCycle,
     required DateTime nextBillingDate,
     this.isActive = const Value.absent(),
+    this.isRecurringPayment = const Value.absent(),
     required int accountId,
     this.notes = const Value.absent(),
   }) : name = Value(name),
@@ -2585,6 +2630,7 @@ class SubscriptionsCompanion extends UpdateCompanion<Subscription> {
     Expression<String>? billingCycle,
     Expression<DateTime>? nextBillingDate,
     Expression<bool>? isActive,
+    Expression<bool>? isRecurringPayment,
     Expression<int>? accountId,
     Expression<String>? notes,
   }) {
@@ -2595,6 +2641,8 @@ class SubscriptionsCompanion extends UpdateCompanion<Subscription> {
       if (billingCycle != null) 'billing_cycle': billingCycle,
       if (nextBillingDate != null) 'next_billing_date': nextBillingDate,
       if (isActive != null) 'is_active': isActive,
+      if (isRecurringPayment != null)
+        'is_recurring_payment': isRecurringPayment,
       if (accountId != null) 'account_id': accountId,
       if (notes != null) 'notes': notes,
     });
@@ -2607,6 +2655,7 @@ class SubscriptionsCompanion extends UpdateCompanion<Subscription> {
     Value<String>? billingCycle,
     Value<DateTime>? nextBillingDate,
     Value<bool>? isActive,
+    Value<bool>? isRecurringPayment,
     Value<int>? accountId,
     Value<String?>? notes,
   }) {
@@ -2617,6 +2666,7 @@ class SubscriptionsCompanion extends UpdateCompanion<Subscription> {
       billingCycle: billingCycle ?? this.billingCycle,
       nextBillingDate: nextBillingDate ?? this.nextBillingDate,
       isActive: isActive ?? this.isActive,
+      isRecurringPayment: isRecurringPayment ?? this.isRecurringPayment,
       accountId: accountId ?? this.accountId,
       notes: notes ?? this.notes,
     );
@@ -2643,6 +2693,9 @@ class SubscriptionsCompanion extends UpdateCompanion<Subscription> {
     if (isActive.present) {
       map['is_active'] = Variable<bool>(isActive.value);
     }
+    if (isRecurringPayment.present) {
+      map['is_recurring_payment'] = Variable<bool>(isRecurringPayment.value);
+    }
     if (accountId.present) {
       map['account_id'] = Variable<int>(accountId.value);
     }
@@ -2661,6 +2714,7 @@ class SubscriptionsCompanion extends UpdateCompanion<Subscription> {
           ..write('billingCycle: $billingCycle, ')
           ..write('nextBillingDate: $nextBillingDate, ')
           ..write('isActive: $isActive, ')
+          ..write('isRecurringPayment: $isRecurringPayment, ')
           ..write('accountId: $accountId, ')
           ..write('notes: $notes')
           ..write(')'))
@@ -3744,6 +3798,7 @@ typedef $$SubscriptionsTableCreateCompanionBuilder =
       required String billingCycle,
       required DateTime nextBillingDate,
       Value<bool> isActive,
+      Value<bool> isRecurringPayment,
       required int accountId,
       Value<String?> notes,
     });
@@ -3755,6 +3810,7 @@ typedef $$SubscriptionsTableUpdateCompanionBuilder =
       Value<String> billingCycle,
       Value<DateTime> nextBillingDate,
       Value<bool> isActive,
+      Value<bool> isRecurringPayment,
       Value<int> accountId,
       Value<String?> notes,
     });
@@ -3795,6 +3851,11 @@ class $$SubscriptionsTableFilterComposer
 
   ColumnFilters<bool> get isActive => $composableBuilder(
     column: $table.isActive,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get isRecurringPayment => $composableBuilder(
+    column: $table.isRecurringPayment,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -3848,6 +3909,11 @@ class $$SubscriptionsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<bool> get isRecurringPayment => $composableBuilder(
+    column: $table.isRecurringPayment,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<int> get accountId => $composableBuilder(
     column: $table.accountId,
     builder: (column) => ColumnOrderings(column),
@@ -3889,6 +3955,11 @@ class $$SubscriptionsTableAnnotationComposer
 
   GeneratedColumn<bool> get isActive =>
       $composableBuilder(column: $table.isActive, builder: (column) => column);
+
+  GeneratedColumn<bool> get isRecurringPayment => $composableBuilder(
+    column: $table.isRecurringPayment,
+    builder: (column) => column,
+  );
 
   GeneratedColumn<int> get accountId =>
       $composableBuilder(column: $table.accountId, builder: (column) => column);
@@ -3936,6 +4007,7 @@ class $$SubscriptionsTableTableManager
                 Value<String> billingCycle = const Value.absent(),
                 Value<DateTime> nextBillingDate = const Value.absent(),
                 Value<bool> isActive = const Value.absent(),
+                Value<bool> isRecurringPayment = const Value.absent(),
                 Value<int> accountId = const Value.absent(),
                 Value<String?> notes = const Value.absent(),
               }) => SubscriptionsCompanion(
@@ -3945,6 +4017,7 @@ class $$SubscriptionsTableTableManager
                 billingCycle: billingCycle,
                 nextBillingDate: nextBillingDate,
                 isActive: isActive,
+                isRecurringPayment: isRecurringPayment,
                 accountId: accountId,
                 notes: notes,
               ),
@@ -3956,6 +4029,7 @@ class $$SubscriptionsTableTableManager
                 required String billingCycle,
                 required DateTime nextBillingDate,
                 Value<bool> isActive = const Value.absent(),
+                Value<bool> isRecurringPayment = const Value.absent(),
                 required int accountId,
                 Value<String?> notes = const Value.absent(),
               }) => SubscriptionsCompanion.insert(
@@ -3965,6 +4039,7 @@ class $$SubscriptionsTableTableManager
                 billingCycle: billingCycle,
                 nextBillingDate: nextBillingDate,
                 isActive: isActive,
+                isRecurringPayment: isRecurringPayment,
                 accountId: accountId,
                 notes: notes,
               ),
