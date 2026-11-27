@@ -11,6 +11,7 @@ class NotificationService {
 
   final FlutterLocalNotificationsPlugin _plugin =
       FlutterLocalNotificationsPlugin();
+  bool _isInitialized = false;
 
   static const _channelId = 'budgetko_reminders';
   static const _channelName = 'BudgetKo Reminders';
@@ -64,6 +65,7 @@ class NotificationService {
         ),
       );
     }
+    _isInitialized = true;
   }
 
   Future<void> requestPermissions() async {
@@ -119,6 +121,7 @@ class NotificationService {
     String body, {
     bool isAlarm = false,
   }) async {
+    if (!_isInitialized) return;
     final details = await _buildDetails(isAlarm);
     await _plugin.show(
       id: DateTime.now().millisecond,

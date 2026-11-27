@@ -3,6 +3,7 @@ import 'package:intl/intl.dart';
 import '../utils/date_util.dart';
 import 'package:provider/provider.dart';
 import '../providers/ledger_provider.dart';
+import '../providers/notification_provider.dart';
 import '../providers/settings_provider.dart';
 import '../database/budget_database.dart';
 import '../utils/math_util.dart';
@@ -208,6 +209,63 @@ class LoansAndSubscriptionsTab extends StatelessWidget {
     );
   }
 
+  void _checkNotificationsSafely(
+    BuildContext context,
+    LedgerProvider provider,
+  ) {
+    try {
+      context.read<NotificationProvider>().checkLedgerWarnings(provider);
+    } catch (_) {}
+  }
+
+  void _showMarkSubscriptionPaidDialog(
+    BuildContext context,
+    Subscription sub,
+    String currency,
+  ) {
+    final provider = context.read<LedgerProvider>();
+    showDialog(
+      context: context,
+      builder: (ctx) {
+        return AlertDialog(
+          title: const Text('Mark Subscription as Paid?'),
+          content: Text(
+            'Have you already paid "${sub.name}" ($currency${sub.cost.toStringAsFixed(2)})?',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.pop(ctx);
+                _showSubscriptionDialog(context, sub);
+              },
+              child: const Text('Edit'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('No'),
+            ),
+            FilledButton(
+              onPressed: () async {
+                await provider.updateSubscription(
+                  subscriptionId: sub.id,
+                  name: sub.name,
+                  cost: sub.cost,
+                  billingCycle: sub.billingCycle,
+                  nextBillingDate: sub.nextBillingDate,
+                  isActive: false,
+                  accountId: sub.accountId,
+                  notes: sub.notes,
+                );
+                if (ctx.mounted) Navigator.pop(ctx);
+              },
+              child: const Text('Yes, Paid'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
   void _showSubscriptionDialog(
     BuildContext context, [
     Subscription? subToEdit,
@@ -218,7 +276,13 @@ class LoansAndSubscriptionsTab extends StatelessWidget {
       text: subToEdit?.cost.toString() ?? '',
     );
     final notesCtrl = TextEditingController(text: subToEdit?.notes ?? '');
-    String selectedCycle = subToEdit?.billingCycle ?? 'Monthly';
+    final parsedCycle = parseBillingCycle(
+      subToEdit?.billingCycle ?? 'Every 1 Month',
+    );
+    final intervalCtrl = TextEditingController(
+      text: parsedCycle.interval.toString(),
+    );
+    String selectedUnit = parsedCycle.unit;
     DateTime selectedDate =
         subToEdit?.nextBillingDate ??
         DateTime.now().add(const Duration(days: 30));
@@ -255,27 +319,43 @@ class LoansAndSubscriptionsTab extends StatelessWidget {
                       ),
                     ),
                     const SizedBox(height: 12),
-                    DropdownButtonFormField<String>(
-                      initialValue: selectedCycle,
-                      decoration: const InputDecoration(
-                        labelText: 'Billing Cycle',
-                      ),
-                      items: const [
-                        DropdownMenuItem(
-                          value: 'Monthly',
-                          child: Text('Monthly'),
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      children: [
+                        const Text(
+                          'Every',
+                          style: TextStyle(fontWeight: FontWeight.w500),
                         ),
-                        DropdownMenuItem(
-                          value: 'Yearly',
-                          child: Text('Yearly'),
+                        const SizedBox(width: 8),
+                        SizedBox(
+                          width: 68,
+                          child: TextField(
+                            controller: intervalCtrl,
+                            keyboardType: TextInputType.number,
+                            textAlign: TextAlign.center,
+                            decoration: const InputDecoration(hintText: '1'),
+                          ),
                         ),
-                        DropdownMenuItem(
-                          value: 'Weekly',
-                          child: Text('Weekly'),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: DropdownButtonFormField<String>(
+                            initialValue: selectedUnit,
+                            decoration: const InputDecoration(
+                              labelText: 'Period',
+                            ),
+                            items: billingCycleUnits
+                                .map(
+                                  (u) => DropdownMenuItem(
+                                    value: u,
+                                    child: Text(u),
+                                  ),
+                                )
+                                .toList(),
+                            onChanged: (v) =>
+                                setState(() => selectedUnit = v ?? 'Months'),
+                          ),
                         ),
                       ],
-                      onChanged: (v) =>
-                          setState(() => selectedCycle = v ?? 'Monthly'),
                     ),
                     const SizedBox(height: 12),
                     DropdownButtonFormField<int>(
@@ -340,9 +420,9 @@ class LoansAndSubscriptionsTab extends StatelessWidget {
                     if (subToEdit != null) ...[
                       const SizedBox(height: 12),
                       SwitchListTile(
-                        title: const Text('Active'),
-                        value: isActive,
-                        onChanged: (val) => setState(() => isActive = val),
+                        title: const Text('Paid'),
+                        value: !isActive,
+                        onChanged: (val) => setState(() => isActive = !val),
                       ),
                     ],
                   ],
@@ -365,15 +445,21 @@ class LoansAndSubscriptionsTab extends StatelessWidget {
                   child: const Text('Cancel'),
                 ),
                 FilledButton(
-                  onPressed: () {
+                  onPressed: () async {
                     final name = nameCtrl.text.trim();
                     final cost = parseAmount(costCtrl.text);
+                    final interval =
+                        int.tryParse(intervalCtrl.text.trim()) ?? 1;
+                    final billingCycle = formatBillingCycle(
+                      interval,
+                      selectedUnit,
+                    );
                     if (name.isNotEmpty && selectedAccountId != null) {
                       if (subToEdit == null) {
-                        provider.addSubscription(
+                        await provider.addSubscription(
                           name: name,
                           cost: cost,
-                          billingCycle: selectedCycle,
+                          billingCycle: billingCycle,
                           nextBillingDate: selectedDate,
                           accountId: selectedAccountId!,
                           notes: notesCtrl.text.trim().isEmpty
@@ -381,11 +467,11 @@ class LoansAndSubscriptionsTab extends StatelessWidget {
                               : notesCtrl.text.trim(),
                         );
                       } else {
-                        provider.updateSubscription(
+                        await provider.updateSubscription(
                           subscriptionId: subToEdit.id,
                           name: name,
                           cost: cost,
-                          billingCycle: selectedCycle,
+                          billingCycle: billingCycle,
                           nextBillingDate: selectedDate,
                           isActive: isActive,
                           accountId: selectedAccountId!,
@@ -394,7 +480,10 @@ class LoansAndSubscriptionsTab extends StatelessWidget {
                               : notesCtrl.text.trim(),
                         );
                       }
-                      Navigator.pop(ctx);
+                      if (context.mounted) {
+                        _checkNotificationsSafely(context, provider);
+                      }
+                      if (ctx.mounted) Navigator.pop(ctx);
                     }
                   },
                   child: Text(subToEdit == null ? 'Add' : 'Save'),
@@ -444,7 +533,9 @@ class LoansAndSubscriptionsTab extends StatelessWidget {
               child: Icon(
                 loan.isPaid
                     ? Icons.check
-                    : (isOutgoing ? Icons.arrow_downward : Icons.arrow_upward),
+                    : (isOutgoing
+                          ? Icons.keyboard_arrow_down_rounded
+                          : Icons.keyboard_arrow_up_rounded),
                 color: loan.isPaid ? Colors.green : Colors.red,
               ),
             ),
@@ -618,22 +709,32 @@ class LoansAndSubscriptionsTab extends StatelessWidget {
                 );
                 final accColor = Color(acc.colorHex);
 
+                final isPaid = !sub.isActive;
+                final isDueNow =
+                    sub.isActive && calendarDaysUntil(sub.nextBillingDate) <= 0;
+
                 return Padding(
                   padding: const EdgeInsets.symmetric(vertical: 4),
                   child: ListTile(
-                    onTap: () => _showSubscriptionDialog(context, sub),
+                    onTap: () {
+                      if (isDueNow) {
+                        _showMarkSubscriptionPaidDialog(context, sub, currency);
+                      } else {
+                        _showSubscriptionDialog(context, sub);
+                      }
+                    },
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(6),
                       side: BorderSide(color: theme.dividerColor, width: 1.0),
                     ),
                     tileColor: theme.cardColor,
                     leading: CircleAvatar(
-                      backgroundColor: sub.isActive
-                          ? Colors.blue.withValues(alpha: 0.2)
-                          : Colors.grey.withValues(alpha: 0.2),
+                      backgroundColor: isPaid
+                          ? Colors.green.withValues(alpha: 0.2)
+                          : Colors.blue.withValues(alpha: 0.2),
                       child: Icon(
-                        sub.isActive ? Icons.autorenew : Icons.pause,
-                        color: sub.isActive ? Colors.blue : Colors.grey,
+                        isPaid ? Icons.check : Icons.autorenew,
+                        color: isPaid ? Colors.green : Colors.blue,
                       ),
                     ),
                     title: Row(
@@ -643,10 +744,34 @@ class LoansAndSubscriptionsTab extends StatelessWidget {
                             sub.name,
                             style: TextStyle(
                               fontWeight: FontWeight.bold,
-                              color: sub.isActive ? null : Colors.grey,
+                              color: isPaid ? Colors.grey : null,
+                              decoration: isPaid
+                                  ? TextDecoration.lineThrough
+                                  : null,
                             ),
                           ),
                         ),
+                        if (isPaid) ...[
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 6,
+                              vertical: 2,
+                            ),
+                            decoration: BoxDecoration(
+                              color: Colors.green.withValues(alpha: 0.15),
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                            child: Text(
+                              'Paid',
+                              style: TextStyle(
+                                fontSize: 10,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.green.shade700,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 6),
+                        ],
                         Container(
                           padding: const EdgeInsets.symmetric(
                             horizontal: 6,
@@ -674,7 +799,19 @@ class LoansAndSubscriptionsTab extends StatelessWidget {
                         Text(
                           'Next Bill: ${DateFormat('yyyy-MM-dd').format(sub.nextBillingDate)}',
                         ),
-                        Text(subscriptionDueStatus(sub.nextBillingDate)),
+                        Text(
+                          isPaid
+                              ? 'Paid'
+                              : subscriptionDueStatus(sub.nextBillingDate),
+                          style: TextStyle(
+                            color: isPaid
+                                ? Colors.green.shade700
+                                : (isDueNow ? theme.colorScheme.error : null),
+                            fontWeight: isPaid || isDueNow
+                                ? FontWeight.w600
+                                : null,
+                          ),
+                        ),
                         if (sub.notes != null && sub.notes!.isNotEmpty)
                           Text(
                             'Notes: ${sub.notes}',
@@ -693,14 +830,12 @@ class LoansAndSubscriptionsTab extends StatelessWidget {
                           '$currency${sub.cost.toStringAsFixed(2)}',
                           style: TextStyle(
                             fontWeight: FontWeight.bold,
-                            color: sub.isActive
-                                ? Colors.blue.shade700
-                                : Colors.grey,
+                            color: isPaid ? Colors.grey : Colors.blue.shade700,
                             fontSize: 16,
                           ),
                         ),
                         Text(
-                          '/${sub.billingCycle == 'Monthly' ? 'mo' : (sub.billingCycle == 'Yearly' ? 'yr' : 'wk')}',
+                          shortBillingCycleLabel(sub.billingCycle),
                           style: const TextStyle(
                             fontSize: 11,
                             color: Colors.grey,

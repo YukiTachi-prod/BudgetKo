@@ -502,7 +502,7 @@ class _BudgetScreenState extends State<BudgetScreen> {
               DropdownButtonHideUnderline(
                 child: DropdownButton<String>(
                   value: currency,
-                  icon: const Icon(Icons.arrow_drop_down),
+                  icon: const Icon(Icons.keyboard_arrow_down_rounded),
                   onChanged: (String? newValue) {
                     if (newValue != null) {
                       settings.setCurrency(newValue);
@@ -838,8 +838,8 @@ class _BudgetScreenState extends State<BudgetScreen> {
                               isTransfer
                                   ? Icons.swap_horiz
                                   : (isInc
-                                        ? Icons.arrow_upward
-                                        : Icons.arrow_downward),
+                                        ? Icons.keyboard_arrow_up_rounded
+                                        : Icons.keyboard_arrow_down_rounded),
                               color: isInc
                                   ? Colors.green
                                   : (isTransfer ? Colors.blueGrey : Colors.red),

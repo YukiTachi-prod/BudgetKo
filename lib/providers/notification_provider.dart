@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
 import 'ledger_provider.dart';
+import '../services/notification_service.dart';
 import '../utils/date_util.dart';
 
 class AppNotification {
@@ -202,11 +203,15 @@ class NotificationProvider extends ChangeNotifier {
       }
     }
 
-    // Check upcoming subscriptions (within 3 days)
+    // Check due today / overdue and upcoming subscriptions (within 3 days)
     for (var sub in ledger.subscriptions) {
-      if (sub.isActive &&
-          calendarDaysUntil(sub.nextBillingDate, from: now) <= 3) {
-        final closedDueDateStr = _closedDueDates['sub_${sub.id}'];
+      if (!sub.isActive) continue;
+      final daysUntil = calendarDaysUntil(sub.nextBillingDate, from: now);
+      if (daysUntil <= 3) {
+        final dateStr = sub.nextBillingDate.toLocal().toString().split(' ')[0];
+        final isDueNow = daysUntil <= 0;
+        final entityKey = isDueNow ? 'sub_due_${sub.id}' : 'sub_${sub.id}';
+        final closedDueDateStr = _closedDueDates[entityKey];
         if (closedDueDateStr != null) {
           final closedDueDate = DateTime.tryParse(closedDueDateStr);
           if (closedDueDate != null &&
@@ -215,17 +220,36 @@ class NotificationProvider extends ChangeNotifier {
           }
         }
 
+        final notifId = isDueNow
+            ? 'due_sub_${sub.id}_${sub.nextBillingDate.toIso8601String().substring(0, 10)}'
+            : 'upcoming_sub_${sub.id}_${sub.nextBillingDate.toIso8601String().substring(0, 10)}';
+        final alreadyExists = _notifications.any((n) => n.id == notifId);
+
+        final title = isDueNow
+            ? 'You have a subscription/bill due'
+            : 'Upcoming Subscription';
+        final message = isDueNow
+            ? (daysUntil == 0
+                  ? 'Subscription "${sub.name}" is due today ($dateStr). Tap it in Loans & Subs if you\'ve paid.'
+                  : 'Subscription "${sub.name}" was due on $dateStr. Tap it in Loans & Subs if you\'ve paid.')
+            : 'Subscription "${sub.name}" is due on $dateStr.';
+
         addNotification(
           AppNotification(
-            id: 'upcoming_sub_${sub.id}_${sub.nextBillingDate.toIso8601String().substring(0, 10)}',
-            title: 'Upcoming Subscription',
-            message:
-                'Subscription "${sub.name}" is due on ${sub.nextBillingDate.toLocal().toString().split(' ')[0]}.',
+            id: notifId,
+            title: title,
+            message: message,
             timestamp: DateTime.now(),
             dueDate: sub.nextBillingDate,
-            entityKey: 'sub_${sub.id}',
+            entityKey: entityKey,
           ),
         );
+
+        if (isDueNow && !alreadyExists) {
+          NotificationService()
+              .showImmediateNotification(title, message)
+              .catchError((_) {});
+        }
       }
     }
   }

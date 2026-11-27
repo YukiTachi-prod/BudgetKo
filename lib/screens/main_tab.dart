@@ -193,8 +193,8 @@ class MainTab extends StatelessWidget {
                       Row(
                         children: [
                           Icon(
-                            Icons.arrow_downward_rounded,
-                            size: 15,
+                            Icons.keyboard_arrow_down_rounded,
+                            size: 18,
                             color: Colors.green.shade600,
                           ),
                           const SizedBox(width: 4),
@@ -240,8 +240,8 @@ class MainTab extends StatelessWidget {
                       Row(
                         children: [
                           Icon(
-                            Icons.arrow_upward_rounded,
-                            size: 15,
+                            Icons.keyboard_arrow_up_rounded,
+                            size: 18,
                             color: Colors.red.shade600,
                           ),
                           const SizedBox(width: 4),
@@ -714,8 +714,8 @@ class MainTab extends StatelessWidget {
                           isTransfer
                               ? Icons.swap_horiz
                               : (isInc
-                                    ? Icons.arrow_downward
-                                    : Icons.arrow_upward),
+                                    ? Icons.keyboard_arrow_down_rounded
+                                    : Icons.keyboard_arrow_up_rounded),
                           size: 18,
                           color: isInc
                               ? Colors.green

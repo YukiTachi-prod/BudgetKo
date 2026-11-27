@@ -1493,7 +1493,7 @@ CREATE POLICY "Public access on group_transactions" ON group_transactions FOR AL
                       Row(
                         children: [
                           Icon(
-                            Icons.arrow_downward,
+                            Icons.keyboard_arrow_down_rounded,
                             size: 14,
                             color: Colors.green.shade600,
                           ),
@@ -1535,7 +1535,7 @@ CREATE POLICY "Public access on group_transactions" ON group_transactions FOR AL
                       Row(
                         children: [
                           Icon(
-                            Icons.arrow_upward,
+                            Icons.keyboard_arrow_up_rounded,
                             size: 14,
                             color: Colors.red.shade600,
                           ),

@@ -82,13 +82,7 @@ class _BudgetAnalyticsTabState extends State<BudgetAnalyticsTab> {
         .length;
     double monthlyCostSum = 0.0;
     for (final sub in provider.subscriptions.where((s) => s.isActive)) {
-      if (sub.billingCycle == 'Monthly') {
-        monthlyCostSum += sub.cost;
-      } else if (sub.billingCycle == 'Yearly') {
-        monthlyCostSum += sub.cost / 12.0;
-      } else if (sub.billingCycle == 'Weekly') {
-        monthlyCostSum += sub.cost * 4.33;
-      }
+      monthlyCostSum += monthlyEquivalentCost(sub.cost, sub.billingCycle);
     }
 
     Subscription? nextSub;

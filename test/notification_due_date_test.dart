@@ -1,9 +1,14 @@
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:drift/native.dart';
 import 'package:tasker/database/budget_database.dart';
 import 'package:tasker/providers/ledger_provider.dart';
 import 'package:tasker/providers/notification_provider.dart';
+import 'package:tasker/providers/settings_provider.dart';
+import 'package:tasker/screens/loans_and_subscriptions_tab.dart';
+import 'package:tasker/utils/date_util.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -173,6 +178,86 @@ void main() {
         expect(notificationProvider.unreadNotifications, isEmpty);
         expect(notificationProvider.notifications.length, 1);
         expect(notificationProvider.notifications.first.isRead, isTrue);
+      },
+    );
+
+    test(
+      'Subscription due today notifies with "You have a subscription/bill due"',
+      () async {
+        final today = DateTime.now();
+        await ledger.addSubscription(
+          name: 'Internet Bill',
+          cost: 1500.0,
+          billingCycle: 'Every 1 Month',
+          nextBillingDate: today,
+          accountId: ledger.accounts.first.id,
+        );
+
+        notificationProvider.checkLedgerWarnings(ledger);
+        expect(notificationProvider.notifications.length, 1);
+        expect(
+          notificationProvider.notifications.first.title,
+          'You have a subscription/bill due',
+        );
+      },
+    );
+
+    test('Custom billing cycle parsing, formatting, and short labels', () {
+      expect(formatBillingCycle(2, 'Weeks'), 'Every 2 Weeks');
+      expect(formatBillingCycle(1, 'Days'), 'Every 1 Day');
+      expect(parseBillingCycle('Every 3 Months'), (
+        interval: 3,
+        unit: 'Months',
+      ));
+      expect(parseBillingCycle('Yearly'), (interval: 1, unit: 'Years'));
+      expect(shortBillingCycleLabel('Every 2 Weeks'), '/2 wk');
+      expect(shortBillingCycleLabel('Every 5 Days'), '/5d');
+      expect(shortBillingCycleLabel('Every 1 Month'), '/mo');
+      expect(shortBillingCycleLabel('Every 2 Years'), '/2 yr');
+    });
+
+    testWidgets(
+      'Tapping a due subscription in Loans & Subs prompts if paid and marks it Paid',
+      (tester) async {
+        final settings = SettingsProvider();
+        await settings.preload();
+
+        await ledger.addSubscription(
+          name: 'Electricity',
+          cost: 2200.0,
+          billingCycle: 'Every 2 Weeks',
+          nextBillingDate: DateTime.now(),
+          accountId: ledger.accounts.first.id,
+        );
+
+        await tester.pumpWidget(
+          MultiProvider(
+            providers: [
+              ChangeNotifierProvider<LedgerProvider>.value(value: ledger),
+              ChangeNotifierProvider<SettingsProvider>.value(value: settings),
+              ChangeNotifierProvider<NotificationProvider>.value(
+                value: notificationProvider,
+              ),
+            ],
+            child: const MaterialApp(
+              home: Scaffold(body: LoansAndSubscriptionsTab()),
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        expect(find.text('Electricity'), findsOneWidget);
+        expect(find.text('/2 wk'), findsOneWidget);
+
+        await tester.tap(find.text('Electricity'));
+        await tester.pumpAndSettle();
+
+        expect(find.text('Mark Subscription as Paid?'), findsOneWidget);
+        await tester.tap(find.text('Yes, Paid'));
+        await tester.pumpAndSettle();
+
+        expect(ledger.subscriptions.single.isActive, isFalse);
+        expect(find.text('Paid'), findsAtLeastNWidgets(1));
       },
     );
   });
