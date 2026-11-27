@@ -2,12 +2,21 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'package:package_info_plus/package_info_plus.dart';
+import 'package:shorebird_code_push/shorebird_code_push.dart' as shorebird;
 
-enum UpdateStatus { updateAvailable, upToDate, noReleasesFound, error }
+enum UpdateStatus {
+  patchAvailable,
+  restartRequired,
+  updateAvailable,
+  upToDate,
+  noReleasesFound,
+  error,
+}
 
 class UpdateCheckResult {
   final UpdateStatus status;
   final String currentVersion;
+  final int? currentPatchNumber;
   final String? latestVersion;
   final String? releaseName;
   final String? releaseNotes;
@@ -19,6 +28,7 @@ class UpdateCheckResult {
   const UpdateCheckResult({
     required this.status,
     required this.currentVersion,
+    this.currentPatchNumber,
     this.latestVersion,
     this.releaseName,
     this.releaseNotes,
@@ -52,12 +62,15 @@ class UpdateService {
 
   final UpdateHttpFetcher _httpFetcher;
   final CurrentVersionReader _versionReader;
+  final shorebird.ShorebirdUpdater _shorebirdUpdater;
 
   UpdateService({
     UpdateHttpFetcher? httpFetcher,
     CurrentVersionReader? versionReader,
+    shorebird.ShorebirdUpdater? shorebirdUpdater,
   }) : _httpFetcher = httpFetcher ?? _defaultHttpFetch,
-       _versionReader = versionReader ?? _defaultReadVersion;
+       _versionReader = versionReader ?? _defaultReadVersion,
+       _shorebirdUpdater = shorebirdUpdater ?? shorebird.ShorebirdUpdater();
 
   static Future<String> _defaultReadVersion() async {
     final info = await PackageInfo.fromPlatform();
@@ -89,12 +102,78 @@ class UpdateService {
 
   Future<String> getCurrentVersion() => _versionReader();
 
+  Future<int?> getCurrentPatchNumber() async {
+    if (!_shorebirdUpdater.isAvailable) return null;
+    try {
+      final patch = await _shorebirdUpdater.readCurrentPatch();
+      return patch?.number;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  Future<UpdateCheckResult> downloadPatch() async {
+    String currentVersion = '0.0.0';
+    try {
+      currentVersion = await _versionReader();
+    } catch (_) {}
+    final currentPatch = await getCurrentPatchNumber();
+
+    try {
+      await _shorebirdUpdater.update();
+      return UpdateCheckResult(
+        status: UpdateStatus.restartRequired,
+        currentVersion: currentVersion,
+        currentPatchNumber: currentPatch,
+      );
+    } on shorebird.UpdateException catch (e) {
+      return UpdateCheckResult(
+        status: UpdateStatus.error,
+        currentVersion: currentVersion,
+        currentPatchNumber: currentPatch,
+        errorMessage: 'Failed to download patch: ${e.message}',
+      );
+    } catch (e) {
+      return UpdateCheckResult(
+        status: UpdateStatus.error,
+        currentVersion: currentVersion,
+        currentPatchNumber: currentPatch,
+        errorMessage: 'Failed to download patch: $e',
+      );
+    }
+  }
+
   Future<UpdateCheckResult> checkForUpdates() async {
     String currentVersion = '0.0.0';
     try {
       currentVersion = await _versionReader();
     } catch (_) {}
+    final currentPatch = await getCurrentPatchNumber();
 
+    // 1. Check Shorebird OTA diff patch first when available
+    if (_shorebirdUpdater.isAvailable) {
+      try {
+        final patchStatus = await _shorebirdUpdater.checkForUpdate();
+        if (patchStatus == shorebird.UpdateStatus.restartRequired) {
+          return UpdateCheckResult(
+            status: UpdateStatus.restartRequired,
+            currentVersion: currentVersion,
+            currentPatchNumber: currentPatch,
+          );
+        }
+        if (patchStatus == shorebird.UpdateStatus.outdated) {
+          return UpdateCheckResult(
+            status: UpdateStatus.patchAvailable,
+            currentVersion: currentVersion,
+            currentPatchNumber: currentPatch,
+          );
+        }
+      } catch (_) {
+        // Fall through to GitHub Releases check if Shorebird check fails
+      }
+    }
+
+    // 2. Check GitHub Releases for a newer full APK version
     try {
       final response = await _httpFetcher(latestReleaseUri);
 
@@ -102,6 +181,7 @@ class UpdateService {
         return UpdateCheckResult(
           status: UpdateStatus.noReleasesFound,
           currentVersion: currentVersion,
+          currentPatchNumber: currentPatch,
           errorMessage: 'No published releases found on GitHub yet.',
         );
       }
@@ -110,6 +190,7 @@ class UpdateService {
         return UpdateCheckResult(
           status: UpdateStatus.error,
           currentVersion: currentVersion,
+          currentPatchNumber: currentPatch,
           errorMessage:
               'GitHub API rate limit reached. Please try again in a few minutes.',
         );
@@ -119,6 +200,7 @@ class UpdateService {
         return UpdateCheckResult(
           status: UpdateStatus.error,
           currentVersion: currentVersion,
+          currentPatchNumber: currentPatch,
           errorMessage:
               'Failed to check for updates (HTTP ${response.statusCode}).',
         );
@@ -129,6 +211,7 @@ class UpdateService {
         return UpdateCheckResult(
           status: UpdateStatus.error,
           currentVersion: currentVersion,
+          currentPatchNumber: currentPatch,
           errorMessage: 'Unexpected response from GitHub Releases.',
         );
       }
@@ -138,6 +221,7 @@ class UpdateService {
         return UpdateCheckResult(
           status: UpdateStatus.noReleasesFound,
           currentVersion: currentVersion,
+          currentPatchNumber: currentPatch,
           errorMessage: 'Latest GitHub release has no version tag.',
         );
       }
@@ -156,6 +240,7 @@ class UpdateService {
             ? UpdateStatus.updateAvailable
             : UpdateStatus.upToDate,
         currentVersion: currentVersion,
+        currentPatchNumber: currentPatch,
         latestVersion: tagName,
         releaseName: (releaseName != null && releaseName.isNotEmpty)
             ? releaseName
@@ -171,18 +256,21 @@ class UpdateService {
       return UpdateCheckResult(
         status: UpdateStatus.error,
         currentVersion: currentVersion,
+        currentPatchNumber: currentPatch,
         errorMessage: 'Connection timed out while checking GitHub.',
       );
     } on SocketException {
       return UpdateCheckResult(
         status: UpdateStatus.error,
         currentVersion: currentVersion,
+        currentPatchNumber: currentPatch,
         errorMessage: 'No internet connection. Please check your network.',
       );
     } catch (e) {
       return UpdateCheckResult(
         status: UpdateStatus.error,
         currentVersion: currentVersion,
+        currentPatchNumber: currentPatch,
         errorMessage: 'Could not check for updates: $e',
       );
     }

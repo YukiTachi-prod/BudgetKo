@@ -3,9 +3,40 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:shorebird_code_push/shorebird_code_push.dart' as shorebird;
 import 'package:tasker/providers/settings_provider.dart';
 import 'package:tasker/screens/settings_screen.dart';
 import 'package:tasker/services/update_service.dart';
+
+class _FakeShorebirdUpdater implements shorebird.ShorebirdUpdater {
+  @override
+  final bool isAvailable;
+  final shorebird.UpdateStatus statusToReturn;
+  final shorebird.Patch? currentPatch;
+  bool updateCalled = false;
+
+  _FakeShorebirdUpdater({
+    required this.isAvailable,
+    this.statusToReturn = shorebird.UpdateStatus.upToDate,
+    this.currentPatch,
+  });
+
+  @override
+  Future<shorebird.UpdateStatus> checkForUpdate({
+    shorebird.UpdateTrack? track,
+  }) async => statusToReturn;
+
+  @override
+  Future<shorebird.Patch?> readCurrentPatch() async => currentPatch;
+
+  @override
+  Future<shorebird.Patch?> readNextPatch() async => currentPatch;
+
+  @override
+  Future<void> update({shorebird.UpdateTrack? track}) async {
+    updateCalled = true;
+  }
+}
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -203,5 +234,51 @@ void main() {
 
       expect(find.textContaining("You're up to date!"), findsOneWidget);
     });
+
+    testWidgets(
+      'detects Shorebird diff patch and downloads it from Quick Patch dialog',
+      (tester) async {
+        final settings = SettingsProvider();
+        await settings.preload();
+
+        final fakeShorebird = _FakeShorebirdUpdater(
+          isAvailable: true,
+          statusToReturn: shorebird.UpdateStatus.outdated,
+          currentPatch: const shorebird.Patch(number: 1),
+        );
+
+        final service = UpdateService(
+          versionReader: () async => '1.1.1+3',
+          shorebirdUpdater: fakeShorebird,
+          httpFetcher: (_) async =>
+              const UpdateHttpResponse(statusCode: 404, body: '{}'),
+        );
+
+        await tester.pumpWidget(
+          ChangeNotifierProvider<SettingsProvider>.value(
+            value: settings,
+            child: MaterialApp(home: SettingsScreen(updateService: service)),
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        expect(find.textContaining('Patch #1'), findsOneWidget);
+
+        final scanBtn = find.widgetWithText(FilledButton, 'Scan');
+        await tester.drag(find.byType(ListView), const Offset(0, -400));
+        await tester.pumpAndSettle();
+        await tester.ensureVisible(scanBtn);
+        await tester.pumpAndSettle();
+        await tester.tap(scanBtn);
+        await tester.pumpAndSettle();
+
+        expect(find.text('Quick Patch Available'), findsOneWidget);
+        await tester.tap(find.text('Download Patch'));
+        await tester.pumpAndSettle();
+
+        expect(fakeShorebird.updateCalled, isTrue);
+        expect(find.textContaining('Patch downloaded!'), findsOneWidget);
+      },
+    );
   });
 }

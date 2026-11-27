@@ -19,6 +19,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   late final UpdateService _updateService;
   bool _isCheckingUpdates = false;
   String? _currentVersion;
+  int? _currentPatchNumber;
 
   @override
   void initState() {
@@ -29,9 +30,15 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   Future<void> _loadCurrentVersion() async {
     try {
-      final version = await _updateService.getCurrentVersion();
+      final results = await Future.wait([
+        _updateService.getCurrentVersion(),
+        _updateService.getCurrentPatchNumber(),
+      ]);
       if (mounted) {
-        setState(() => _currentVersion = version);
+        setState(() {
+          _currentVersion = results[0] as String?;
+          _currentPatchNumber = results[1] as int?;
+        });
       }
     } catch (_) {}
   }
@@ -46,16 +53,34 @@ class _SettingsScreenState extends State<SettingsScreen> {
     setState(() {
       _isCheckingUpdates = false;
       _currentVersion = result.currentVersion;
+      _currentPatchNumber = result.currentPatchNumber;
     });
 
     switch (result.status) {
+      case UpdateStatus.patchAvailable:
+        _showPatchAvailableDialog(result);
+        break;
+      case UpdateStatus.restartRequired:
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Update patch downloaded! Restart BudgetKo to apply it.',
+            ),
+          ),
+        );
+        break;
       case UpdateStatus.updateAvailable:
         _showUpdateAvailableDialog(result);
         break;
       case UpdateStatus.upToDate:
+        final patchSuffix = result.currentPatchNumber != null
+            ? ' • Patch #${result.currentPatchNumber}'
+            : '';
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('You\'re up to date! (v${result.currentVersion})'),
+            content: Text(
+              'You\'re up to date! (v${result.currentVersion}$patchSuffix)',
+            ),
           ),
         );
         break;
@@ -70,6 +95,85 @@ class _SettingsScreenState extends State<SettingsScreen> {
         );
         break;
     }
+  }
+
+  void _showPatchAvailableDialog(UpdateCheckResult result) {
+    bool isDownloading = false;
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) {
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            return AlertDialog(
+              title: const Text('Quick Patch Available'),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'A lightweight diff patch is available via Shorebird — no full APK download required.',
+                  ),
+                  if (isDownloading) ...[
+                    const SizedBox(height: 16),
+                    const Row(
+                      children: [
+                        SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        ),
+                        SizedBox(width: 12),
+                        Text('Downloading patch...'),
+                      ],
+                    ),
+                  ],
+                ],
+              ),
+              actions: [
+                TextButton(
+                  onPressed: isDownloading ? null : () => Navigator.pop(ctx),
+                  child: const Text('Later'),
+                ),
+                FilledButton.icon(
+                  onPressed: isDownloading
+                      ? null
+                      : () async {
+                          setDialogState(() => isDownloading = true);
+                          final downloadResult = await _updateService
+                              .downloadPatch();
+                          if (!ctx.mounted) return;
+                          Navigator.pop(ctx);
+                          if (!mounted) return;
+                          if (downloadResult.status ==
+                              UpdateStatus.restartRequired) {
+                            ScaffoldMessenger.of(this.context).showSnackBar(
+                              const SnackBar(
+                                content: Text(
+                                  'Patch downloaded! Restart BudgetKo to apply.',
+                                ),
+                              ),
+                            );
+                          } else {
+                            ScaffoldMessenger.of(this.context).showSnackBar(
+                              SnackBar(
+                                content: Text(
+                                  downloadResult.errorMessage ??
+                                      'Could not download patch.',
+                                ),
+                              ),
+                            );
+                          }
+                        },
+                  icon: const Icon(Icons.bolt_rounded, size: 18),
+                  label: const Text('Download Patch'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
   }
 
   Future<void> _openExternalUrl(String url) async {
@@ -302,8 +406,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
             title: const Text('Scan for Updates'),
             subtitle: Text(
               _currentVersion != null
-                  ? 'Current version: v$_currentVersion • GitHub Releases'
-                  : 'Check GitHub Releases for a newer version',
+                  ? 'v$_currentVersion${_currentPatchNumber != null ? ' (Patch #$_currentPatchNumber)' : ''} • Shorebird & GitHub'
+                  : 'Check Shorebird patches & GitHub Releases',
             ),
             trailing: _isCheckingUpdates
                 ? const SizedBox(
