@@ -5,30 +5,40 @@ class GroupProfile {
   final String id;
   final String name;
   final int colorHex;
+  final String password;
 
   const GroupProfile({
     required this.id,
     required this.name,
     required this.colorHex,
+    this.password = '',
   });
 
   Map<String, dynamic> toJson() => {
     'id': id,
     'name': name,
     'colorHex': colorHex,
+    if (password.isNotEmpty) 'password': password,
   };
 
   factory GroupProfile.fromJson(Map<String, dynamic> json) => GroupProfile(
     id: json['id'] as String,
     name: json['name'] as String,
     colorHex: (json['colorHex'] as num).toInt(),
+    password: json['password']?.toString() ?? '',
   );
 
-  GroupProfile copyWith({String? id, String? name, int? colorHex}) {
+  GroupProfile copyWith({
+    String? id,
+    String? name,
+    int? colorHex,
+    String? password,
+  }) {
     return GroupProfile(
       id: id ?? this.id,
       name: name ?? this.name,
       colorHex: colorHex ?? this.colorHex,
+      password: password ?? this.password,
     );
   }
 
@@ -115,6 +125,7 @@ class GroupMember {
   final String userId;
   final String name;
   final int colorHex;
+  final String password;
   final DateTime joinedAt;
 
   const GroupMember({
@@ -123,6 +134,7 @@ class GroupMember {
     required this.userId,
     required this.name,
     required this.colorHex,
+    this.password = '',
     required this.joinedAt,
   });
 
@@ -132,6 +144,7 @@ class GroupMember {
     'user_id': userId,
     'name': name,
     'color_hex': colorHex,
+    'password': password,
     'joined_at': joinedAt.toIso8601String(),
   };
 
@@ -142,10 +155,59 @@ class GroupMember {
       userId: map['user_id']?.toString() ?? '',
       name: map['name']?.toString() ?? 'Anonymous',
       colorHex: (map['color_hex'] as num?)?.toInt() ?? 0xFF2196F3,
+      password: map['password']?.toString() ?? '',
       joinedAt: map['joined_at'] != null
           ? DateTime.tryParse(map['joined_at'].toString()) ?? DateTime.now()
           : DateTime.now(),
     );
+  }
+}
+
+enum MemberClaimStatus {
+  matchedById,
+  reclaimedByName,
+  newMember,
+  wrongPassword,
+}
+
+class MemberClaimResult {
+  final MemberClaimStatus status;
+  final GroupMember? matchedMember;
+
+  const MemberClaimResult(this.status, [this.matchedMember]);
+
+  /// Resolves how [profile] maps onto [existingMembers] of a specific wallet.
+  ///
+  /// - If another member already uses the same name (case-insensitive):
+  ///   - Matching password (including empty string for legacy names) reclaims
+  ///     that existing member's identity so no duplicate row is created.
+  ///   - Non-matching password returns [MemberClaimStatus.wrongPassword].
+  /// - Otherwise, if [profile.id] already exists in [existingMembers], returns
+  ///   [MemberClaimStatus.matchedById].
+  /// - Otherwise returns [MemberClaimStatus.newMember].
+  static MemberClaimResult resolve({
+    required List<GroupMember> existingMembers,
+    required GroupProfile profile,
+  }) {
+    final normalizedName = profile.name.trim().toLowerCase();
+
+    for (final member in existingMembers) {
+      if (member.userId != profile.id &&
+          member.name.trim().toLowerCase() == normalizedName) {
+        if (member.password == profile.password) {
+          return MemberClaimResult(MemberClaimStatus.reclaimedByName, member);
+        }
+        return MemberClaimResult(MemberClaimStatus.wrongPassword, member);
+      }
+    }
+
+    for (final member in existingMembers) {
+      if (member.userId == profile.id) {
+        return MemberClaimResult(MemberClaimStatus.matchedById, member);
+      }
+    }
+
+    return const MemberClaimResult(MemberClaimStatus.newMember);
   }
 }
 
@@ -216,3 +278,70 @@ class GroupTransaction {
     );
   }
 }
+
+/// A single member's confirmation vote to remove a group wallet.
+class WalletDeleteVote {
+  final String id;
+  final String walletId;
+  final String userId;
+  final String userName;
+  final DateTime createdAt;
+
+  const WalletDeleteVote({
+    required this.id,
+    required this.walletId,
+    required this.userId,
+    required this.userName,
+    required this.createdAt,
+  });
+
+  Map<String, dynamic> toMap() => {
+    'id': id,
+    'wallet_id': walletId,
+    'user_id': userId,
+    'user_name': userName,
+    'created_at': createdAt.toIso8601String(),
+  };
+
+  factory WalletDeleteVote.fromMap(Map<String, dynamic> map) {
+    return WalletDeleteVote(
+      id: map['id']?.toString() ?? '',
+      walletId: map['wallet_id']?.toString() ?? '',
+      userId: map['user_id']?.toString() ?? '',
+      userName: map['user_name']?.toString() ?? 'A member',
+      createdAt: map['created_at'] != null
+          ? DateTime.tryParse(map['created_at'].toString()) ?? DateTime.now()
+          : DateTime.now(),
+    );
+  }
+}
+
+/// Tracks an active removal vote for a group wallet and evaluates the 2/3 threshold.
+class WalletDeleteVoteSummary {
+  final String walletId;
+  final String walletName;
+  final int totalMembers;
+  final List<WalletDeleteVote> votes;
+
+  const WalletDeleteVoteSummary({
+    required this.walletId,
+    required this.walletName,
+    required this.totalMembers,
+    required this.votes,
+  });
+
+  /// Minimum number of votes required (at least 2/3 of members, rounded up).
+  static int requiredVotesFor(int memberCount) {
+    if (memberCount <= 1) return 1;
+    return ((memberCount * 2) / 3).ceil();
+  }
+
+  int get requiredVotes => requiredVotesFor(totalMembers);
+  int get voteCount => votes.length;
+  bool get hasReachedThreshold => voteCount >= requiredVotes;
+  bool hasVoted(String userId) => votes.any((v) => v.userId == userId);
+  String get initiatorName =>
+      votes.isNotEmpty ? votes.first.userName : 'A member';
+}
+
+enum VoteDeleteResult { voted, deleted, failed }

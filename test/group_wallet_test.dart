@@ -42,6 +42,130 @@ void main() {
       expect(newProvider.hasProfile, isTrue);
       expect(newProvider.profile?.name, 'Sam');
       expect(newProvider.profile?.colorHex, 0xFF2196F3);
+      expect(newProvider.profile?.password, '');
+
+      // Save with password and verify persistence
+      await newProvider.saveProfile('Sam', 0xFF2196F3, password: 'secret123');
+      final thirdProvider = GroupWalletProvider();
+      await thirdProvider.preload();
+      expect(thirdProvider.profile?.password, 'secret123');
+    });
+
+    test('MemberClaimResult reclaims existing name with matching password or empty legacy password without duplicates', () {
+      final now = DateTime.now();
+      final members = [
+        GroupMember(
+          id: 'm1',
+          walletId: 'w1',
+          userId: 'orig-alex-id',
+          name: 'Alex',
+          colorHex: 0xFF111111,
+          password: 'pw123',
+          joinedAt: now,
+        ),
+        GroupMember(
+          id: 'm2',
+          walletId: 'w1',
+          userId: 'legacy-sam-id',
+          name: 'Sam',
+          colorHex: 0xFF222222,
+          // Legacy member with empty password
+          joinedAt: now,
+        ),
+      ];
+
+      // Rejoining Alex with a fresh device userId + correct password reclaims orig-alex-id
+      final reclaimAlex = MemberClaimResult.resolve(
+        existingMembers: members,
+        profile: const GroupProfile(
+          id: 'new-device-id',
+          name: 'alex',
+          colorHex: 0xFF333333,
+          password: 'pw123',
+        ),
+      );
+      expect(reclaimAlex.status, MemberClaimStatus.reclaimedByName);
+      expect(reclaimAlex.matchedMember?.userId, 'orig-alex-id');
+
+      // Rejoining Alex with wrong password is rejected
+      final wrongPw = MemberClaimResult.resolve(
+        existingMembers: members,
+        profile: const GroupProfile(
+          id: 'new-device-id',
+          name: 'Alex',
+          colorHex: 0xFF333333,
+          password: 'wrong',
+        ),
+      );
+      expect(wrongPw.status, MemberClaimStatus.wrongPassword);
+
+      // Rejoining legacy Sam with empty password reclaims legacy-sam-id
+      final reclaimLegacy = MemberClaimResult.resolve(
+        existingMembers: members,
+        profile: const GroupProfile(
+          id: 'new-device-id',
+          name: 'Sam',
+          colorHex: 0xFF333333,
+          password: '',
+        ),
+      );
+      expect(reclaimLegacy.status, MemberClaimStatus.reclaimedByName);
+      expect(reclaimLegacy.matchedMember?.userId, 'legacy-sam-id');
+
+      // Brand new name is allowed as newMember
+      final brandNew = MemberClaimResult.resolve(
+        existingMembers: members,
+        profile: const GroupProfile(
+          id: 'new-device-id',
+          name: 'Jamie',
+          colorHex: 0xFF444444,
+          password: 'abc',
+        ),
+      );
+      expect(brandNew.status, MemberClaimStatus.newMember);
+    });
+
+    test('WalletDeleteVoteSummary enforces at least 2/3 majority threshold', () {
+      expect(WalletDeleteVoteSummary.requiredVotesFor(1), 1);
+      expect(WalletDeleteVoteSummary.requiredVotesFor(2), 2);
+      expect(WalletDeleteVoteSummary.requiredVotesFor(3), 2);
+      expect(WalletDeleteVoteSummary.requiredVotesFor(4), 3);
+      expect(WalletDeleteVoteSummary.requiredVotesFor(5), 4);
+      expect(WalletDeleteVoteSummary.requiredVotesFor(6), 4);
+
+      final now = DateTime.now();
+      final oneVote = WalletDeleteVoteSummary(
+        walletId: 'w1',
+        walletName: 'Trip',
+        totalMembers: 3,
+        votes: [
+          WalletDeleteVote(
+            id: 'v1',
+            walletId: 'w1',
+            userId: 'u1',
+            userName: 'Alex',
+            createdAt: now,
+          ),
+        ],
+      );
+      expect(oneVote.hasReachedThreshold, isFalse);
+
+      final twoVotes = WalletDeleteVoteSummary(
+        walletId: 'w1',
+        walletName: 'Trip',
+        totalMembers: 3,
+        votes: [
+          ...oneVote.votes,
+          WalletDeleteVote(
+            id: 'v2',
+            walletId: 'w1',
+            userId: 'u2',
+            userName: 'Sam',
+            createdAt: now,
+          ),
+        ],
+      );
+      expect(twoVotes.hasReachedThreshold, isTrue);
     });
   });
 

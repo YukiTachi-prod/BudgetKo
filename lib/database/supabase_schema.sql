@@ -26,9 +26,12 @@ CREATE TABLE IF NOT EXISTS group_members (
     user_id TEXT NOT NULL,
     name TEXT NOT NULL,
     color_hex BIGINT DEFAULT 4280391411,
+    password TEXT DEFAULT '',
     joined_at TIMESTAMPTZ DEFAULT now(),
     UNIQUE(wallet_id, user_id)
 );
+
+ALTER TABLE group_members ADD COLUMN IF NOT EXISTS password TEXT DEFAULT '';
 
 -- 4. Group Transactions Table
 CREATE TABLE IF NOT EXISTS group_transactions (
@@ -43,6 +46,16 @@ CREATE TABLE IF NOT EXISTS group_transactions (
     paid_by_color_hex BIGINT DEFAULT 4280391411,
     date TIMESTAMPTZ DEFAULT now(),
     created_at TIMESTAMPTZ DEFAULT now()
+);
+
+-- 4b. Group Wallet Delete Votes Table (2/3 majority vote required to remove a wallet)
+CREATE TABLE IF NOT EXISTS group_wallet_delete_votes (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    wallet_id UUID NOT NULL REFERENCES group_wallets(id) ON DELETE CASCADE,
+    user_id TEXT NOT NULL,
+    user_name TEXT NOT NULL,
+    created_at TIMESTAMPTZ DEFAULT now(),
+    UNIQUE(wallet_id, user_id)
 );
 
 -- 5. Helper RPC function to allow client-side table creation / migrations if needed
@@ -60,6 +73,7 @@ $$;
 ALTER TABLE group_wallets ENABLE ROW LEVEL SECURITY;
 ALTER TABLE group_members ENABLE ROW LEVEL SECURITY;
 ALTER TABLE group_transactions ENABLE ROW LEVEL SECURITY;
+ALTER TABLE group_wallet_delete_votes ENABLE ROW LEVEL SECURITY;
 
 -- 7. Create Public Access Policies (Allow group members with anon key to read & write)
 DROP POLICY IF EXISTS "Public access on group_wallets" ON group_wallets;
@@ -71,7 +85,11 @@ CREATE POLICY "Public access on group_members" ON group_members FOR ALL USING (t
 DROP POLICY IF EXISTS "Public access on group_transactions" ON group_transactions;
 CREATE POLICY "Public access on group_transactions" ON group_transactions FOR ALL USING (true) WITH CHECK (true);
 
+DROP POLICY IF EXISTS "Public access on group_wallet_delete_votes" ON group_wallet_delete_votes;
+CREATE POLICY "Public access on group_wallet_delete_votes" ON group_wallet_delete_votes FOR ALL USING (true) WITH CHECK (true);
+
 -- 8. Enable Realtime for group tables
 ALTER PUBLICATION supabase_realtime ADD TABLE group_wallets;
 ALTER PUBLICATION supabase_realtime ADD TABLE group_members;
 ALTER PUBLICATION supabase_realtime ADD TABLE group_transactions;
+ALTER PUBLICATION supabase_realtime ADD TABLE group_wallet_delete_votes;

@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import '../models/group_wallet_models.dart';
+import '../providers/group_wallet_provider.dart';
 import '../providers/notification_provider.dart';
 
 class NotificationDrawer extends StatelessWidget {
@@ -77,6 +79,11 @@ class NotificationDrawer extends StatelessWidget {
                           ),
                           onTap: () {
                             provider.markAsRead(notification.id);
+                            final isDeleteVote =
+                                notification.actionType ==
+                                    AppNotification
+                                        .actionGroupWalletDeleteVote &&
+                                notification.actionPayload != null;
                             showDialog(
                               context: context,
                               builder: (ctx) => AlertDialog(
@@ -92,6 +99,61 @@ class NotificationDrawer extends StatelessWidget {
                                     },
                                     child: const Text('Close'),
                                   ),
+                                  if (isDeleteVote)
+                                    FilledButton(
+                                      style: FilledButton.styleFrom(
+                                        backgroundColor: Colors.red,
+                                        foregroundColor: Colors.white,
+                                      ),
+                                      onPressed: () async {
+                                        final messenger = ScaffoldMessenger.of(
+                                          context,
+                                        );
+                                        final groupWallet = context
+                                            .read<GroupWalletProvider>();
+                                        final result = await groupWallet
+                                            .initiateOrConfirmDeleteVote(
+                                              notification.actionPayload!,
+                                            );
+                                        provider.closeNotification(
+                                          notification.id,
+                                        );
+                                        provider.syncGroupWalletDeleteVotes(
+                                          groupWallet,
+                                        );
+                                        if (ctx.mounted) Navigator.pop(ctx);
+                                        if (result ==
+                                            VoteDeleteResult.deleted) {
+                                          messenger.showSnackBar(
+                                            const SnackBar(
+                                              content: Text(
+                                                'Group wallet removed (2/3 majority reached).',
+                                              ),
+                                            ),
+                                          );
+                                        } else if (result ==
+                                            VoteDeleteResult.voted) {
+                                          messenger.showSnackBar(
+                                            const SnackBar(
+                                              content: Text(
+                                                'Removal vote confirmed. Waiting for 2/3 majority.',
+                                              ),
+                                            ),
+                                          );
+                                        } else {
+                                          messenger.showSnackBar(
+                                            SnackBar(
+                                              content: Text(
+                                                groupWallet.connectionError ??
+                                                    'Could not record vote.',
+                                              ),
+                                              backgroundColor: Colors.red,
+                                            ),
+                                          );
+                                        }
+                                      },
+                                      child: const Text('Confirm Removal'),
+                                    ),
                                 ],
                               ),
                             );

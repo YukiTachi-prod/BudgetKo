@@ -34,7 +34,10 @@ class _GroupWalletTabState extends State<GroupWalletTab> {
   // ── Dialog: Profile Setup & Edit ──────────────────────────────────────
   void _showProfileDialog(BuildContext context, [GroupProfile? current]) {
     final nameCtrl = TextEditingController(text: current?.name ?? '');
+    final passwordCtrl = TextEditingController(text: current?.password ?? '');
     int selectedColor = current?.colorHex ?? 0xFF7C3AED;
+    bool isPasswordObscured = true;
+    String? errorText;
 
     showDialog(
       context: context,
@@ -51,7 +54,7 @@ class _GroupWalletTabState extends State<GroupWalletTab> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     const Text(
-                      'Your profile is held locally on this device to identify your contributions and expenses in group wallets.',
+                      'Your profile is held locally on this device to identify your contributions and expenses in group wallets. Set a password to reclaim your name if you rejoin a wallet.',
                       style: TextStyle(fontSize: 13, color: Colors.grey),
                     ),
                     const SizedBox(height: 16),
@@ -61,6 +64,37 @@ class _GroupWalletTabState extends State<GroupWalletTab> {
                         labelText: 'Your Name / Nickname',
                         hintText: 'e.g. Alex, Sam, Yuki',
                       ),
+                      onChanged: (_) {
+                        if (errorText != null) {
+                          setState(() => errorText = null);
+                        }
+                      },
+                    ),
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: passwordCtrl,
+                      obscureText: isPasswordObscured,
+                      decoration: InputDecoration(
+                        labelText: 'Wallet Password (Optional)',
+                        hintText: 'Leave empty if none / legacy name',
+                        errorText: errorText,
+                        suffixIcon: IconButton(
+                          icon: Icon(
+                            isPasswordObscured
+                                ? Icons.visibility_off
+                                : Icons.visibility,
+                            size: 18,
+                          ),
+                          onPressed: () => setState(
+                            () => isPasswordObscured = !isPasswordObscured,
+                          ),
+                        ),
+                      ),
+                      onChanged: (_) {
+                        if (errorText != null) {
+                          setState(() => errorText = null);
+                        }
+                      },
                     ),
                     const SizedBox(height: 16),
                     Row(
@@ -129,14 +163,23 @@ class _GroupWalletTabState extends State<GroupWalletTab> {
                   child: const Text('Cancel'),
                 ),
                 FilledButton(
-                  onPressed: () {
+                  onPressed: () async {
                     final name = nameCtrl.text.trim();
-                    if (name.isNotEmpty) {
-                      context.read<GroupWalletProvider>().saveProfile(
-                        name,
-                        selectedColor,
-                      );
+                    if (name.isEmpty) return;
+                    final provider = context.read<GroupWalletProvider>();
+                    final ok = await provider.saveProfile(
+                      name,
+                      selectedColor,
+                      password: passwordCtrl.text,
+                    );
+                    if (!ctx.mounted) return;
+                    if (ok) {
                       Navigator.pop(ctx);
+                    } else {
+                      setState(
+                        () => errorText =
+                            provider.connectionError ?? 'Incorrect password.',
+                      );
                     }
                   },
                   child: const Text('Save Profile'),
@@ -267,9 +310,12 @@ CREATE TABLE IF NOT EXISTS group_members (
     user_id TEXT NOT NULL,
     name TEXT NOT NULL,
     color_hex BIGINT DEFAULT 4280391411,
+    password TEXT DEFAULT '',
     joined_at TIMESTAMPTZ DEFAULT now(),
     UNIQUE(wallet_id, user_id)
 );
+
+ALTER TABLE group_members ADD COLUMN IF NOT EXISTS password TEXT DEFAULT '';
 
 -- Group Transactions Table
 CREATE TABLE IF NOT EXISTS group_transactions (
@@ -286,6 +332,16 @@ CREATE TABLE IF NOT EXISTS group_transactions (
     created_at TIMESTAMPTZ DEFAULT now()
 );
 
+-- Group Wallet Delete Votes Table (2/3 majority vote)
+CREATE TABLE IF NOT EXISTS group_wallet_delete_votes (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    wallet_id UUID NOT NULL REFERENCES group_wallets(id) ON DELETE CASCADE,
+    user_id TEXT NOT NULL,
+    user_name TEXT NOT NULL,
+    created_at TIMESTAMPTZ DEFAULT now(),
+    UNIQUE(wallet_id, user_id)
+);
+
 -- Helper RPC for automated migrations
 CREATE OR REPLACE FUNCTION exec_sql(query text) RETURNS void
 LANGUAGE plpgsql SECURITY DEFINER AS \$\$ BEGIN EXECUTE query; END; \$\$;
@@ -294,11 +350,13 @@ LANGUAGE plpgsql SECURITY DEFINER AS \$\$ BEGIN EXECUTE query; END; \$\$;
 ALTER TABLE group_wallets ENABLE ROW LEVEL SECURITY;
 ALTER TABLE group_members ENABLE ROW LEVEL SECURITY;
 ALTER TABLE group_transactions ENABLE ROW LEVEL SECURITY;
+ALTER TABLE group_wallet_delete_votes ENABLE ROW LEVEL SECURITY;
 
 -- Public Access Policies
 CREATE POLICY "Public access on group_wallets" ON group_wallets FOR ALL USING (true) WITH CHECK (true);
 CREATE POLICY "Public access on group_members" ON group_members FOR ALL USING (true) WITH CHECK (true);
 CREATE POLICY "Public access on group_transactions" ON group_transactions FOR ALL USING (true) WITH CHECK (true);
+CREATE POLICY "Public access on group_wallet_delete_votes" ON group_wallet_delete_votes FOR ALL USING (true) WITH CHECK (true);
 ''';
 
     showDialog(
@@ -437,70 +495,156 @@ CREATE POLICY "Public access on group_transactions" ON group_transactions FOR AL
 
   // ── Dialog: Join Wallet by ID ─────────────────────────────────────────
   void _showJoinWalletDialog(BuildContext context) {
+    final provider = context.read<GroupWalletProvider>();
     final idCtrl = TextEditingController();
+    final nameCtrl = TextEditingController(text: provider.profile?.name ?? '');
+    final passwordCtrl = TextEditingController(
+      text: provider.profile?.password ?? '',
+    );
+    bool isPasswordObscured = true;
 
     showDialog(
       context: context,
       builder: (ctx) {
-        return AlertDialog(
-          title: const Text('Join Group Wallet'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Text(
-                'Enter the Wallet ID shared by another group member to join their collective budget.',
-                style: TextStyle(fontSize: 13, color: Colors.grey),
-              ),
-              const SizedBox(height: 16),
-              TextField(
-                controller: idCtrl,
-                decoration: const InputDecoration(
-                  labelText: 'Group Wallet ID (UUID)',
-                  hintText: 'e.g. 550e8400-e29b-41d4-a716-446655440000',
+        return StatefulBuilder(
+          builder: (context, setState) {
+            return AlertDialog(
+              title: const Text('Join Group Wallet'),
+              content: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Text(
+                      'Enter the Wallet ID shared by another group member. Rejoining? Use your existing name and wallet password to avoid duplicates.',
+                      style: TextStyle(fontSize: 13, color: Colors.grey),
+                    ),
+                    const SizedBox(height: 16),
+                    TextField(
+                      controller: idCtrl,
+                      decoration: const InputDecoration(
+                        labelText: 'Group Wallet ID (UUID)',
+                        hintText: 'e.g. 550e8400-e29b-41d4-a716-446655440000',
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: nameCtrl,
+                      decoration: const InputDecoration(
+                        labelText: 'Your Name in this Wallet',
+                        hintText: 'e.g. Alex',
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: passwordCtrl,
+                      obscureText: isPasswordObscured,
+                      decoration: InputDecoration(
+                        labelText: 'Password (Optional)',
+                        hintText: 'Leave empty if none / legacy name',
+                        suffixIcon: IconButton(
+                          icon: Icon(
+                            isPasswordObscured
+                                ? Icons.visibility_off
+                                : Icons.visibility,
+                            size: 18,
+                          ),
+                          onPressed: () => setState(
+                            () => isPasswordObscured = !isPasswordObscured,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               ),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(ctx),
-              child: const Text('Cancel'),
-            ),
-            FilledButton(
-              onPressed: () async {
-                final id = idCtrl.text.trim();
-                if (id.isNotEmpty) {
-                  final ok = await context
-                      .read<GroupWalletProvider>()
-                      .joinWalletById(id);
-                  if (ctx.mounted) {
-                    Navigator.pop(ctx);
-                    if (!ok) {
-                      final err = context
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(ctx),
+                  child: const Text('Cancel'),
+                ),
+                FilledButton(
+                  onPressed: () async {
+                    final id = idCtrl.text.trim();
+                    if (id.isNotEmpty) {
+                      final ok = await context
                           .read<GroupWalletProvider>()
-                          .connectionError;
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text(err ?? 'Could not join wallet')),
-                      );
+                          .joinWalletById(
+                            id,
+                            name: nameCtrl.text.trim(),
+                            password: passwordCtrl.text,
+                          );
+                      if (ctx.mounted) {
+                        Navigator.pop(ctx);
+                        if (!ok) {
+                          final err = context
+                              .read<GroupWalletProvider>()
+                              .connectionError;
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text(err ?? 'Could not join wallet'),
+                            ),
+                          );
+                        }
+                      }
                     }
-                  }
-                }
-              },
-              child: const Text('Join'),
-            ),
-          ],
+                  },
+                  child: const Text('Join'),
+                ),
+              ],
+            );
+          },
         );
       },
     );
   }
 
   // ── Dialog: Remove Group Wallet ─────────────────────────────────────────
+  void _showLeaveWalletDialog(
+    BuildContext context,
+    GroupWalletProvider provider,
+    GroupWallet wallet,
+  ) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Leave Group Wallet'),
+        content: Text(
+          'Leave "${wallet.name}"? The wallet and its transactions will remain intact for other members, and you can rejoin later using the Wallet ID with your name and password.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () async {
+              final messenger = ScaffoldMessenger.of(context);
+              Navigator.pop(ctx);
+              await provider.leaveWallet(wallet.id);
+              messenger.showSnackBar(
+                SnackBar(content: Text('Left group wallet "${wallet.name}".')),
+              );
+            },
+            child: const Text('Leave'),
+          ),
+        ],
+      ),
+    );
+  }
+
   void _showRemoveWalletDialog(
     BuildContext context,
     GroupWalletProvider provider,
     GroupWallet wallet,
   ) {
     final confirmCtrl = TextEditingController();
+    final totalMembers = provider.currentWallet?.id == wallet.id &&
+            provider.members.isNotEmpty
+        ? provider.members.length
+        : 1;
+    final requiredVotes = WalletDeleteVoteSummary.requiredVotesFor(
+      totalMembers,
+    );
 
     showDialog(
       context: context,
@@ -518,7 +662,9 @@ CREATE POLICY "Public access on group_transactions" ON group_transactions FOR AL
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'Are you sure you want to permanently delete "${wallet.name}"? All associated collective transactions and member entries will be removed.',
+                      totalMembers > 1
+                          ? 'Initiating removal of "${wallet.name}" starts a group vote. At least $requiredVotes of $totalMembers members (2/3) must confirm via Notifications before it is permanently deleted.'
+                          : 'Are you sure you want to permanently delete "${wallet.name}"? All associated collective transactions and member entries will be removed.',
                     ),
                     const SizedBox(height: 12),
                     const Text(
@@ -552,12 +698,27 @@ CREATE POLICY "Public access on group_transactions" ON group_transactions FOR AL
                       ? () async {
                           final messenger = ScaffoldMessenger.of(context);
                           Navigator.pop(ctx);
-                          final ok = await provider.deleteWallet(wallet.id);
-                          if (ok) {
+                          final result = await provider
+                              .initiateOrConfirmDeleteVote(wallet.id);
+                          if (result == VoteDeleteResult.deleted) {
                             messenger.showSnackBar(
                               SnackBar(
                                 content: Text(
                                   'Group wallet "${wallet.name}" removed.',
+                                ),
+                              ),
+                            );
+                          } else if (result == VoteDeleteResult.voted) {
+                            final summary = provider.deleteVoteSummaryFor(
+                              wallet.id,
+                            );
+                            final progress = summary != null
+                                ? ' (${summary.voteCount}/${summary.requiredVotes} votes)'
+                                : '';
+                            messenger.showSnackBar(
+                              SnackBar(
+                                content: Text(
+                                  'Removal vote started$progress. Other members can confirm in Notifications.',
                                 ),
                               ),
                             );
@@ -838,6 +999,16 @@ CREATE POLICY "Public access on group_transactions" ON group_transactions FOR AL
             else ...[
               // ── 3. Active Group Wallet Header & Switcher ───────────────
               _buildWalletHeaderCard(context, provider, theme),
+              if (provider.deleteVoteSummaryFor(provider.currentWallet!.id) !=
+                  null) ...[
+                const SizedBox(height: 10),
+                _buildActiveDeleteVoteBanner(
+                  context,
+                  provider,
+                  provider.deleteVoteSummaryFor(provider.currentWallet!.id)!,
+                  theme,
+                ),
+              ],
               const SizedBox(height: 14),
 
               // ── 4. Collective Budget Overview Card ────────────────────
@@ -1271,6 +1442,8 @@ CREATE POLICY "Public access on group_transactions" ON group_transactions FOR AL
                 _showCreateWalletDialog(context);
               } else if (val == 'join') {
                 _showJoinWalletDialog(context);
+              } else if (val == 'leave') {
+                _showLeaveWalletDialog(context, provider, wallet);
               } else if (val == 'remove') {
                 _showRemoveWalletDialog(context, provider, wallet);
               }
@@ -1318,6 +1491,16 @@ CREATE POLICY "Public access on group_transactions" ON group_transactions FOR AL
               ),
               const PopupMenuDivider(),
               const PopupMenuItem(
+                value: 'leave',
+                child: Row(
+                  children: [
+                    Icon(Icons.login, size: 18),
+                    SizedBox(width: 8),
+                    Text('Leave Wallet'),
+                  ],
+                ),
+              ),
+              const PopupMenuItem(
                 value: 'remove',
                 child: Row(
                   children: [
@@ -1329,6 +1512,73 @@ CREATE POLICY "Public access on group_transactions" ON group_transactions FOR AL
               ),
             ],
           ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildActiveDeleteVoteBanner(
+    BuildContext context,
+    GroupWalletProvider provider,
+    WalletDeleteVoteSummary summary,
+    ThemeData theme,
+  ) {
+    final userId = provider.profile?.id ?? '';
+    final hasVoted = summary.hasVoted(userId);
+    final errorColor = theme.colorScheme.error;
+
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: AppTheme.squircleDecoration(
+        color: errorColor.withValues(alpha: 0.08),
+        radius: AppTheme.radius,
+        side: BorderSide(color: errorColor.withValues(alpha: 0.35)),
+      ),
+      child: Row(
+        children: [
+          Icon(Icons.warning_amber_rounded, size: 18, color: errorColor),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Removal vote in progress (${summary.voteCount}/${summary.requiredVotes})',
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                    color: errorColor,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  'At least 2/3 of members must confirm to delete this wallet.',
+                  style: theme.textTheme.bodySmall,
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 8),
+          if (hasVoted)
+            TextButton(
+              onPressed: () => provider.withdrawDeleteVote(summary.walletId),
+              child: const Text('Withdraw'),
+            )
+          else
+            FilledButton(
+              style: FilledButton.styleFrom(
+                backgroundColor: errorColor,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 6,
+                ),
+                minimumSize: const Size(0, 32),
+              ),
+              onPressed: () =>
+                  provider.initiateOrConfirmDeleteVote(summary.walletId),
+              child: const Text('Confirm'),
+            ),
         ],
       ),
     );

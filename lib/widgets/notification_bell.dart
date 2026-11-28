@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/notification_provider.dart';
 import '../providers/ledger_provider.dart';
+import '../providers/group_wallet_provider.dart';
 import '../theme/app_theme.dart';
 
 class NotificationBell extends StatelessWidget {
@@ -19,8 +20,17 @@ class NotificationBell extends StatelessWidget {
             IconButton(
               icon: const Icon(Icons.notifications_rounded),
               onPressed: () {
-                // Ensure ledger warnings are checked before opening drawer
+                // Ensure ledger warnings & group wallet removal votes are checked before opening drawer
                 provider.checkLedgerWarnings(context.read<LedgerProvider>());
+                try {
+                  final groupWallet = context.read<GroupWalletProvider>();
+                  groupWallet.fetchDeleteVotes().then((_) {
+                    provider.syncGroupWalletDeleteVotes(groupWallet);
+                  });
+                  provider.syncGroupWalletDeleteVotes(groupWallet);
+                } on ProviderNotFoundException {
+                  // GroupWalletProvider not mounted in isolated tests
+                }
                 Scaffold.of(context).openEndDrawer();
               },
               tooltip: 'Notifications',

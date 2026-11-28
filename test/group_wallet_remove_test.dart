@@ -10,17 +10,23 @@ import 'package:tasker/screens/group_wallet_screen.dart';
 
 class TestGroupWalletProvider extends GroupWalletProvider {
   bool deleteWalletCalled = false;
+  bool leaveWalletCalled = false;
+  bool initiateVoteCalled = false;
   String? lastDeletedId;
+  String? lastLeftId;
   final List<GroupWallet> _testWallets;
+  final List<GroupMember> _testMembers;
+  final Map<String, List<WalletDeleteVote>> _testVotes = {};
 
-  TestGroupWalletProvider(this._testWallets);
+  TestGroupWalletProvider(this._testWallets, {List<GroupMember>? members})
+    : _testMembers = members ?? [];
 
   @override
   bool get hasProfile => true;
 
   @override
   GroupProfile? get profile =>
-      GroupProfile(id: 'u1', name: 'Test User', colorHex: 0xFF2196F3);
+      const GroupProfile(id: 'u1', name: 'Test User', colorHex: 0xFF2196F3);
 
   @override
   bool get isConfigured => true;
@@ -38,13 +44,74 @@ class TestGroupWalletProvider extends GroupWalletProvider {
   GroupWallet? get currentWallet =>
       _testWallets.isNotEmpty ? _testWallets.first : null;
 
+  @override
+  List<GroupMember> get members => _testMembers;
+
+  @override
+  WalletDeleteVoteSummary? deleteVoteSummaryFor(String walletId) {
+    final votes = _testVotes[walletId];
+    if (votes == null || votes.isEmpty) return null;
+    final wallet = _testWallets.cast<GroupWallet?>().firstWhere(
+      (w) => w?.id == walletId,
+      orElse: () => null,
+    );
+    return WalletDeleteVoteSummary(
+      walletId: walletId,
+      walletName: wallet?.name ?? 'Group Wallet',
+      totalMembers: _testMembers.isEmpty ? 1 : _testMembers.length,
+      votes: votes,
+    );
+  }
+
+  @override
+  List<WalletDeleteVoteSummary> get pendingDeleteVotes => [
+    for (final w in _testWallets)
+      if (deleteVoteSummaryFor(w.id) != null) deleteVoteSummaryFor(w.id)!,
+  ];
+
   Completer<bool>? addTransactionCompleter;
+
+  @override
+  Future<void> leaveWallet(String walletId) async {
+    leaveWalletCalled = true;
+    lastLeftId = walletId;
+    _testWallets.removeWhere((w) => w.id == walletId);
+    notifyListeners();
+  }
+
+  @override
+  Future<VoteDeleteResult> initiateOrConfirmDeleteVote(String walletId) async {
+    initiateVoteCalled = true;
+    final totalMembers = _testMembers.isEmpty ? 1 : _testMembers.length;
+    final requiredVotes = WalletDeleteVoteSummary.requiredVotesFor(
+      totalMembers,
+    );
+    final votes = _testVotes.putIfAbsent(walletId, () => []);
+    if (!votes.any((v) => v.userId == profile!.id)) {
+      votes.add(
+        WalletDeleteVote(
+          id: 'v-${votes.length}',
+          walletId: walletId,
+          userId: profile!.id,
+          userName: profile!.name,
+          createdAt: DateTime.now(),
+        ),
+      );
+    }
+    if (votes.length >= requiredVotes) {
+      await deleteWallet(walletId);
+      return VoteDeleteResult.deleted;
+    }
+    notifyListeners();
+    return VoteDeleteResult.voted;
+  }
 
   @override
   Future<bool> deleteWallet(String walletId) async {
     deleteWalletCalled = true;
     lastDeletedId = walletId;
     _testWallets.removeWhere((w) => w.id == walletId);
+    _testVotes.remove(walletId);
     notifyListeners();
     return true;
   }
@@ -245,6 +312,92 @@ void main() {
 
       // Dialog should close after completion
       expect(find.text('Add Group Transaction'), findsNothing);
+    },
+  );
+
+  testWidgets('Leave Wallet option removes wallet locally without deleting it', (
+    tester,
+  ) async {
+    await tester.pumpWidget(createWidget());
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byIcon(Icons.more_vert));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Leave Wallet'), findsOneWidget);
+    await tester.tap(find.text('Leave Wallet'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Leave Group Wallet'), findsOneWidget);
+    await tester.tap(find.widgetWithText(FilledButton, 'Leave'));
+    await tester.pumpAndSettle();
+
+    expect(groupProvider.leaveWalletCalled, isTrue);
+    expect(groupProvider.lastLeftId, 'w1');
+    expect(groupProvider.deleteWalletCalled, isFalse);
+  });
+
+  testWidgets(
+    'Remove Wallet starts 2/3 majority vote when multiple members exist',
+    (tester) async {
+      final now = DateTime.now();
+      groupProvider = TestGroupWalletProvider(
+        [
+          GroupWallet(
+            id: 'w1',
+            name: 'Team Budget',
+            currency: '₱',
+            createdByName: 'Test User',
+            createdById: 'u1',
+            createdAt: now,
+          ),
+        ],
+        members: [
+          GroupMember(
+            id: 'm1',
+            walletId: 'w1',
+            userId: 'u1',
+            name: 'Test User',
+            colorHex: 0xFF111111,
+            joinedAt: now,
+          ),
+          GroupMember(
+            id: 'm2',
+            walletId: 'w1',
+            userId: 'u2',
+            name: 'Sam',
+            colorHex: 0xFF222222,
+            joinedAt: now,
+          ),
+          GroupMember(
+            id: 'm3',
+            walletId: 'w1',
+            userId: 'u3',
+            name: 'Jamie',
+            colorHex: 0xFF333333,
+            joinedAt: now,
+          ),
+        ],
+      );
+
+      await tester.pumpWidget(createWidget());
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byIcon(Icons.more_vert));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Remove Wallet'));
+      await tester.pumpAndSettle();
+
+      expect(find.textContaining('2 of 3 members (2/3)'), findsOneWidget);
+      await tester.enterText(find.byType(TextField), 'Remove group wallet');
+      await tester.pumpAndSettle();
+      await tester.tap(find.widgetWithText(FilledButton, 'Remove'));
+      await tester.pumpAndSettle();
+
+      // Only 1/2 votes cast -> wallet NOT deleted yet, vote banner shown
+      expect(groupProvider.initiateVoteCalled, isTrue);
+      expect(groupProvider.deleteWalletCalled, isFalse);
+      expect(find.text('Removal vote in progress (1/2)'), findsOneWidget);
     },
   );
 }

@@ -2,11 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
 import 'ledger_provider.dart';
+import 'group_wallet_provider.dart';
 import '../services/notification_service.dart';
 import '../services/update_service.dart';
 import '../utils/date_util.dart';
 
 class AppNotification {
+  static const String actionGroupWalletDeleteVote = 'group_wallet_delete_vote';
+
   final String id;
   final String title;
   final String message;
@@ -14,6 +17,8 @@ class AppNotification {
   bool isRead;
   final DateTime? dueDate;
   final String? entityKey;
+  final String? actionType;
+  final String? actionPayload;
 
   AppNotification({
     required this.id,
@@ -23,6 +28,8 @@ class AppNotification {
     this.isRead = false,
     this.dueDate,
     this.entityKey,
+    this.actionType,
+    this.actionPayload,
   });
 
   Map<String, dynamic> toJson() => {
@@ -33,6 +40,8 @@ class AppNotification {
     'isRead': isRead,
     if (dueDate != null) 'dueDate': dueDate!.toIso8601String(),
     if (entityKey != null) 'entityKey': entityKey,
+    if (actionType != null) 'actionType': actionType,
+    if (actionPayload != null) 'actionPayload': actionPayload,
   };
 
   factory AppNotification.fromJson(Map<String, dynamic> json) =>
@@ -46,6 +55,8 @@ class AppNotification {
             ? DateTime.parse(json['dueDate'])
             : null,
         entityKey: json['entityKey'],
+        actionType: json['actionType']?.toString(),
+        actionPayload: json['actionPayload']?.toString(),
       );
 }
 
@@ -291,6 +302,72 @@ class NotificationProvider extends ChangeNotifier {
       NotificationService()
           .showImmediateNotification(title, message)
           .catchError((_) {});
+    }
+  }
+
+  /// Syncs active group wallet 2/3 removal votes into in-app notifications so
+  /// members who haven't voted yet can confirm directly from Notifications.
+  void syncGroupWalletDeleteVotes(GroupWalletProvider groupWallet) {
+    final userId = groupWallet.profile?.id;
+    final activeVoteIds = <String>{};
+    bool changed = false;
+
+    for (final summary in groupWallet.pendingDeleteVotes) {
+      if (userId != null && summary.hasVoted(userId)) {
+        continue;
+      }
+      final notifId = 'delete_vote_${summary.walletId}';
+      activeVoteIds.add(notifId);
+
+      final title = 'Vote to Remove "${summary.walletName}"';
+      final message =
+          '${summary.initiatorName} initiated a vote to remove "${summary.walletName}" (${summary.voteCount}/${summary.requiredVotes} votes needed, 2/3 majority). Tap to confirm.';
+
+      final existingIdx = _notifications.indexWhere((n) => n.id == notifId);
+      if (existingIdx == -1) {
+        _notifications.insert(
+          0,
+          AppNotification(
+            id: notifId,
+            title: title,
+            message: message,
+            timestamp: DateTime.now(),
+            entityKey: notifId,
+            actionType: AppNotification.actionGroupWalletDeleteVote,
+            actionPayload: summary.walletId,
+          ),
+        );
+        changed = true;
+      } else if (_notifications[existingIdx].message != message) {
+        final prev = _notifications[existingIdx];
+        _notifications[existingIdx] = AppNotification(
+          id: prev.id,
+          title: title,
+          message: message,
+          timestamp: prev.timestamp,
+          isRead: prev.isRead,
+          entityKey: prev.entityKey,
+          actionType: AppNotification.actionGroupWalletDeleteVote,
+          actionPayload: summary.walletId,
+        );
+        changed = true;
+      }
+    }
+
+    // Remove stale delete-vote notifications that were completed, cancelled, or already voted on
+    final beforeLen = _notifications.length;
+    _notifications.removeWhere(
+      (n) =>
+          n.actionType == AppNotification.actionGroupWalletDeleteVote &&
+          !activeVoteIds.contains(n.id),
+    );
+    if (_notifications.length != beforeLen) {
+      changed = true;
+    }
+
+    if (changed) {
+      _saveToPrefs();
+      notifyListeners();
     }
   }
 }

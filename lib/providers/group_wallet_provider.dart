@@ -7,9 +7,11 @@ class GroupWalletProvider extends ChangeNotifier {
   static const String _keyProfileId = 'group_profile_id';
   static const String _keyProfileName = 'group_profile_name';
   static const String _keyProfileColor = 'group_profile_color';
+  static const String _keyProfilePassword = 'group_profile_password';
   static const String _keySupabaseUrl = 'supabase_url';
   static const String _keySupabaseKey = 'supabase_key';
   static const String _keyActiveWalletId = 'group_active_wallet_id';
+  static const String _keyLeftWalletIds = 'group_left_wallet_ids';
 
   GroupProfile? _profile;
   String? _supabaseUrl;
@@ -26,6 +28,9 @@ class GroupWalletProvider extends ChangeNotifier {
   GroupWallet? _currentWallet;
   List<GroupMember> _members = [];
   List<GroupTransaction> _transactions = [];
+  Set<String> _leftWalletIds = {};
+  Map<String, List<WalletDeleteVote>> _deleteVotesByWallet = {};
+  Map<String, int> _memberCountByWallet = {};
 
   Future<void>? _initFuture;
 
@@ -54,6 +59,35 @@ class GroupWalletProvider extends ChangeNotifier {
   List<GroupMember> get members => _members;
   List<GroupTransaction> get transactions => _transactions;
 
+  WalletDeleteVoteSummary? deleteVoteSummaryFor(String walletId) {
+    final votes = _deleteVotesByWallet[walletId];
+    if (votes == null || votes.isEmpty) return null;
+    final wallet = _wallets.cast<GroupWallet?>().firstWhere(
+      (w) => w?.id == walletId,
+      orElse: () => null,
+    );
+    final memberCount = _currentWallet?.id == walletId && _members.isNotEmpty
+        ? _members.length
+        : (_memberCountByWallet[walletId] ?? 1);
+    return WalletDeleteVoteSummary(
+      walletId: walletId,
+      walletName: wallet?.name ?? 'Group Wallet',
+      totalMembers: memberCount,
+      votes: List.unmodifiable(votes),
+    );
+  }
+
+  List<WalletDeleteVoteSummary> get pendingDeleteVotes {
+    final summaries = <WalletDeleteVoteSummary>[];
+    for (final wallet in _wallets) {
+      final summary = deleteVoteSummaryFor(wallet.id);
+      if (summary != null) {
+        summaries.add(summary);
+      }
+    }
+    return summaries;
+  }
+
   // ── Preload & Setup ──────────────────────────────────────────────────
   Future<void> preload() {
     return _initFuture ??= _loadSettings();
@@ -66,18 +100,23 @@ class GroupWalletProvider extends ChangeNotifier {
     final profileId = prefs.getString(_keyProfileId);
     final profileName = prefs.getString(_keyProfileName);
     final profileColor = prefs.getInt(_keyProfileColor);
+    final profilePassword = prefs.getString(_keyProfilePassword) ?? '';
 
     if (profileName != null && profileName.isNotEmpty) {
       _profile = GroupProfile(
         id: profileId ?? GroupProfile.generateId(),
         name: profileName,
         colorHex: profileColor ?? 0xFF7C3AED,
+        password: profilePassword,
       );
     }
 
     if (_profile != null && profileId == null) {
       await prefs.setString(_keyProfileId, _profile!.id);
     }
+
+    _leftWalletIds = (prefs.getStringList(_keyLeftWalletIds) ?? const [])
+        .toSet();
 
     // 2. Load Supabase Config
     _supabaseUrl = prefs.getString(_keySupabaseUrl);
@@ -91,30 +130,134 @@ class GroupWalletProvider extends ChangeNotifier {
   }
 
   // ── Profile Management ───────────────────────────────────────────────
-  Future<void> saveProfile(String name, int colorHex) async {
+  Future<void> _persistProfile(GroupProfile profile) async {
     final prefs = await SharedPreferences.getInstance();
-    final id = _profile?.id ?? GroupProfile.generateId();
+    _profile = profile;
+    await prefs.setString(_keyProfileId, profile.id);
+    await prefs.setString(_keyProfileName, profile.name);
+    await prefs.setInt(_keyProfileColor, profile.colorHex);
+    await prefs.setString(_keyProfilePassword, profile.password);
+  }
 
-    _profile = GroupProfile(id: id, name: name.trim(), colorHex: colorHex);
+  Future<void> _upsertMemberWithPasswordFallback(
+    Map<String, dynamic> row,
+  ) async {
+    try {
+      await _client!
+          .from('group_members')
+          .upsert(row, onConflict: 'wallet_id,user_id');
+    } catch (e) {
+      final msg = e.toString().toLowerCase();
+      if (msg.contains('password')) {
+        try {
+          await _client!.rpc(
+            'exec_sql',
+            params: {
+              'query':
+                  "ALTER TABLE group_members ADD COLUMN IF NOT EXISTS password TEXT DEFAULT '';",
+            },
+          );
+          await _client!
+              .from('group_members')
+              .upsert(row, onConflict: 'wallet_id,user_id');
+          return;
+        } catch (_) {
+          final fallback = Map<String, dynamic>.from(row)..remove('password');
+          await _client!
+              .from('group_members')
+              .upsert(fallback, onConflict: 'wallet_id,user_id');
+          return;
+        }
+      }
+      rethrow;
+    }
+  }
 
-    await prefs.setString(_keyProfileId, id);
-    await prefs.setString(_keyProfileName, name.trim());
-    await prefs.setInt(_keyProfileColor, colorHex);
+  Future<GroupProfile?> _syncProfileWithWallet(
+    String walletId, {
+    required GroupProfile candidateProfile,
+  }) async {
+    final res = await _client!
+        .from('group_members')
+        .select()
+        .eq('wallet_id', walletId);
 
-    // If currently connected to a wallet, update member record on remote
-    if (_isConnected && _currentWallet != null && _client != null) {
-      try {
-        await _client!.from('group_members').upsert({
-          'wallet_id': _currentWallet!.id,
-          'user_id': _profile!.id,
-          'name': _profile!.name,
-          'color_hex': _profile!.colorHex,
-        }, onConflict: 'wallet_id,user_id');
-        await fetchMembers();
-      } catch (_) {}
+    final remoteMembers = (res as List)
+        .map((m) => GroupMember.fromMap(m as Map<String, dynamic>))
+        .toList();
+
+    final claim = MemberClaimResult.resolve(
+      existingMembers: remoteMembers,
+      profile: candidateProfile,
+    );
+
+    if (claim.status == MemberClaimStatus.wrongPassword) {
+      _connectionError =
+          'Incorrect password for "${candidateProfile.name}" in this wallet.';
+      notifyListeners();
+      return null;
     }
 
+    final resolvedProfile =
+        claim.status == MemberClaimStatus.reclaimedByName &&
+            claim.matchedMember != null
+        ? candidateProfile.copyWith(id: claim.matchedMember!.userId)
+        : candidateProfile;
+
+    await _upsertMemberWithPasswordFallback({
+      'wallet_id': walletId,
+      'user_id': resolvedProfile.id,
+      'name': resolvedProfile.name,
+      'color_hex': resolvedProfile.colorHex,
+      'password': resolvedProfile.password,
+    });
+
+    _connectionError = null;
+    return resolvedProfile;
+  }
+
+  Future<bool> saveProfile(
+    String name,
+    int colorHex, {
+    String? password,
+  }) async {
+    final cleanName = name.trim();
+    if (cleanName.isEmpty) return false;
+
+    final id = _profile?.id ?? GroupProfile.generateId();
+    final effectivePassword = password ?? _profile?.password ?? '';
+    var candidate = GroupProfile(
+      id: id,
+      name: cleanName,
+      colorHex: colorHex,
+      password: effectivePassword,
+    );
+
+    // If currently connected to a wallet, verify password / reclaim existing name
+    if (_isConnected && _currentWallet != null && _client != null) {
+      try {
+        final synced = await _syncProfileWithWallet(
+          _currentWallet!.id,
+          candidateProfile: candidate,
+        );
+        if (synced == null) {
+          return false;
+        }
+        candidate = synced;
+        await _persistProfile(candidate);
+        await fetchMembers();
+        notifyListeners();
+        return true;
+      } catch (e) {
+        _connectionError = 'Failed to update profile: $e';
+        notifyListeners();
+        return false;
+      }
+    }
+
+    await _persistProfile(candidate);
     notifyListeners();
+    return true;
   }
 
   // ── Supabase Connection & Table Check ────────────────────────────────
@@ -266,9 +409,12 @@ CREATE TABLE IF NOT EXISTS group_members (
     user_id TEXT NOT NULL,
     name TEXT NOT NULL,
     color_hex BIGINT DEFAULT 4280391411,
+    password TEXT DEFAULT '',
     joined_at TIMESTAMPTZ DEFAULT now(),
     UNIQUE(wallet_id, user_id)
 );
+
+ALTER TABLE group_members ADD COLUMN IF NOT EXISTS password TEXT DEFAULT '';
 
 CREATE TABLE IF NOT EXISTS group_transactions (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -284,9 +430,19 @@ CREATE TABLE IF NOT EXISTS group_transactions (
     created_at TIMESTAMPTZ DEFAULT now()
 );
 
+CREATE TABLE IF NOT EXISTS group_wallet_delete_votes (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    wallet_id UUID NOT NULL REFERENCES group_wallets(id) ON DELETE CASCADE,
+    user_id TEXT NOT NULL,
+    user_name TEXT NOT NULL,
+    created_at TIMESTAMPTZ DEFAULT now(),
+    UNIQUE(wallet_id, user_id)
+);
+
 ALTER TABLE group_wallets ENABLE ROW LEVEL SECURITY;
 ALTER TABLE group_members ENABLE ROW LEVEL SECURITY;
 ALTER TABLE group_transactions ENABLE ROW LEVEL SECURITY;
+ALTER TABLE group_wallet_delete_votes ENABLE ROW LEVEL SECURITY;
 
 DROP POLICY IF EXISTS "Public access on group_wallets" ON group_wallets;
 CREATE POLICY "Public access on group_wallets" ON group_wallets FOR ALL USING (true) WITH CHECK (true);
@@ -296,6 +452,9 @@ CREATE POLICY "Public access on group_members" ON group_members FOR ALL USING (t
 
 DROP POLICY IF EXISTS "Public access on group_transactions" ON group_transactions;
 CREATE POLICY "Public access on group_transactions" ON group_transactions FOR ALL USING (true) WITH CHECK (true);
+
+DROP POLICY IF EXISTS "Public access on group_wallet_delete_votes" ON group_wallet_delete_votes;
+CREATE POLICY "Public access on group_wallet_delete_votes" ON group_wallet_delete_votes FOR ALL USING (true) WITH CHECK (true);
 ''';
 
     try {
@@ -324,6 +483,7 @@ CREATE POLICY "Public access on group_transactions" ON group_transactions FOR AL
 
       final list = (res as List)
           .map((m) => GroupWallet.fromMap(m as Map<String, dynamic>))
+          .where((w) => !_leftWalletIds.contains(w.id))
           .toList();
 
       _wallets = list;
@@ -344,6 +504,7 @@ CREATE POLICY "Public access on group_transactions" ON group_transactions FOR AL
       if (_currentWallet != null) {
         await fetchWalletData();
       }
+      await fetchDeleteVotes();
 
       notifyListeners();
     } catch (e) {
@@ -392,11 +553,12 @@ CREATE POLICY "Public access on group_transactions" ON group_transactions FOR AL
       final newWallet = GroupWallet.fromMap(res);
 
       // Register creator as member
-      await _client!.from('group_members').insert({
+      await _upsertMemberWithPasswordFallback({
         'wallet_id': newWallet.id,
         'user_id': _profile!.id,
         'name': _profile!.name,
         'color_hex': _profile!.colorHex,
+        'password': _profile!.password,
       });
 
       await fetchWallets();
@@ -413,10 +575,15 @@ CREATE POLICY "Public access on group_transactions" ON group_transactions FOR AL
     }
   }
 
-  Future<bool> joinWalletById(String walletId) async {
+  Future<bool> joinWalletById(
+    String walletId, {
+    String? name,
+    String? password,
+  }) async {
     if (_client == null || _profile == null) return false;
 
     _isLoading = true;
+    _connectionError = null;
     notifyListeners();
 
     try {
@@ -436,14 +603,28 @@ CREATE POLICY "Public access on group_transactions" ON group_transactions FOR AL
 
       final wallet = GroupWallet.fromMap(res);
 
-      // Register profile in group_members if not present
-      await _client!.from('group_members').upsert({
-        'wallet_id': wallet.id,
-        'user_id': _profile!.id,
-        'name': _profile!.name,
-        'color_hex': _profile!.colorHex,
-      }, onConflict: 'wallet_id,user_id');
+      final candidate = _profile!.copyWith(
+        name: name != null && name.trim().isNotEmpty
+            ? name.trim()
+            : _profile!.name,
+        password: password ?? _profile!.password,
+      );
 
+      final synced = await _syncProfileWithWallet(
+        wallet.id,
+        candidateProfile: candidate,
+      );
+      if (synced == null) {
+        _isLoading = false;
+        notifyListeners();
+        return false;
+      }
+
+      await _persistProfile(synced);
+      if (_leftWalletIds.remove(wallet.id)) {
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setStringList(_keyLeftWalletIds, _leftWalletIds.toList());
+      }
       await fetchWallets();
       await selectWallet(wallet);
 
@@ -453,6 +634,176 @@ CREATE POLICY "Public access on group_transactions" ON group_transactions FOR AL
     } catch (e) {
       _connectionError = 'Failed to join wallet: $e';
       _isLoading = false;
+      notifyListeners();
+      return false;
+    }
+  }
+
+  /// Leaves a group wallet locally without deleting it or removing the member's
+  /// remote record, so they can rejoin later using their name and password.
+  Future<void> leaveWallet(String walletId) async {
+    _leftWalletIds.add(walletId);
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setStringList(_keyLeftWalletIds, _leftWalletIds.toList());
+
+    _wallets = _wallets.where((w) => w.id != walletId).toList();
+    _deleteVotesByWallet.remove(walletId);
+
+    if (_currentWallet?.id == walletId) {
+      await prefs.remove(_keyActiveWalletId);
+      if (_wallets.isNotEmpty) {
+        await selectWallet(_wallets.first);
+      } else {
+        _currentWallet = null;
+        _members = [];
+        _transactions = [];
+      }
+    }
+    notifyListeners();
+  }
+
+  Future<void> _ensureDeleteVotesTable() async {
+    if (_client == null) return;
+    try {
+      await _client!.rpc(
+        'exec_sql',
+        params: {
+          'query': '''
+CREATE TABLE IF NOT EXISTS group_wallet_delete_votes (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    wallet_id UUID NOT NULL REFERENCES group_wallets(id) ON DELETE CASCADE,
+    user_id TEXT NOT NULL,
+    user_name TEXT NOT NULL,
+    created_at TIMESTAMPTZ DEFAULT now(),
+    UNIQUE(wallet_id, user_id)
+);
+ALTER TABLE group_wallet_delete_votes ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Public access on group_wallet_delete_votes" ON group_wallet_delete_votes;
+CREATE POLICY "Public access on group_wallet_delete_votes" ON group_wallet_delete_votes FOR ALL USING (true) WITH CHECK (true);
+''',
+        },
+      );
+    } catch (_) {}
+  }
+
+  Future<void> fetchDeleteVotes() async {
+    if (_client == null || !_isTablesReady || _wallets.isEmpty) {
+      _deleteVotesByWallet = {};
+      return;
+    }
+
+    try {
+      final walletIds = _wallets.map((w) => w.id).toList();
+      final res = await _client!
+          .from('group_wallet_delete_votes')
+          .select()
+          .inFilter('wallet_id', walletIds)
+          .order('created_at', ascending: true);
+
+      final grouped = <String, List<WalletDeleteVote>>{};
+      for (final row in (res as List)) {
+        final vote = WalletDeleteVote.fromMap(row as Map<String, dynamic>);
+        grouped.putIfAbsent(vote.walletId, () => []).add(vote);
+      }
+      _deleteVotesByWallet = grouped;
+
+      if (grouped.isNotEmpty) {
+        final memberRes = await _client!
+            .from('group_members')
+            .select('wallet_id')
+            .inFilter('wallet_id', grouped.keys.toList());
+        final counts = <String, int>{};
+        for (final row in (memberRes as List)) {
+          final wid = (row as Map<String, dynamic>)['wallet_id']?.toString();
+          if (wid != null) {
+            counts[wid] = (counts[wid] ?? 0) + 1;
+          }
+        }
+        _memberCountByWallet = counts;
+      }
+
+      notifyListeners();
+    } catch (_) {
+      // Table may not exist yet on legacy Supabase projects
+    }
+  }
+
+  /// Initiates or confirms a 2/3 majority vote to remove [walletId].
+  /// Once at least 2/3 of the wallet's members have voted, deletes the wallet.
+  Future<VoteDeleteResult> initiateOrConfirmDeleteVote(String walletId) async {
+    if (_client == null || _profile == null) return VoteDeleteResult.failed;
+
+    _isLoading = true;
+    _connectionError = null;
+    notifyListeners();
+
+    try {
+      final memberRes = await _client!
+          .from('group_members')
+          .select('user_id')
+          .eq('wallet_id', walletId);
+      final totalMembers = (memberRes as List).length;
+      final requiredVotes = WalletDeleteVoteSummary.requiredVotesFor(
+        totalMembers,
+      );
+
+      // Solo wallet (1 member): 2/3 threshold is 1 vote -> delete immediately
+      if (requiredVotes <= 1) {
+        final deleted = await deleteWallet(walletId);
+        return deleted ? VoteDeleteResult.deleted : VoteDeleteResult.failed;
+      }
+
+      final voteRow = {
+        'wallet_id': walletId,
+        'user_id': _profile!.id,
+        'user_name': _profile!.name,
+      };
+
+      try {
+        await _client!
+            .from('group_wallet_delete_votes')
+            .upsert(voteRow, onConflict: 'wallet_id,user_id');
+      } catch (e) {
+        if (e.toString().toLowerCase().contains('group_wallet_delete_votes')) {
+          await _ensureDeleteVotesTable();
+          await _client!
+              .from('group_wallet_delete_votes')
+              .upsert(voteRow, onConflict: 'wallet_id,user_id');
+        } else {
+          rethrow;
+        }
+      }
+
+      await fetchDeleteVotes();
+      final summary = deleteVoteSummaryFor(walletId);
+      if (summary != null && summary.hasReachedThreshold) {
+        final deleted = await deleteWallet(walletId);
+        return deleted ? VoteDeleteResult.deleted : VoteDeleteResult.failed;
+      }
+
+      _isLoading = false;
+      notifyListeners();
+      return VoteDeleteResult.voted;
+    } catch (e) {
+      _connectionError = 'Failed to record removal vote: $e';
+      _isLoading = false;
+      notifyListeners();
+      return VoteDeleteResult.failed;
+    }
+  }
+
+  Future<bool> withdrawDeleteVote(String walletId) async {
+    if (_client == null || _profile == null) return false;
+    try {
+      await _client!
+          .from('group_wallet_delete_votes')
+          .delete()
+          .eq('wallet_id', walletId)
+          .eq('user_id', _profile!.id);
+      await fetchDeleteVotes();
+      return true;
+    } catch (e) {
+      _connectionError = 'Failed to withdraw vote: $e';
       notifyListeners();
       return false;
     }
@@ -492,17 +843,33 @@ CREATE POLICY "Public access on group_transactions" ON group_transactions FOR AL
     await Future.wait([fetchMembers(), fetchTransactions()]);
     if (_client != client || _currentWallet?.id != walletId) return;
 
-    // Ensure current profile is listed as member
-    if (_profile != null && !_members.any((m) => m.userId == _profile!.id)) {
-      try {
-        await _client!.from('group_members').upsert({
-          'wallet_id': _currentWallet!.id,
-          'user_id': _profile!.id,
-          'name': _profile!.name,
-          'color_hex': _profile!.colorHex,
-        }, onConflict: 'wallet_id,user_id');
-        await fetchMembers();
-      } catch (_) {}
+    // Ensure current profile is matched or listed as member without duplicating
+    if (_profile != null) {
+      final claim = MemberClaimResult.resolve(
+        existingMembers: _members,
+        profile: _profile!,
+      );
+      if (claim.status == MemberClaimStatus.reclaimedByName &&
+          claim.matchedMember != null) {
+        await _persistProfile(
+          _profile!.copyWith(id: claim.matchedMember!.userId),
+        );
+      } else if (claim.status == MemberClaimStatus.wrongPassword) {
+        _connectionError =
+            'A member named "${_profile!.name}" already exists in this wallet. Edit your profile and enter the password to reclaim it.';
+        notifyListeners();
+      } else if (claim.status == MemberClaimStatus.newMember) {
+        try {
+          await _upsertMemberWithPasswordFallback({
+            'wallet_id': _currentWallet!.id,
+            'user_id': _profile!.id,
+            'name': _profile!.name,
+            'color_hex': _profile!.colorHex,
+            'password': _profile!.password,
+          });
+          await fetchMembers();
+        } catch (_) {}
+      }
     }
   }
 
@@ -679,9 +1046,11 @@ CREATE POLICY "Public access on group_transactions" ON group_transactions FOR AL
     await prefs.remove(_keyProfileId);
     await prefs.remove(_keyProfileName);
     await prefs.remove(_keyProfileColor);
+    await prefs.remove(_keyProfilePassword);
     await prefs.remove(_keySupabaseUrl);
     await prefs.remove(_keySupabaseKey);
     await prefs.remove(_keyActiveWalletId);
+    await prefs.remove(_keyLeftWalletIds);
 
     _profile = null;
     _supabaseUrl = null;
@@ -696,6 +1065,9 @@ CREATE POLICY "Public access on group_transactions" ON group_transactions FOR AL
     _currentWallet = null;
     _members = [];
     _transactions = [];
+    _leftWalletIds = {};
+    _deleteVotesByWallet = {};
+    _memberCountByWallet = {};
     notifyListeners();
   }
 }
