@@ -112,6 +112,48 @@ class UpdateService {
     }
   }
 
+  /// Lightweight startup check that only queries Shorebird for OTA diff patches
+  /// (avoids hitting GitHub Releases API rate limits on every app launch).
+  Future<UpdateCheckResult> checkForPatchOnly() async {
+    String currentVersion = '0.0.0';
+    try {
+      currentVersion = await _versionReader();
+    } catch (_) {}
+    final currentPatch = await getCurrentPatchNumber();
+
+    if (!_shorebirdUpdater.isAvailable) {
+      return UpdateCheckResult(
+        status: UpdateStatus.upToDate,
+        currentVersion: currentVersion,
+        currentPatchNumber: currentPatch,
+      );
+    }
+
+    try {
+      final patchStatus = await _shorebirdUpdater.checkForUpdate();
+      if (patchStatus == shorebird.UpdateStatus.restartRequired) {
+        return UpdateCheckResult(
+          status: UpdateStatus.restartRequired,
+          currentVersion: currentVersion,
+          currentPatchNumber: currentPatch,
+        );
+      }
+      if (patchStatus == shorebird.UpdateStatus.outdated) {
+        return UpdateCheckResult(
+          status: UpdateStatus.patchAvailable,
+          currentVersion: currentVersion,
+          currentPatchNumber: currentPatch,
+        );
+      }
+    } catch (_) {}
+
+    return UpdateCheckResult(
+      status: UpdateStatus.upToDate,
+      currentVersion: currentVersion,
+      currentPatchNumber: currentPatch,
+    );
+  }
+
   Future<UpdateCheckResult> downloadPatch() async {
     String currentVersion = '0.0.0';
     try {

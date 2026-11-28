@@ -3,6 +3,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
 import 'ledger_provider.dart';
 import '../services/notification_service.dart';
+import '../services/update_service.dart';
 import '../utils/date_util.dart';
 
 class AppNotification {
@@ -251,6 +252,45 @@ class NotificationProvider extends ChangeNotifier {
               .catchError((_) {});
         }
       }
+    }
+  }
+
+  /// Non-blocking startup check for Shorebird OTA patches.
+  /// Adds an in-app notification and triggers an OS notification if a patch is
+  /// available or ready to apply on restart.
+  Future<void> checkForPatchUpdate({UpdateService? updateService}) async {
+    final service = updateService ?? UpdateService();
+    final result = await service.checkForPatchOnly();
+
+    if (result.status != UpdateStatus.patchAvailable &&
+        result.status != UpdateStatus.restartRequired) {
+      return;
+    }
+
+    final isRestartRequired = result.status == UpdateStatus.restartRequired;
+    final notifId =
+        'shorebird_patch_${result.currentVersion}_${result.currentPatchNumber ?? 0}_${result.status.name}';
+    final alreadyExists = _notifications.any((n) => n.id == notifId);
+
+    final title = isRestartRequired ? 'App Patch Ready' : 'App Patch Available';
+    final message = isRestartRequired
+        ? 'A new update patch has been downloaded. Restart BudgetKo to apply it.'
+        : 'A new update patch is available for BudgetKo. Open Settings → Scan for Updates to download it.';
+
+    addNotification(
+      AppNotification(
+        id: notifId,
+        title: title,
+        message: message,
+        timestamp: DateTime.now(),
+        entityKey: notifId,
+      ),
+    );
+
+    if (!alreadyExists) {
+      NotificationService()
+          .showImmediateNotification(title, message)
+          .catchError((_) {});
     }
   }
 }

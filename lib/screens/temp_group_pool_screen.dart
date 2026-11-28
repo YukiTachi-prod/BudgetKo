@@ -761,8 +761,16 @@ class _TempGroupPoolScreenState extends State<TempGroupPoolScreen> {
                             vertical: 6,
                           ),
                           minimumSize: const Size(0, 32),
+                          shape: AppTheme.squircleShape(
+                            radius: AppTheme.chipRadius,
+                          ),
                         ),
                       ),
+                    ActionChip(
+                      avatar: const Icon(Icons.add, size: 15),
+                      label: const Text('Categories'),
+                      onPressed: () => _showCategoriesDialog(context, pool),
+                    ),
                   ],
                 ),
               ],
@@ -781,6 +789,7 @@ class _TempGroupPoolScreenState extends State<TempGroupPoolScreen> {
           // ── Category Breakdown Strip (Cash, E-Cash, Custom) ──────────
           Wrap(
             alignment: WrapAlignment.center,
+            crossAxisAlignment: WrapCrossAlignment.center,
             spacing: 8,
             runSpacing: 8,
             children: [
@@ -791,10 +800,10 @@ class _TempGroupPoolScreenState extends State<TempGroupPoolScreen> {
                     horizontal: 10,
                     vertical: 6,
                   ),
-                  decoration: BoxDecoration(
+                  decoration: AppTheme.squircleDecoration(
                     color: theme.cardColor,
-                    borderRadius: BorderRadius.circular(AppTheme.radius),
-                    border: Border.all(color: theme.dividerColor),
+                    radius: AppTheme.chipRadius,
+                    side: BorderSide(color: theme.dividerColor),
                   ),
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
@@ -819,11 +828,6 @@ class _TempGroupPoolScreenState extends State<TempGroupPoolScreen> {
                   ),
                 );
               }),
-              ActionChip(
-                avatar: const Icon(Icons.add, size: 15),
-                label: const Text('Categories'),
-                onPressed: () => _showCategoriesDialog(context, pool),
-              ),
             ],
           ),
 
@@ -958,9 +962,8 @@ class _TempGroupPoolScreenState extends State<TempGroupPoolScreen> {
                                         horizontal: 6,
                                         vertical: 2,
                                       ),
-                                      decoration: BoxDecoration(
+                                      decoration: AppTheme.squircleDecoration(
                                         color: catColor.withValues(alpha: 0.15),
-                                        borderRadius: BorderRadius.circular(4),
                                       ),
                                       child: Text(
                                         person.category,
@@ -980,9 +983,8 @@ class _TempGroupPoolScreenState extends State<TempGroupPoolScreen> {
                                   horizontal: 8,
                                   vertical: 4,
                                 ),
-                                decoration: BoxDecoration(
+                                decoration: AppTheme.squircleDecoration(
                                   color: statusColor.withValues(alpha: 0.12),
-                                  borderRadius: BorderRadius.circular(4),
                                 ),
                                 child: Text(
                                   statusLabel,
@@ -1153,9 +1155,8 @@ class _MoneyPoolCircle extends StatelessWidget {
               const SizedBox(height: 8),
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                decoration: BoxDecoration(
+                decoration: AppTheme.squircleDecoration(
                   color: ringColor.withValues(alpha: 0.14),
-                  borderRadius: BorderRadius.circular(4),
                 ),
                 child: Text(
                   statusText,

@@ -4,6 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:shorebird_code_push/shorebird_code_push.dart' as shorebird;
+import 'package:tasker/providers/notification_provider.dart';
 import 'package:tasker/providers/settings_provider.dart';
 import 'package:tasker/screens/settings_screen.dart';
 import 'package:tasker/services/update_service.dart';
@@ -280,5 +281,70 @@ void main() {
         expect(find.textContaining('Patch downloaded!'), findsOneWidget);
       },
     );
+  });
+
+  group('Startup Shorebird patch notification tests', () {
+    setUp(() {
+      SharedPreferences.setMockInitialValues({});
+    });
+
+    test(
+      'notifies user on startup when a Shorebird patch is available',
+      () async {
+        final notifications = NotificationProvider();
+        await notifications.preload();
+
+        final service = UpdateService(
+          versionReader: () async => '1.1.1+3',
+          shorebirdUpdater: _FakeShorebirdUpdater(
+            isAvailable: true,
+            statusToReturn: shorebird.UpdateStatus.outdated,
+          ),
+        );
+
+        await notifications.checkForPatchUpdate(updateService: service);
+
+        expect(notifications.notifications.length, 1);
+        expect(notifications.notifications.first.title, 'App Patch Available');
+      },
+    );
+
+    test(
+      'notifies user on startup when a Shorebird patch needs restart',
+      () async {
+        final notifications = NotificationProvider();
+        await notifications.preload();
+
+        final service = UpdateService(
+          versionReader: () async => '1.1.1+3',
+          shorebirdUpdater: _FakeShorebirdUpdater(
+            isAvailable: true,
+            statusToReturn: shorebird.UpdateStatus.restartRequired,
+          ),
+        );
+
+        await notifications.checkForPatchUpdate(updateService: service);
+
+        expect(notifications.notifications.length, 1);
+        expect(notifications.notifications.first.title, 'App Patch Ready');
+      },
+    );
+
+    test('does not notify when up to date or Shorebird unavailable', () async {
+      final notifications = NotificationProvider();
+      await notifications.preload();
+
+      final service = UpdateService(
+        versionReader: () async => '1.1.1+3',
+        shorebirdUpdater: _FakeShorebirdUpdater(
+          isAvailable: true,
+          statusToReturn: shorebird.UpdateStatus.upToDate,
+        ),
+      );
+
+      await notifications.checkForPatchUpdate(updateService: service);
+
+      expect(notifications.notifications, isEmpty);
+    });
   });
 }

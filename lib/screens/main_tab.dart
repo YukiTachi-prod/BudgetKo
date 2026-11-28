@@ -153,10 +153,9 @@ class MainTab extends StatelessWidget {
                         horizontal: 8,
                         vertical: 3,
                       ),
-                      decoration: BoxDecoration(
+                      decoration: AppTheme.squircleDecoration(
                         color: (totalMoney >= 0 ? Colors.green : Colors.red)
                             .withValues(alpha: 0.12),
-                        borderRadius: BorderRadius.circular(4),
                       ),
                       child: Text(
                         totalMoney >= 0 ? 'Net Positive' : 'Net Negative',
@@ -333,11 +332,10 @@ class MainTab extends StatelessWidget {
                                     horizontal: 6,
                                     vertical: 1,
                                   ),
-                                  decoration: BoxDecoration(
+                                  decoration: AppTheme.squircleDecoration(
                                     color:
                                         (pool >= 0 ? Colors.green : Colors.red)
                                             .withValues(alpha: 0.12),
-                                    borderRadius: BorderRadius.circular(4),
                                   ),
                                   child: Text(
                                     pool >= 0 ? 'Pool Active' : 'Deficit',
@@ -455,11 +453,10 @@ class MainTab extends StatelessWidget {
                                     horizontal: 6,
                                     vertical: 1,
                                   ),
-                                  decoration: BoxDecoration(
+                                  decoration: AppTheme.squircleDecoration(
                                     color: theme.colorScheme.primary.withValues(
                                       alpha: 0.12,
                                     ),
-                                    borderRadius: BorderRadius.circular(4),
                                   ),
                                   child: Text(
                                     'Temp',
@@ -751,12 +748,11 @@ class MainTab extends StatelessWidget {
                                       horizontal: 6,
                                       vertical: 1,
                                     ),
-                                    decoration: BoxDecoration(
+                                    decoration: AppTheme.squircleDecoration(
                                       color:
                                           (catColor ??
                                                   theme.colorScheme.primary)
                                               .withValues(alpha: 0.15),
-                                      borderRadius: BorderRadius.circular(4),
                                     ),
                                     child: Text(
                                       cat.name,

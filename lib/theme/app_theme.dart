@@ -19,9 +19,29 @@ class AppTheme {
   static const Color darkSubtext = Color(0xFFA1A09C);
   static const Color darkAccent = Color(0xFFB5B8B9);
 
-  // ── Shared Corner Radii (4-6px, strictly no pill shapes) ────────
+  // ── Shared Corner Radii ───────────────────────────────────────────
   static const double radius = 6.0;
   static const double buttonRadius = 5.0;
+  static const double pillRadius = 6.0;
+  static const double chipRadius = 10.0;
+
+  // ── Squircle Helpers (for pills, chips, and badges) ──────────────
+  static RoundedSuperellipseBorder squircleShape({
+    double radius = pillRadius,
+    BorderSide side = BorderSide.none,
+  }) => RoundedSuperellipseBorder(
+    borderRadius: BorderRadius.circular(radius),
+    side: side,
+  );
+
+  static ShapeDecoration squircleDecoration({
+    Color? color,
+    double radius = pillRadius,
+    BorderSide side = BorderSide.none,
+  }) => ShapeDecoration(
+    color: color,
+    shape: squircleShape(radius: radius, side: side),
+  );
 
   // ── Clean Sans-Serif Font Fallbacks ──────────────────────────────
   static const String fontFamily = 'Inter';
@@ -171,9 +191,7 @@ class AppTheme {
           fontWeight: FontWeight.w500,
         ),
         side: BorderSide(color: border, width: 1.0),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(buttonRadius),
-        ),
+        shape: squircleShape(radius: chipRadius),
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
         showCheckmark: false,
       ),

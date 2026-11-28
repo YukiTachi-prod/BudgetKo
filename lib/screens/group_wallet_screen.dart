@@ -871,13 +871,13 @@ CREATE POLICY "Public access on group_transactions" ON group_transactions FOR AL
         // Profile Chip / Button
         InkWell(
           onTap: () => _showProfileDialog(context, provider.profile),
-          borderRadius: BorderRadius.circular(20),
+          customBorder: AppTheme.squircleShape(radius: 12),
           child: Container(
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-            decoration: BoxDecoration(
+            decoration: AppTheme.squircleDecoration(
               color: theme.cardColor,
-              borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: theme.dividerColor),
+              radius: 12,
+              side: BorderSide(color: theme.dividerColor),
             ),
             child: Row(
               mainAxisSize: MainAxisSize.min,
@@ -915,13 +915,13 @@ CREATE POLICY "Public access on group_transactions" ON group_transactions FOR AL
         // Supabase Status Badge
         InkWell(
           onTap: () => _showSupabaseConfigDialog(context),
-          borderRadius: BorderRadius.circular(20),
+          customBorder: AppTheme.squircleShape(radius: 12),
           child: Container(
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-            decoration: BoxDecoration(
+            decoration: AppTheme.squircleDecoration(
               color: theme.cardColor,
-              borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: theme.dividerColor),
+              radius: 12,
+              side: BorderSide(color: theme.dividerColor),
             ),
             child: Row(
               mainAxisSize: MainAxisSize.min,
@@ -1222,11 +1222,10 @@ CREATE POLICY "Public access on group_transactions" ON group_transactions FOR AL
                         horizontal: 6,
                         vertical: 2,
                       ),
-                      decoration: BoxDecoration(
+                      decoration: AppTheme.squircleDecoration(
                         color: theme.colorScheme.primary.withValues(
                           alpha: 0.12,
                         ),
-                        borderRadius: BorderRadius.circular(4),
                       ),
                       child: Text(
                         '${provider.members.length} members',
@@ -1449,11 +1448,10 @@ CREATE POLICY "Public access on group_transactions" ON group_transactions FOR AL
               ),
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                decoration: BoxDecoration(
+                decoration: AppTheme.squircleDecoration(
                   color: (pool >= 0 ? Colors.green : Colors.red).withValues(
                     alpha: 0.12,
                   ),
-                  borderRadius: BorderRadius.circular(4),
                 ),
                 child: Text(
                   pool >= 0 ? 'Funds Available' : 'Deficit',
@@ -1806,10 +1804,9 @@ CREATE POLICY "Public access on group_transactions" ON group_transactions FOR AL
                                   horizontal: 6,
                                   vertical: 1,
                                 ),
-                                decoration: BoxDecoration(
+                                decoration: AppTheme.squircleDecoration(
                                   color: theme.scaffoldBackgroundColor,
-                                  borderRadius: BorderRadius.circular(4),
-                                  border: Border.all(color: theme.dividerColor),
+                                  side: BorderSide(color: theme.dividerColor),
                                 ),
                                 child: Text(
                                   tx.category,

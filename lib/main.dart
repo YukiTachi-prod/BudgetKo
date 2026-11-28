@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'providers/settings_provider.dart';
@@ -32,6 +33,7 @@ void main() async {
   ]);
 
   notificationProvider.checkLedgerWarnings(ledgerProvider);
+  unawaited(notificationProvider.checkForPatchUpdate());
 
   runApp(
     MultiProvider(

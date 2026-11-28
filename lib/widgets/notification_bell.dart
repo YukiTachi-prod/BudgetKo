@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/notification_provider.dart';
 import '../providers/ledger_provider.dart';
+import '../theme/app_theme.dart';
 
 class NotificationBell extends StatelessWidget {
   const NotificationBell({super.key});
@@ -30,9 +31,9 @@ class NotificationBell extends StatelessWidget {
                 top: 8,
                 child: Container(
                   padding: const EdgeInsets.all(2),
-                  decoration: BoxDecoration(
+                  decoration: AppTheme.squircleDecoration(
                     color: Colors.red,
-                    borderRadius: BorderRadius.circular(10),
+                    radius: 7,
                   ),
                   constraints: const BoxConstraints(
                     minWidth: 16,

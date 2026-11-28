@@ -16,6 +16,7 @@ import 'group_wallet_screen.dart';
 import 'temp_group_pool_screen.dart';
 import '../widgets/notification_bell.dart';
 import '../widgets/notification_drawer.dart';
+import '../theme/app_theme.dart';
 
 class BudgetScreen extends StatefulWidget {
   const BudgetScreen({super.key});
@@ -862,10 +863,9 @@ class _BudgetScreenState extends State<BudgetScreen> {
                                     horizontal: 8,
                                     vertical: 2,
                                   ),
-                                  decoration: BoxDecoration(
+                                  decoration: AppTheme.squircleDecoration(
                                     color: catColor!.withValues(alpha: 0.15),
-                                    borderRadius: BorderRadius.circular(4),
-                                    border: Border.all(
+                                    side: BorderSide(
                                       color: catColor.withValues(alpha: 0.3),
                                       width: 1,
                                     ),

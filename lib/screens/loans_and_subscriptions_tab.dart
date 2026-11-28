@@ -6,6 +6,7 @@ import '../providers/ledger_provider.dart';
 import '../providers/notification_provider.dart';
 import '../providers/settings_provider.dart';
 import '../database/budget_database.dart';
+import '../theme/app_theme.dart';
 import '../utils/math_util.dart';
 
 class LoansAndSubscriptionsTab extends StatelessWidget {
@@ -767,9 +768,8 @@ class LoansAndSubscriptionsTab extends StatelessWidget {
                               horizontal: 6,
                               vertical: 2,
                             ),
-                            decoration: BoxDecoration(
+                            decoration: AppTheme.squircleDecoration(
                               color: Colors.green.withValues(alpha: 0.15),
-                              borderRadius: BorderRadius.circular(4),
                             ),
                             child: Text(
                               'Paid',
@@ -787,9 +787,8 @@ class LoansAndSubscriptionsTab extends StatelessWidget {
                             horizontal: 6,
                             vertical: 2,
                           ),
-                          decoration: BoxDecoration(
+                          decoration: AppTheme.squircleDecoration(
                             color: accColor.withValues(alpha: 0.15),
-                            borderRadius: BorderRadius.circular(4),
                           ),
                           child: Text(
                             acc.name,
