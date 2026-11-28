@@ -13,7 +13,6 @@ class ExpensesTab extends StatefulWidget {
 
 class _ExpensesTabState extends State<ExpensesTab> {
   String _dateFilter = 'This Week';
-  double _scale = 1.0;
 
   bool _isWithinFilter(DateTime date) {
     final now = DateTime.now();
@@ -30,27 +29,10 @@ class _ExpensesTabState extends State<ExpensesTab> {
     }
   }
 
-  void _zoomIn() {
-    setState(() {
-      if (_scale < 4.0) {
-        _scale *= 1.2;
-      }
-    });
-  }
-
-  void _zoomOut() {
-    setState(() {
-      if (_scale > 0.3) {
-        _scale /= 1.2;
-      }
-    });
-  }
-
   @override
   Widget build(BuildContext context) {
     final provider = context.watch<LedgerProvider>();
     final currency = context.watch<SettingsProvider>().currency;
-    final theme = Theme.of(context);
 
     final expenses = provider.recentTransactions
         .where(
@@ -110,19 +92,42 @@ class _ExpensesTabState extends State<ExpensesTab> {
                   ),
                 )
               else
-                SingleChildScrollView(
-                  scrollDirection: Axis.horizontal,
-                  child: Transform.scale(
-                    scale: _scale,
-                    alignment: Alignment.topLeft,
-                    child: DataTable(
+                LayoutBuilder(
+                  builder: (context, constraints) {
+                    const horizontalMargin = 4.0;
+                    const columnSpacing = 4.0;
+                    final availableColumnWidth =
+                        constraints.maxWidth -
+                        horizontalMargin * 2 -
+                        columnSpacing * 3;
+
+                    return DataTable(
+                      horizontalMargin: horizontalMargin,
+                      columnSpacing: columnSpacing,
                       columns: const [
-                        DataColumn(label: Text('Account')),
-                        DataColumn(label: Text('Category')),
-                        DataColumn(label: Text('Expense')),
-                        DataColumn(label: Text('Date')),
+                        DataColumn(label: Text('Account', maxLines: 1)),
+                        DataColumn(label: Text('Category', maxLines: 1)),
+                        DataColumn(label: Text('Expense', maxLines: 1)),
+                        DataColumn(label: Text('Date', maxLines: 1)),
                       ],
                       rows: expenses.map((tx) {
+                        Widget compactCell(
+                          String text,
+                          double width, {
+                          TextStyle? style,
+                        }) {
+                          return SizedBox(
+                            width: width,
+                            child: Text(
+                              text,
+                              maxLines: 1,
+                              softWrap: false,
+                              overflow: TextOverflow.ellipsis,
+                              style: style,
+                            ),
+                          );
+                        }
+
                         final catList = provider.categories
                             .where((c) => c.id == tx.categoryId)
                             .toList();
@@ -149,8 +154,9 @@ class _ExpensesTabState extends State<ExpensesTab> {
                               : null,
                           cells: [
                             DataCell(
-                              Text(
+                              compactCell(
                                 accName,
+                                availableColumnWidth * 0.21,
                                 style: TextStyle(
                                   color: accColor,
                                   fontWeight: accColor != null
@@ -160,8 +166,9 @@ class _ExpensesTabState extends State<ExpensesTab> {
                               ),
                             ),
                             DataCell(
-                              Text(
+                              compactCell(
                                 catName,
+                                availableColumnWidth * 0.21,
                                 style: TextStyle(
                                   color: catColor,
                                   fontWeight: catColor != null
@@ -171,22 +178,41 @@ class _ExpensesTabState extends State<ExpensesTab> {
                               ),
                             ),
                             DataCell(
-                              Text('$currency${tx.amount.toStringAsFixed(2)}'),
+                              compactCell(
+                                '$currency${tx.amount.toStringAsFixed(2)}',
+                                availableColumnWidth * 0.25,
+                              ),
                             ),
                             DataCell(
-                              Text(() {
-                                final d = tx.date;
-                                final dateStr = d.toString().split(' ')[0];
-                                if (d.hour == 0 &&
-                                    d.minute == 0 &&
-                                    d.second == 0) {
-                                  return dateStr;
-                                }
-                                final timeStr =
-                                    '${d.hour.toString().padLeft(2, '0')}:${d.minute.toString().padLeft(2, '0')}';
-                                return '$dateStr $timeStr';
-                              }()),
-                              showEditIcon: true,
+                              SizedBox(
+                                width: availableColumnWidth * 0.33,
+                                child: Row(
+                                  children: [
+                                    Expanded(
+                                      child: Text(
+                                        (() {
+                                          final d = tx.date;
+                                          final dateStr = d.toString().split(
+                                            ' ',
+                                          )[0];
+                                          if (d.hour == 0 &&
+                                              d.minute == 0 &&
+                                              d.second == 0) {
+                                            return dateStr;
+                                          }
+                                          final timeStr =
+                                              '${d.hour.toString().padLeft(2, '0')}:${d.minute.toString().padLeft(2, '0')}';
+                                          return '$dateStr $timeStr';
+                                        })(),
+                                        maxLines: 1,
+                                        softWrap: false,
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                    ),
+                                    const Icon(Icons.edit, size: 14),
+                                  ],
+                                ),
+                              ),
                               onTap: () async {
                                 final newDate = await showDatePicker(
                                   context: context,
@@ -215,53 +241,13 @@ class _ExpensesTabState extends State<ExpensesTab> {
                           ],
                         );
                       }).toList(),
-                    ),
-                  ),
+                    );
+                  },
                 ),
-              // Add some extra space at the bottom so the zoomed table doesn't get cut off by FABs
-              const SizedBox(height: 200),
+              const SizedBox(height: 24),
             ],
           ),
         ),
-        if (expenses.isNotEmpty)
-          Positioned(
-            bottom: 100, // Positioned safely above the Scaffold's extended FAB
-            right: 16,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                FloatingActionButton.small(
-                  heroTag: 'zoomInExpenses',
-                  backgroundColor: theme.cardColor,
-                  foregroundColor: theme.colorScheme.onSurface,
-                  elevation: 0,
-                  highlightElevation: 0,
-                  hoverElevation: 1,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(6),
-                    side: BorderSide(color: theme.dividerColor, width: 1.0),
-                  ),
-                  onPressed: _zoomIn,
-                  child: const Icon(Icons.zoom_in),
-                ),
-                const SizedBox(height: 12),
-                FloatingActionButton.small(
-                  heroTag: 'zoomOutExpenses',
-                  backgroundColor: theme.cardColor,
-                  foregroundColor: theme.colorScheme.onSurface,
-                  elevation: 0,
-                  highlightElevation: 0,
-                  hoverElevation: 1,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(6),
-                    side: BorderSide(color: theme.dividerColor, width: 1.0),
-                  ),
-                  onPressed: _zoomOut,
-                  child: const Icon(Icons.zoom_out),
-                ),
-              ],
-            ),
-          ),
       ],
     );
   }
