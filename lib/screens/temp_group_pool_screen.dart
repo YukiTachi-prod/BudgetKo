@@ -15,8 +15,25 @@ class TempGroupPoolScreen extends StatefulWidget {
   State<TempGroupPoolScreen> createState() => _TempGroupPoolScreenState();
 }
 
-class _TempGroupPoolScreenState extends State<TempGroupPoolScreen> {
+class _TempGroupPoolScreenState extends State<TempGroupPoolScreen>
+    with SingleTickerProviderStateMixin {
   final NumberFormat _amountFormat = NumberFormat('#,##0.00');
+  late final TabController _tabController;
+
+  @override
+  void initState() {
+    super.initState();
+    _tabController = TabController(length: 2, vsync: this);
+    _tabController.addListener(() {
+      if (mounted) setState(() {});
+    });
+  }
+
+  @override
+  void dispose() {
+    _tabController.dispose();
+    super.dispose();
+  }
 
   String _fmt(double value, String currency) {
     return '$currency${_amountFormat.format(value.abs())}';
@@ -364,138 +381,6 @@ class _TempGroupPoolScreenState extends State<TempGroupPoolScreen> {
   }
 
   // ── Dialog: Add / Edit Participant ────────────────────────────────────
-  void _showChangeBackDialog(BuildContext context) {
-    showDialog(
-      context: context,
-      builder: (ctx) {
-        return Consumer<TempGroupPoolProvider>(
-          builder: (context, provider, _) {
-            final pool = provider.activePool;
-            if (pool == null) return const SizedBox.shrink();
-            final theme = Theme.of(context);
-            final peopleWithChange = pool.participants
-                .where((p) => pool.changeFor(p) > 0.005)
-                .toList();
-
-            return AlertDialog(
-              title: const Text('Change Back'),
-              content: SizedBox(
-                width: double.maxFinite,
-                child: peopleWithChange.isEmpty
-                    ? Text(
-                        'No one is owed change right now.',
-                        style: theme.textTheme.bodyMedium?.copyWith(
-                          color: theme.colorScheme.secondary,
-                        ),
-                      )
-                    : SingleChildScrollView(
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: peopleWithChange.map((person) {
-                            final change = pool.changeFor(person);
-                            final resolved = person.isChangeResolved;
-                            return Padding(
-                              padding: const EdgeInsets.only(bottom: 10),
-                              child: Row(
-                                children: [
-                                  Expanded(
-                                    child: Column(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
-                                      children: [
-                                        Text(
-                                          person.name,
-                                          style: theme.textTheme.titleSmall
-                                              ?.copyWith(
-                                                fontWeight: FontWeight.w700,
-                                                decoration: resolved
-                                                    ? TextDecoration.lineThrough
-                                                    : null,
-                                                color: resolved
-                                                    ? theme
-                                                          .colorScheme
-                                                          .secondary
-                                                    : null,
-                                              ),
-                                        ),
-                                        const SizedBox(height: 2),
-                                        Text(
-                                          _fmt(change, pool.currency),
-                                          style: theme.textTheme.bodySmall
-                                              ?.copyWith(
-                                                color: resolved
-                                                    ? theme
-                                                          .colorScheme
-                                                          .secondary
-                                                    : Colors.green.shade700,
-                                                fontWeight: FontWeight.w600,
-                                              ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                  const SizedBox(width: 8),
-                                  if (resolved)
-                                    FilledButton.icon(
-                                      onPressed: () =>
-                                          provider.setParticipantChangeResolved(
-                                            person.id,
-                                            false,
-                                          ),
-                                      icon: const Icon(Icons.check, size: 15),
-                                      label: const Text('Resolved'),
-                                      style: FilledButton.styleFrom(
-                                        backgroundColor: Colors.teal.shade600,
-                                        foregroundColor: Colors.white,
-                                        padding: const EdgeInsets.symmetric(
-                                          horizontal: 10,
-                                          vertical: 6,
-                                        ),
-                                        minimumSize: const Size(0, 32),
-                                        shape: AppTheme.squircleShape(
-                                          radius: AppTheme.pillRadius,
-                                        ),
-                                      ),
-                                    )
-                                  else
-                                    OutlinedButton(
-                                      onPressed: () =>
-                                          provider.setParticipantChangeResolved(
-                                            person.id,
-                                            true,
-                                          ),
-                                      style: OutlinedButton.styleFrom(
-                                        padding: const EdgeInsets.symmetric(
-                                          horizontal: 10,
-                                          vertical: 6,
-                                        ),
-                                        minimumSize: const Size(0, 32),
-                                        shape: AppTheme.squircleShape(
-                                          radius: AppTheme.pillRadius,
-                                        ),
-                                      ),
-                                      child: const Text('Resolve'),
-                                    ),
-                                ],
-                              ),
-                            );
-                          }).toList(),
-                        ),
-                      ),
-              ),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.pop(ctx),
-                  child: const Text('Done'),
-                ),
-              ],
-            );
-          },
-        );
-      },
-    );
-  }
-
   void _showParticipantDialog(
     BuildContext context,
     TempGroupPool pool, [
@@ -714,8 +599,17 @@ class _TempGroupPoolScreenState extends State<TempGroupPoolScreen> {
               onPressed: () => _showDeletePoolConfirmDialog(context, pool),
             ),
         ],
+        bottom: pool == null
+            ? null
+            : TabBar(
+                controller: _tabController,
+                tabs: const [
+                  Tab(text: 'Pool'),
+                  Tab(text: 'Change Back'),
+                ],
+              ),
       ),
-      floatingActionButton: pool == null
+      floatingActionButton: pool == null || _tabController.index != 0
           ? null
           : FloatingActionButton.extended(
               onPressed: () => _showParticipantDialog(context, pool),
@@ -724,7 +618,13 @@ class _TempGroupPoolScreenState extends State<TempGroupPoolScreen> {
             ),
       body: pool == null
           ? _buildEmptyState(context, theme)
-          : _buildActivePoolBody(context, provider, pool, theme),
+          : TabBarView(
+              controller: _tabController,
+              children: [
+                _buildActivePoolBody(context, provider, pool, theme),
+                _buildChangeBackTab(context, provider, pool, theme),
+              ],
+            ),
     );
   }
 
@@ -835,25 +735,15 @@ class _TempGroupPoolScreenState extends State<TempGroupPoolScreen> {
                 Row(
                   children: [
                     Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            pool.name,
-                            style: theme.textTheme.titleMedium?.copyWith(
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
-                          const SizedBox(height: 2),
-                          Text(
-                            'Temporary wallet • Isolated from your personal accounts',
-                            style: theme.textTheme.bodySmall,
-                          ),
-                        ],
+                      child: Text(
+                        pool.name,
+                        style: theme.textTheme.titleMedium?.copyWith(
+                          fontWeight: FontWeight.w700,
+                        ),
                       ),
                     ),
                     IconButton(
-                      icon: const Icon(Icons.category_outlined, size: 20),
+                      icon: const Icon(Icons.more_vert, size: 20),
                       tooltip: 'Manage Categories',
                       onPressed: () => _showCategoriesDialog(context, pool),
                     ),
@@ -984,7 +874,7 @@ class _TempGroupPoolScreenState extends State<TempGroupPoolScreen> {
                   valueColor: pool.totalChangeBack > 0
                       ? Colors.green.shade700
                       : null,
-                  onTap: () => _showChangeBackDialog(context),
+                  onTap: () => _tabController.animateTo(1),
                 ),
               ),
               const SizedBox(width: 8),
@@ -1212,6 +1102,217 @@ class _TempGroupPoolScreenState extends State<TempGroupPoolScreen> {
               ),
             ),
           ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildChangeBackTab(
+    BuildContext context,
+    TempGroupPoolProvider provider,
+    TempGroupPool pool,
+    ThemeData theme,
+  ) {
+    final peopleWithChange = pool.participants
+        .where((p) => pool.changeFor(p) > 0.005)
+        .toList();
+    final resolvedCount = peopleWithChange
+        .where((p) => p.isChangeResolved)
+        .length;
+
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              color: theme.cardColor,
+              borderRadius: BorderRadius.circular(AppTheme.radius),
+              border: Border.all(color: theme.dividerColor, width: 1.0),
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Remaining Change Back',
+                      style: theme.textTheme.labelSmall,
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      _fmt(pool.totalChangeBack, pool.currency),
+                      style: theme.textTheme.titleLarge?.copyWith(
+                        fontWeight: FontWeight.w700,
+                        color: pool.totalChangeBack > 0
+                            ? Colors.green.shade700
+                            : null,
+                      ),
+                    ),
+                  ],
+                ),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 5,
+                  ),
+                  decoration: AppTheme.squircleDecoration(
+                    color: Colors.teal.withValues(alpha: 0.12),
+                  ),
+                  child: Text(
+                    '$resolvedCount / ${peopleWithChange.length} resolved',
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.teal.shade700,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 16),
+          if (peopleWithChange.isEmpty)
+            Container(
+              padding: const EdgeInsets.all(24),
+              decoration: BoxDecoration(
+                color: theme.cardColor,
+                borderRadius: BorderRadius.circular(AppTheme.radius),
+                border: Border.all(color: theme.dividerColor),
+              ),
+              child: Center(
+                child: Text(
+                  'No one is owed change right now.',
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    color: theme.colorScheme.secondary,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+              ),
+            )
+          else
+            Column(
+              children: peopleWithChange.map((person) {
+                final change = pool.changeFor(person);
+                final resolved = person.isChangeResolved;
+                final catColor = AppTheme.categoryColor(person.category);
+
+                return Padding(
+                  padding: const EdgeInsets.only(bottom: 8),
+                  child: Container(
+                    padding: const EdgeInsets.all(14),
+                    decoration: BoxDecoration(
+                      color: theme.cardColor,
+                      borderRadius: BorderRadius.circular(AppTheme.radius),
+                      border: Border.all(color: theme.dividerColor),
+                    ),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Wrap(
+                                spacing: 8,
+                                runSpacing: 4,
+                                crossAxisAlignment: WrapCrossAlignment.center,
+                                children: [
+                                  Text(
+                                    person.name,
+                                    style: theme.textTheme.titleSmall?.copyWith(
+                                      fontWeight: FontWeight.w700,
+                                      decoration: resolved
+                                          ? TextDecoration.lineThrough
+                                          : null,
+                                      color: resolved
+                                          ? theme.colorScheme.secondary
+                                          : null,
+                                    ),
+                                  ),
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 6,
+                                      vertical: 2,
+                                    ),
+                                    decoration: AppTheme.squircleDecoration(
+                                      color: catColor.withValues(alpha: 0.15),
+                                    ),
+                                    child: Text(
+                                      person.category,
+                                      style: TextStyle(
+                                        fontSize: 10,
+                                        fontWeight: FontWeight.w600,
+                                        color: catColor,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                'Change: ${_fmt(change, pool.currency)}',
+                                style: theme.textTheme.bodySmall?.copyWith(
+                                  color: resolved
+                                      ? theme.colorScheme.secondary
+                                      : Colors.green.shade700,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        if (resolved)
+                          FilledButton.icon(
+                            onPressed: () =>
+                                provider.setParticipantChangeResolved(
+                                  person.id,
+                                  false,
+                                ),
+                            icon: const Icon(Icons.check, size: 15),
+                            label: const Text('Resolved'),
+                            style: FilledButton.styleFrom(
+                              backgroundColor: Colors.teal.shade600,
+                              foregroundColor: Colors.white,
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 12,
+                                vertical: 8,
+                              ),
+                              minimumSize: const Size(0, 34),
+                              shape: AppTheme.squircleShape(
+                                radius: AppTheme.pillRadius,
+                              ),
+                            ),
+                          )
+                        else
+                          OutlinedButton(
+                            onPressed: () =>
+                                provider.setParticipantChangeResolved(
+                                  person.id,
+                                  true,
+                                ),
+                            style: OutlinedButton.styleFrom(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 12,
+                                vertical: 8,
+                              ),
+                              minimumSize: const Size(0, 34),
+                              shape: AppTheme.squircleShape(
+                                radius: AppTheme.pillRadius,
+                              ),
+                            ),
+                            child: const Text('Resolve'),
+                          ),
+                      ],
+                    ),
+                  ),
+                );
+              }).toList(),
+            ),
+          const SizedBox(height: 32),
         ],
       ),
     );

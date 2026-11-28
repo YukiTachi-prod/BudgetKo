@@ -273,16 +273,21 @@ void main() {
         expect(find.textContaining('180.00'), findsAtLeastNWidgets(1));
         expect(find.textContaining('500.00'), findsAtLeastNWidgets(1));
 
-        // Tap "Change Back" metric card to open Change Back dialog and resolve Alex's change
-        await tester.tap(find.text('Change Back'));
+        // Tap "Change Back" metric card to switch to the Change Back tab and resolve Alex's change
+        await tester.tap(find.text('Change Back').last);
         await tester.pumpAndSettle();
         expect(find.widgetWithText(OutlinedButton, 'Resolve'), findsOneWidget);
         await tester.tap(find.widgetWithText(OutlinedButton, 'Resolve'));
         await tester.pumpAndSettle();
-        expect(find.text('Resolved'), findsAtLeastNWidgets(1));
-        await tester.tap(find.text('Done'));
-        await tester.pumpAndSettle();
+        expect(find.text('Resolved'), findsOneWidget);
+        // Resolving subtracts returned change (180) from totalPooled (500 -> 320)
         expect(tempPool.activePool!.totalChangeBack, 0.0);
+        expect(tempPool.activePool!.totalPooled, 320.0);
+        expect(tempPool.activePool!.categoryTotals['Cash'], 320.0);
+
+        // Switch back to Pool tab and verify Resolved badge is shown on Alex's card
+        await tester.tap(find.widgetWithText(Tab, 'Pool'));
+        await tester.pumpAndSettle();
         expect(find.text('Resolved'), findsOneWidget);
 
         // Switching to "Same for everyone" hides the "Amount to Pay" input completely

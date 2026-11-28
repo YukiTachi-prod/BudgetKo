@@ -115,9 +115,19 @@ class TempGroupPool {
     return participant.amountPaid - effectiveAmountToPay(participant);
   }
 
-  /// Total money currently collected in the pool.
+  /// Net amount currently held in the pool for a participant (subtracts
+  /// returned change once marked resolved).
+  double netContributedBy(TempPoolParticipant participant) {
+    final change = changeFor(participant);
+    if (participant.isChangeResolved && change > 0) {
+      return participant.amountPaid - change;
+    }
+    return participant.amountPaid;
+  }
+
+  /// Total money currently collected in the pool (excluding returned change).
   double get totalPooled =>
-      participants.fold(0.0, (sum, p) => sum + p.amountPaid);
+      participants.fold(0.0, (sum, p) => sum + netContributedBy(p));
 
   /// Total bill expected across all participants.
   double get totalExpected =>
@@ -143,7 +153,7 @@ class TempGroupPool {
   Map<String, double> get categoryTotals {
     final Map<String, double> totals = {for (final cat in categories) cat: 0.0};
     for (final p in participants) {
-      totals[p.category] = (totals[p.category] ?? 0.0) + p.amountPaid;
+      totals[p.category] = (totals[p.category] ?? 0.0) + netContributedBy(p);
     }
     return totals;
   }
