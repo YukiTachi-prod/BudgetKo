@@ -139,34 +139,11 @@ class MainTab extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 14),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                      '${provider.accounts.length} ${provider.accounts.length == 1 ? 'account' : 'accounts'} active',
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        color: theme.colorScheme.secondary,
-                      ),
-                    ),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 8,
-                        vertical: 3,
-                      ),
-                      decoration: AppTheme.squircleDecoration(
-                        color: (totalMoney >= 0 ? Colors.green : Colors.red)
-                            .withValues(alpha: 0.12),
-                      ),
-                      child: Text(
-                        totalMoney >= 0 ? 'Net Positive' : 'Net Negative',
-                        style: TextStyle(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w600,
-                          color: totalMoney >= 0 ? Colors.green : Colors.red,
-                        ),
-                      ),
-                    ),
-                  ],
+                Text(
+                  '${provider.accounts.length} ${provider.accounts.length == 1 ? 'account' : 'accounts'} active',
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: theme.colorScheme.secondary,
+                  ),
                 ),
               ],
             ),

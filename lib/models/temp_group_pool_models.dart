@@ -7,7 +7,9 @@ class TempPoolParticipant {
   final double amountPaid;
   final double amountToPay;
   final String category;
+  final String? owedTo;
   final String? notes;
+  final bool isChangeResolved;
 
   const TempPoolParticipant({
     required this.id,
@@ -15,7 +17,9 @@ class TempPoolParticipant {
     required this.amountPaid,
     required this.amountToPay,
     this.category = TempGroupPool.defaultCashCategory,
+    this.owedTo,
     this.notes,
+    this.isChangeResolved = false,
   });
 
   TempPoolParticipant copyWith({
@@ -24,8 +28,11 @@ class TempPoolParticipant {
     double? amountPaid,
     double? amountToPay,
     String? category,
+    String? owedTo,
+    bool clearOwedTo = false,
     String? notes,
     bool clearNotes = false,
+    bool? isChangeResolved,
   }) {
     return TempPoolParticipant(
       id: id ?? this.id,
@@ -33,7 +40,9 @@ class TempPoolParticipant {
       amountPaid: amountPaid ?? this.amountPaid,
       amountToPay: amountToPay ?? this.amountToPay,
       category: category ?? this.category,
+      owedTo: clearOwedTo ? null : (owedTo ?? this.owedTo),
       notes: clearNotes ? null : (notes ?? this.notes),
+      isChangeResolved: isChangeResolved ?? this.isChangeResolved,
     );
   }
 
@@ -43,7 +52,9 @@ class TempPoolParticipant {
     'amountPaid': amountPaid,
     'amountToPay': amountToPay,
     'category': category,
+    if (owedTo != null && owedTo!.isNotEmpty) 'owedTo': owedTo,
     if (notes != null && notes!.isNotEmpty) 'notes': notes,
+    if (isChangeResolved) 'isChangeResolved': true,
   };
 
   factory TempPoolParticipant.fromJson(Map<String, dynamic> json) {
@@ -54,7 +65,9 @@ class TempPoolParticipant {
       amountToPay: (json['amountToPay'] as num?)?.toDouble() ?? 0.0,
       category:
           json['category']?.toString() ?? TempGroupPool.defaultCashCategory,
+      owedTo: json['owedTo']?.toString(),
       notes: json['notes']?.toString(),
+      isChangeResolved: json['isChangeResolved'] == true,
     );
   }
 }
@@ -110,8 +123,9 @@ class TempGroupPool {
   double get totalExpected =>
       participants.fold(0.0, (sum, p) => sum + effectiveAmountToPay(p));
 
-  /// Total change that needs to be handed back to overpaying participants.
+  /// Total change that still needs to be handed back to overpaying participants.
   double get totalChangeBack => participants.fold(0.0, (sum, p) {
+    if (p.isChangeResolved) return sum;
     final diff = changeFor(p);
     return diff > 0 ? sum + diff : sum;
   });

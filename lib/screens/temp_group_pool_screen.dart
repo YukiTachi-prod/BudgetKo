@@ -364,6 +364,138 @@ class _TempGroupPoolScreenState extends State<TempGroupPoolScreen> {
   }
 
   // ── Dialog: Add / Edit Participant ────────────────────────────────────
+  void _showChangeBackDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (ctx) {
+        return Consumer<TempGroupPoolProvider>(
+          builder: (context, provider, _) {
+            final pool = provider.activePool;
+            if (pool == null) return const SizedBox.shrink();
+            final theme = Theme.of(context);
+            final peopleWithChange = pool.participants
+                .where((p) => pool.changeFor(p) > 0.005)
+                .toList();
+
+            return AlertDialog(
+              title: const Text('Change Back'),
+              content: SizedBox(
+                width: double.maxFinite,
+                child: peopleWithChange.isEmpty
+                    ? Text(
+                        'No one is owed change right now.',
+                        style: theme.textTheme.bodyMedium?.copyWith(
+                          color: theme.colorScheme.secondary,
+                        ),
+                      )
+                    : SingleChildScrollView(
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: peopleWithChange.map((person) {
+                            final change = pool.changeFor(person);
+                            final resolved = person.isChangeResolved;
+                            return Padding(
+                              padding: const EdgeInsets.only(bottom: 10),
+                              child: Row(
+                                children: [
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          person.name,
+                                          style: theme.textTheme.titleSmall
+                                              ?.copyWith(
+                                                fontWeight: FontWeight.w700,
+                                                decoration: resolved
+                                                    ? TextDecoration.lineThrough
+                                                    : null,
+                                                color: resolved
+                                                    ? theme
+                                                          .colorScheme
+                                                          .secondary
+                                                    : null,
+                                              ),
+                                        ),
+                                        const SizedBox(height: 2),
+                                        Text(
+                                          _fmt(change, pool.currency),
+                                          style: theme.textTheme.bodySmall
+                                              ?.copyWith(
+                                                color: resolved
+                                                    ? theme
+                                                          .colorScheme
+                                                          .secondary
+                                                    : Colors.green.shade700,
+                                                fontWeight: FontWeight.w600,
+                                              ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  if (resolved)
+                                    FilledButton.icon(
+                                      onPressed: () =>
+                                          provider.setParticipantChangeResolved(
+                                            person.id,
+                                            false,
+                                          ),
+                                      icon: const Icon(Icons.check, size: 15),
+                                      label: const Text('Resolved'),
+                                      style: FilledButton.styleFrom(
+                                        backgroundColor: Colors.teal.shade600,
+                                        foregroundColor: Colors.white,
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 10,
+                                          vertical: 6,
+                                        ),
+                                        minimumSize: const Size(0, 32),
+                                        shape: AppTheme.squircleShape(
+                                          radius: AppTheme.pillRadius,
+                                        ),
+                                      ),
+                                    )
+                                  else
+                                    OutlinedButton(
+                                      onPressed: () =>
+                                          provider.setParticipantChangeResolved(
+                                            person.id,
+                                            true,
+                                          ),
+                                      style: OutlinedButton.styleFrom(
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 10,
+                                          vertical: 6,
+                                        ),
+                                        minimumSize: const Size(0, 32),
+                                        shape: AppTheme.squircleShape(
+                                          radius: AppTheme.pillRadius,
+                                        ),
+                                      ),
+                                      child: const Text('Resolve'),
+                                    ),
+                                ],
+                              ),
+                            );
+                          }).toList(),
+                        ),
+                      ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(ctx),
+                  child: const Text('Done'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+
   void _showParticipantDialog(
     BuildContext context,
     TempGroupPool pool, [
@@ -380,6 +512,7 @@ class _TempGroupPoolScreenState extends State<TempGroupPoolScreen> {
                 ? pool.equalShareAmount.toStringAsFixed(2)
                 : ''),
     );
+    final owedToCtrl = TextEditingController(text: existing?.owedTo ?? '');
     final notesCtrl = TextEditingController(text: existing?.notes ?? '');
 
     String selectedCategory =
@@ -398,8 +531,23 @@ class _TempGroupPoolScreenState extends State<TempGroupPoolScreen> {
                 : parseAmount(toPayCtrl.text.trim());
             final previewChange = previewPaid - previewToPay;
 
+            final String statusTitle;
+            final Color statusColor;
+            if (previewChange > 0.005) {
+              statusTitle =
+                  'Change to give back: ${_fmt(previewChange, pool.currency)}';
+              statusColor = Colors.green.shade700;
+            } else if (previewChange < -0.005) {
+              statusTitle =
+                  'Still owes: ${_fmt(previewChange.abs(), pool.currency)}';
+              statusColor = Theme.of(context).colorScheme.error;
+            } else {
+              statusTitle = 'Still owes: ${_fmt(0, pool.currency)}';
+              statusColor = Colors.teal.shade600;
+            }
+
             return AlertDialog(
-              title: Text(existing == null ? 'Add Person' : 'Edit Person'),
+              title: Text(statusTitle, style: TextStyle(color: statusColor)),
               content: SingleChildScrollView(
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
@@ -425,29 +573,8 @@ class _TempGroupPoolScreenState extends State<TempGroupPoolScreen> {
                       ),
                       onChanged: (_) => setDialogState(() {}),
                     ),
-                    const SizedBox(height: 12),
-                    if (pool.isEqualShare)
-                      Container(
-                        width: double.infinity,
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 12,
-                          vertical: 10,
-                        ),
-                        decoration: BoxDecoration(
-                          color: Theme.of(context).scaffoldBackgroundColor,
-                          borderRadius: BorderRadius.circular(
-                            AppTheme.buttonRadius,
-                          ),
-                          border: Border.all(
-                            color: Theme.of(context).dividerColor,
-                          ),
-                        ),
-                        child: Text(
-                          'Amount to Pay (Same for everyone): ${_fmt(pool.equalShareAmount, pool.currency)}',
-                          style: Theme.of(context).textTheme.bodySmall,
-                        ),
-                      )
-                    else
+                    if (!pool.isEqualShare) ...[
+                      const SizedBox(height: 12),
                       TextField(
                         controller: toPayCtrl,
                         decoration: InputDecoration(
@@ -459,6 +586,7 @@ class _TempGroupPoolScreenState extends State<TempGroupPoolScreen> {
                         ),
                         onChanged: (_) => setDialogState(() {}),
                       ),
+                    ],
                     const SizedBox(height: 12),
                     DropdownButtonFormField<String>(
                       initialValue: selectedCategory,
@@ -476,6 +604,14 @@ class _TempGroupPoolScreenState extends State<TempGroupPoolScreen> {
                     ),
                     const SizedBox(height: 12),
                     TextField(
+                      controller: owedToCtrl,
+                      decoration: const InputDecoration(
+                        labelText: 'Owed to (Optional)',
+                        hintText: 'e.g. Sam',
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    TextField(
                       controller: notesCtrl,
                       maxLines: 2,
                       decoration: const InputDecoration(
@@ -483,12 +619,6 @@ class _TempGroupPoolScreenState extends State<TempGroupPoolScreen> {
                         hintText:
                             'e.g. Ordered ramen + iced tea, sent via GCash',
                       ),
-                    ),
-                    const SizedBox(height: 12),
-                    _ChangePreviewBanner(
-                      change: previewChange,
-                      currency: pool.currency,
-                      formatAmount: _fmt,
                     ),
                   ],
                 ),
@@ -522,6 +652,7 @@ class _TempGroupPoolScreenState extends State<TempGroupPoolScreen> {
                     final toPay = pool.isEqualShare
                         ? (existing?.amountToPay ?? pool.equalShareAmount)
                         : parseAmount(toPayCtrl.text.trim());
+                    final owedTo = owedToCtrl.text.trim();
                     final notes = notesCtrl.text.trim();
 
                     final provider = context.read<TempGroupPoolProvider>();
@@ -531,6 +662,7 @@ class _TempGroupPoolScreenState extends State<TempGroupPoolScreen> {
                         amountPaid: paid,
                         amountToPay: toPay,
                         category: selectedCategory,
+                        owedTo: owedTo.isNotEmpty ? owedTo : null,
                         notes: notes.isNotEmpty ? notes : null,
                       );
                     } else {
@@ -540,6 +672,8 @@ class _TempGroupPoolScreenState extends State<TempGroupPoolScreen> {
                           amountPaid: paid,
                           amountToPay: toPay,
                           category: selectedCategory,
+                          owedTo: owedTo.isNotEmpty ? owedTo : null,
+                          clearOwedTo: owedTo.isEmpty,
                           notes: notes.isNotEmpty ? notes : null,
                           clearNotes: notes.isEmpty,
                         ),
@@ -850,6 +984,7 @@ class _TempGroupPoolScreenState extends State<TempGroupPoolScreen> {
                   valueColor: pool.totalChangeBack > 0
                       ? Colors.green.shade700
                       : null,
+                  onTap: () => _showChangeBackDialog(context),
                 ),
               ),
               const SizedBox(width: 8),
@@ -868,24 +1003,11 @@ class _TempGroupPoolScreenState extends State<TempGroupPoolScreen> {
           const SizedBox(height: 22),
 
           // ── Participants Header ──────────────────────────────────────
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                'People (${pool.participants.length})',
-                style: theme.textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-              TextButton.icon(
-                onPressed: () => _showParticipantDialog(context, pool),
-                icon: const Icon(Icons.add, size: 16),
-                label: const Text('Add Person'),
-                style: TextButton.styleFrom(
-                  visualDensity: VisualDensity.compact,
-                ),
-              ),
-            ],
+          Text(
+            'People (${pool.participants.length})',
+            style: theme.textTheme.titleMedium?.copyWith(
+              fontWeight: FontWeight.w700,
+            ),
           ),
           const SizedBox(height: 8),
 
@@ -917,8 +1039,13 @@ class _TempGroupPoolScreenState extends State<TempGroupPoolScreen> {
                 final String statusLabel;
                 final Color statusColor;
                 if (change > 0.005) {
-                  statusLabel = 'Change: ${_fmt(change, pool.currency)}';
-                  statusColor = Colors.green.shade700;
+                  if (person.isChangeResolved) {
+                    statusLabel = 'Resolved';
+                    statusColor = Colors.teal.shade600;
+                  } else {
+                    statusLabel = 'Change: ${_fmt(change, pool.currency)}';
+                    statusColor = Colors.green.shade700;
+                  }
                 } else if (change < -0.005) {
                   statusLabel = 'Owes: ${_fmt(change.abs(), pool.currency)}';
                   statusColor = theme.colorScheme.error;
@@ -1014,6 +1141,28 @@ class _TempGroupPoolScreenState extends State<TempGroupPoolScreen> {
                               ),
                             ],
                           ),
+                          if (person.owedTo != null &&
+                              person.owedTo!.trim().isNotEmpty) ...[
+                            const SizedBox(height: 6),
+                            Row(
+                              children: [
+                                Icon(
+                                  Icons.person_outline_rounded,
+                                  size: 14,
+                                  color: theme.colorScheme.secondary,
+                                ),
+                                const SizedBox(width: 6),
+                                Expanded(
+                                  child: Text(
+                                    'Owed to ${person.owedTo!}',
+                                    style: theme.textTheme.bodySmall?.copyWith(
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
                           if (person.notes != null &&
                               person.notes!.trim().isNotEmpty) ...[
                             const SizedBox(height: 8),
@@ -1231,17 +1380,19 @@ class _SummaryMetricCard extends StatelessWidget {
   final String label;
   final String value;
   final Color? valueColor;
+  final VoidCallback? onTap;
 
   const _SummaryMetricCard({
     required this.label,
     required this.value,
     this.valueColor,
+    this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    return Container(
+    final card = Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
       decoration: BoxDecoration(
         color: theme.cardColor,
@@ -1251,11 +1402,23 @@ class _SummaryMetricCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            label,
-            style: theme.textTheme.labelSmall,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  label,
+                  style: theme.textTheme.labelSmall,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              if (onTap != null)
+                Icon(
+                  Icons.chevron_right,
+                  size: 14,
+                  color: theme.colorScheme.secondary,
+                ),
+            ],
           ),
           const SizedBox(height: 4),
           FittedBox(
@@ -1272,52 +1435,12 @@ class _SummaryMetricCard extends StatelessWidget {
         ],
       ),
     );
-  }
-}
 
-class _ChangePreviewBanner extends StatelessWidget {
-  final double change;
-  final String currency;
-  final String Function(double, String) formatAmount;
-
-  const _ChangePreviewBanner({
-    required this.change,
-    required this.currency,
-    required this.formatAmount,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final String text;
-    final Color color;
-
-    if (change > 0.005) {
-      text = 'Change to give back: ${formatAmount(change, currency)}';
-      color = Colors.green.shade700;
-    } else if (change < -0.005) {
-      text = 'Still owes: ${formatAmount(change.abs(), currency)}';
-      color = theme.colorScheme.error;
-    } else {
-      text = 'Exact amount — no change needed';
-      color = Colors.teal.shade600;
-    }
-
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(AppTheme.buttonRadius),
-      ),
-      child: Text(
-        text,
-        style: TextStyle(
-          fontSize: 12,
-          fontWeight: FontWeight.w600,
-          color: color,
-        ),
-      ),
+    if (onTap == null) return card;
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(AppTheme.radius),
+      child: card,
     );
   }
 }

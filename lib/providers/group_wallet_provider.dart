@@ -672,4 +672,30 @@ CREATE POLICY "Public access on group_transactions" ON group_transactions FOR AL
     }
     return map;
   }
+
+  /// Clears local Group Wallet profile, credentials, and cached state.
+  Future<void> clearLocalData() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove(_keyProfileId);
+    await prefs.remove(_keyProfileName);
+    await prefs.remove(_keyProfileColor);
+    await prefs.remove(_keySupabaseUrl);
+    await prefs.remove(_keySupabaseKey);
+    await prefs.remove(_keyActiveWalletId);
+
+    _profile = null;
+    _supabaseUrl = null;
+    _supabaseKey = null;
+    _client = null;
+    _missingTables = false;
+    _isConnected = false;
+    _isTablesReady = false;
+    _isLoading = false;
+    _connectionError = null;
+    _wallets = [];
+    _currentWallet = null;
+    _members = [];
+    _transactions = [];
+    notifyListeners();
+  }
 }

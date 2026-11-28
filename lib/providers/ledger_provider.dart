@@ -634,4 +634,18 @@ class LedgerProvider extends ChangeNotifier {
 
     await refreshData();
   }
+
+  /// Permanently deletes all local ledger data and re-seeds default categories.
+  Future<void> clearAllData() async {
+    await _db.transaction(() async {
+      await _db.delete(_db.transactions).go();
+      await _db.delete(_db.loans).go();
+      await _db.delete(_db.subscriptions).go();
+      await _db.delete(_db.accounts).go();
+      await _db.delete(_db.categories).go();
+    });
+    lastUsedAccountId = null;
+    lastUsedCategoryId = null;
+    await _loadInitialData();
+  }
 }

@@ -2,7 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_colorpicker/flutter_colorpicker.dart';
 import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
+import '../providers/group_wallet_provider.dart';
+import '../providers/ledger_provider.dart';
+import '../providers/notification_provider.dart';
 import '../providers/settings_provider.dart';
+import '../providers/temp_group_pool_provider.dart';
 import '../services/update_service.dart';
 import '../theme/app_theme.dart';
 
@@ -281,6 +285,159 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
+  T? _maybeRead<T>() {
+    try {
+      return context.read<T>();
+    } on ProviderNotFoundException {
+      return null;
+    }
+  }
+
+  Future<void> _deleteAllData() async {
+    final settings = context.read<SettingsProvider>();
+    final ledger = _maybeRead<LedgerProvider>();
+    final tempPool = _maybeRead<TempGroupPoolProvider>();
+    final notifications = _maybeRead<NotificationProvider>();
+    final groupWallet = _maybeRead<GroupWalletProvider>();
+
+    await settings.resetAllSettings();
+    await ledger?.clearAllData();
+    await tempPool?.clearAllData();
+    notifications?.clearAll();
+    await groupWallet?.clearLocalData();
+  }
+
+  void _showDeleteAllDataFlow() {
+    final deleteCtrl = TextEditingController();
+    showDialog(
+      context: context,
+      builder: (ctx) {
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            final isValid = deleteCtrl.text.trim().toLowerCase() == 'delete';
+            final errorColor = Theme.of(context).colorScheme.error;
+            return AlertDialog(
+              title: Text(
+                'Delete All Data',
+                style: TextStyle(color: errorColor),
+              ),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'This will permanently erase all accounts, transactions, loans, subscriptions, temporary group pools, notifications, and settings.',
+                  ),
+                  const SizedBox(height: 12),
+                  const Text('Type "delete" below to continue.'),
+                  const SizedBox(height: 10),
+                  TextField(
+                    controller: deleteCtrl,
+                    autofocus: true,
+                    decoration: const InputDecoration(
+                      hintText: 'Type "delete"',
+                    ),
+                    onChanged: (_) => setDialogState(() {}),
+                  ),
+                ],
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(ctx),
+                  child: const Text('Cancel'),
+                ),
+                FilledButton(
+                  style: FilledButton.styleFrom(
+                    backgroundColor: errorColor,
+                    foregroundColor: Colors.white,
+                  ),
+                  onPressed: isValid
+                      ? () {
+                          Navigator.pop(ctx);
+                          _showFinalConfirmDeleteDialog();
+                        }
+                      : null,
+                  child: const Text('Continue'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+
+  void _showFinalConfirmDeleteDialog() {
+    final confirmCtrl = TextEditingController();
+    bool isDeleting = false;
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) {
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            final isValid =
+                !isDeleting &&
+                confirmCtrl.text.trim().toLowerCase() == 'confirm';
+            final errorColor = Theme.of(context).colorScheme.error;
+            return AlertDialog(
+              title: Text(
+                'Final Confirmation',
+                style: TextStyle(color: errorColor),
+              ),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'This action cannot be undone. Type "confirm" below to permanently delete all data.',
+                  ),
+                  const SizedBox(height: 10),
+                  TextField(
+                    controller: confirmCtrl,
+                    autofocus: true,
+                    enabled: !isDeleting,
+                    decoration: const InputDecoration(
+                      hintText: 'Type "confirm"',
+                    ),
+                    onChanged: (_) => setDialogState(() {}),
+                  ),
+                ],
+              ),
+              actions: [
+                TextButton(
+                  onPressed: isDeleting ? null : () => Navigator.pop(ctx),
+                  child: const Text('Cancel'),
+                ),
+                FilledButton(
+                  style: FilledButton.styleFrom(
+                    backgroundColor: errorColor,
+                    foregroundColor: Colors.white,
+                  ),
+                  onPressed: isValid
+                      ? () async {
+                          setDialogState(() => isDeleting = true);
+                          await _deleteAllData();
+                          if (ctx.mounted) Navigator.pop(ctx);
+                          if (mounted) {
+                            ScaffoldMessenger.of(this.context).showSnackBar(
+                              const SnackBar(
+                                content: Text('All data has been deleted.'),
+                              ),
+                            );
+                          }
+                        }
+                      : null,
+                  child: const Text('Delete Everything'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final settings = Provider.of<SettingsProvider>(context);
@@ -420,6 +577,33 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     child: const Text('Scan'),
                   ),
             onTap: _isCheckingUpdates ? null : _scanForUpdates,
+          ),
+          const Divider(),
+          _buildSectionHeader('Danger Zone'),
+          ListTile(
+            leading: Icon(
+              Icons.delete_forever_outlined,
+              color: Theme.of(context).colorScheme.error,
+            ),
+            title: Text(
+              'Delete All Data',
+              style: TextStyle(
+                color: Theme.of(context).colorScheme.error,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            subtitle: const Text(
+              'Permanently erase all local accounts, transactions, pools, and settings',
+            ),
+            trailing: OutlinedButton(
+              onPressed: _showDeleteAllDataFlow,
+              style: OutlinedButton.styleFrom(
+                foregroundColor: Theme.of(context).colorScheme.error,
+                side: BorderSide(color: Theme.of(context).colorScheme.error),
+              ),
+              child: const Text('Delete'),
+            ),
+            onTap: _showDeleteAllDataFlow,
           ),
           const SizedBox(height: 32),
         ],

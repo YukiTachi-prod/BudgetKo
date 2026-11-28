@@ -206,6 +206,7 @@ class TempGroupPoolProvider extends ChangeNotifier {
     required double amountPaid,
     required double amountToPay,
     required String category,
+    String? owedTo,
     String? notes,
   }) async {
     final current = activePool;
@@ -220,6 +221,7 @@ class TempGroupPoolProvider extends ChangeNotifier {
     final cleanCategory = category.trim().isNotEmpty
         ? category.trim()
         : TempGroupPool.defaultCashCategory;
+    final cleanOwedTo = owedTo?.trim();
     final cleanNotes = notes?.trim();
 
     final categories = current.categories.contains(cleanCategory)
@@ -232,6 +234,9 @@ class TempGroupPoolProvider extends ChangeNotifier {
       amountPaid: safePaid,
       amountToPay: safeToPay,
       category: cleanCategory,
+      owedTo: cleanOwedTo != null && cleanOwedTo.isNotEmpty
+          ? cleanOwedTo
+          : null,
       notes: cleanNotes != null && cleanNotes.isNotEmpty ? cleanNotes : null,
     );
 
@@ -265,6 +270,27 @@ class TempGroupPoolProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  Future<void> setParticipantChangeResolved(
+    String participantId,
+    bool resolved,
+  ) async {
+    final current = activePool;
+    if (current == null) return;
+
+    final nextParticipants = current.participants
+        .map(
+          (p) => p.id == participantId
+              ? p.copyWith(isChangeResolved: resolved)
+              : p,
+        )
+        .toList();
+
+    final updated = current.copyWith(participants: nextParticipants);
+    _replacePool(updated);
+    await _persist();
+    notifyListeners();
+  }
+
   Future<void> removeParticipant(String participantId) async {
     final current = activePool;
     if (current == null) return;
@@ -275,6 +301,13 @@ class TempGroupPoolProvider extends ChangeNotifier {
 
     final updated = current.copyWith(participants: nextParticipants);
     _replacePool(updated);
+    await _persist();
+    notifyListeners();
+  }
+
+  Future<void> clearAllData() async {
+    _pools = [];
+    _activePoolId = null;
     await _persist();
     notifyListeners();
   }

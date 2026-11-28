@@ -246,26 +246,59 @@ void main() {
         expect(find.text('Team Lunch'), findsOneWidget);
         expect(find.text('MONEY POOL'), findsOneWidget);
 
-        // Add participant
+        // Add participant (only the FAB "Add Person" button exists, no duplicate header button)
+        expect(find.widgetWithText(TextButton, 'Add Person'), findsNothing);
         await tester.tap(
           find.widgetWithText(FloatingActionButton, 'Add Person'),
         );
         await tester.pumpAndSettle();
 
+        // Dialog title is plaintext "Still owes:" rather than "Add Person"
+        expect(find.text('Still owes: ₱0.00'), findsOneWidget);
+
         final fields = find.byType(TextField);
         await tester.enterText(fields.at(0), 'Alex');
         await tester.enterText(fields.at(1), '500');
         await tester.enterText(fields.at(2), '320');
-        await tester.enterText(fields.at(3), 'Ramen + Gyoza');
+        await tester.enterText(fields.at(3), 'Sam');
+        await tester.enterText(fields.at(4), 'Ramen + Gyoza');
         await tester.tap(find.widgetWithText(FilledButton, 'Add'));
         await tester.pumpAndSettle();
 
-        // Participant, note, change back, and total in pool circle are visible
+        // Participant, owedTo, note, change back, and total in pool circle are visible
         expect(find.text('Alex'), findsOneWidget);
+        expect(find.text('Owed to Sam'), findsOneWidget);
         expect(find.text('Ramen + Gyoza'), findsOneWidget);
         expect(find.textContaining('Change:'), findsOneWidget);
         expect(find.textContaining('180.00'), findsAtLeastNWidgets(1));
         expect(find.textContaining('500.00'), findsAtLeastNWidgets(1));
+
+        // Tap "Change Back" metric card to open Change Back dialog and resolve Alex's change
+        await tester.tap(find.text('Change Back'));
+        await tester.pumpAndSettle();
+        expect(find.widgetWithText(OutlinedButton, 'Resolve'), findsOneWidget);
+        await tester.tap(find.widgetWithText(OutlinedButton, 'Resolve'));
+        await tester.pumpAndSettle();
+        expect(find.text('Resolved'), findsAtLeastNWidgets(1));
+        await tester.tap(find.text('Done'));
+        await tester.pumpAndSettle();
+        expect(tempPool.activePool!.totalChangeBack, 0.0);
+        expect(find.text('Resolved'), findsOneWidget);
+
+        // Switching to "Same for everyone" hides the "Amount to Pay" input completely
+        await tempPool.updateActivePool(
+          isEqualShare: true,
+          equalShareAmount: 250,
+        );
+        await tester.pumpAndSettle();
+        await tester.tap(
+          find.widgetWithText(FloatingActionButton, 'Add Person'),
+        );
+        await tester.pumpAndSettle();
+        expect(find.text('Still owes: ₱250.00'), findsOneWidget);
+        expect(find.textContaining('Amount to Pay'), findsNothing);
+        await tester.tap(find.text('Cancel'));
+        await tester.pumpAndSettle();
 
         // Cancel delete keeps pool intact
         await tester.tap(find.byTooltip('Delete Temporary Pool'));
